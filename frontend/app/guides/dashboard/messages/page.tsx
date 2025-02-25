@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import GuideDashboard from '../page';
 import ChatList from '@/components/ChatList';
-import Chat from '@/components/Chat';
+import Chat from '@/components/MobileChat';
 
 const MessagesPage = () => {
   const [selectedUser, setSelectedUser] = useState(null);

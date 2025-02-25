@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { Star } from "lucide-react";
-import Chat from "@/components/Chat";
+import Chat from "@/components/MobileChat";
 import Chatbot from "@/components/ChatBot";
 import ReviewList from "@/components/ReviewList"
 import ReviewForm from "@/components/ReviewForm";
