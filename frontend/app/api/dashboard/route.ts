@@ -41,7 +41,7 @@ export async function GET(req: Request) {
     filteredData = {
       profile: mockData.guides.find((g) => g.id == userId),
       assignedBookings: mockData.bookings.filter((b) => b.guide == userId),
-      ratings: mockData.ratings.filter((r) => r.guide == userId),
+      ratings: mockData.ratings.filter((r) => r.guide == Number(userId)),
       messages: mockData.messages.filter((m) => m.sender == userId || m.receiver == userId),
     };
   } else if (role === "user") {
