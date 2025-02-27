@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import UserSidebar from "@/components/UserSidebar";
 import { Users, ClipboardList, CreditCard, Star, UserCheck, TrendingUp, Clock } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -14,14 +15,38 @@ const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState({});
   const [recentActivities, setRecentActivities] = useState([]);
   const [topGuides, setTopGuides] = useState([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  
+  const router = useRouter();
 
   useEffect(() => {
+    const role = localStorage.getItem("userRole");
+
+    // Redirect to login if no role is found
+    if (!role) {
+      router.push("/login");
+      return;
+    }
+
+    setUserRole(role);
+
     setTimeout(() => {
       setDashboardData(data);
       setRecentActivities(activities);
       setTopGuides(guides);
     }, 1000);
   }, []);
+
+  // Show loading while checking the role
+  if (!userRole) {
+    return <p className="text-center text-white text-2xl">Loading...</p>;
+  }
+
+  // Redirect unauthorized users
+  if (userRole !== "admin") {
+    router.push("/notfound");
+    return null;
+  }
 
   return (
     <div className="flex bg-[#6999aa] min-h-screen">

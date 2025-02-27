@@ -1,11 +1,23 @@
 "use client";
-import { FaGoogle } from "react-icons/fa";
+
+import { useState } from "react";
+import useSignup from "@/hooks/useSignup";
 
 const SignupPage = () => {
- 
-  
+  const { serverMessage, handleSignup } = useSignup();
 
-  
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const formData = new FormData(event.target as HTMLFormElement);
+    const data = {
+      name: formData.get("fullName") as string,
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
+    };
+
+    handleSignup(data);
+  };
+
   return (
     <div className="min-h-screen bg-primary flex justify-center items-center">
       <div className="max-w-screen-xl bg-white shadow-lg rounded-lg flex w-full overflow-hidden">
@@ -16,43 +28,36 @@ const SignupPage = () => {
             <p className="text-gray-600 mt-2">Create your TravelerConnect account</p>
           </div>
 
-          {/* Social Login Buttons */}
-          <div className="mt-6 flex flex-col gap-4">
-            <a href="http://localhost:5000/auth/google" className="flex items-center justify-center w-full py-3 border border-gray-300 rounded-lg hover:bg-gray-100 transition">
-              <FaGoogle className="text-red-500" />
-              <span className="ml-3 font-medium">Sign Up with Google</span>
-            </a>
-          </div>
-
-          {/* Divider */}
-          <div className="my-6 flex items-center text-gray-500">
-            <div className="flex-1 border-t"></div>
-            <span className="px-3 text-sm">OR</span>
-            <div className="flex-1 border-t"></div>
-          </div>
-
           {/* Sign Up Form */}
-          <form className="space-y-4">
+          <form className="space-y-4 mt-6" onSubmit={handleSubmit}>
             <input
               type="text"
+              name="fullName"
               placeholder="Full Name"
               className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
             <input
               type="email"
+              name="email"
               placeholder="Email"
               className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
             <input
               type="password"
+              name="password"
               placeholder="Password"
               className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
 
-            <button className="w-full py-3 bg-button text-white font-semibold rounded-lg hover:bg-opacity-80 transition">
+            <button
+              type="submit"
+              className="w-full py-3 bg-button text-white font-semibold rounded-lg hover:bg-opacity-80 transition"
+            >
               Create Account
             </button>
           </form>
+
+          {serverMessage && <p className="mt-4 text-center text-red-500">{serverMessage}</p>}
 
           <p className="mt-4 text-sm text-center text-gray-600">
             By signing up, you agree to our{" "}

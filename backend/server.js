@@ -1,30 +1,31 @@
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
-const session = require("express-session");
-const passport = require("passport");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-
-require("./config/passport");
 
 const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 
-app.use(express.json());
-app.use(cookieParser());
-
+// Middleware
+app.use(express.json()); // ✅ Parses JSON body
+app.use(express.urlencoded({ extended: true })); // 
 app.use(
   cors({
     origin: process.env.CLIENT_URL,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
   })
 );
 
+// ✅ Apply Clerk authentication middleware (optional for protected routes)
+// app.use(ClerkExpressRequireAuth()); // ❌ Remove this if you don't want all routes to require auth
 
-app.use("/auth", authRoutes);
+// Routes
+app.use("/auth", authRoutes); // 🔹 Protect specific routes inside `authRoutes`
 
+// ✅ Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Connected to MongoDB"))

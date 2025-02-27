@@ -1,49 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
+import useLogin from "@/hooks/useLogin";
 
 const SignInPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const { error, handleLogin } = useLogin();
 
-  const router = useRouter();
-
-  useEffect(() => {
-    const role = localStorage.getItem("userRole");
-    if (role) {
-      router.push("/");
-    }
-  }, [router]);
-
-  const getUsers = () => {
-    const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-
-    if (storedUsers.length === 0) {
-      const defaultUsers = [
-        { email: "admin@example.com", password: "adminpass", role: "admin" },
-        { email: "user@example.com", password: "userpass", role: "user" },
-        { email: "guide@example.com", password: "guidepass", role: "guide" },
-      ];
-      localStorage.setItem("users", JSON.stringify(defaultUsers));
-      return defaultUsers;
-    }
-    return storedUsers;
-  };
-
-  const handleLogin = (event) => {
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    const users = getUsers();
-    const user = users.find((u) => u.email === email && u.password === password);
-
-    if (user) {
-      localStorage.setItem("email", user.email);
-      localStorage.setItem("userRole", user.role);
-      router.push("/");
-    } else {
-      setError("Invalid email or password!");
-    }
+    handleLogin(email, password);
   };
 
   return (
@@ -53,7 +21,7 @@ const SignInPage = () => {
 
         {error && <p className="bg-red-500 text-white p-2 text-center rounded-md mb-4">{error}</p>}
 
-        <form className="space-y-5" onSubmit={handleLogin}>
+        <form className="space-y-5" onSubmit={handleSubmit}>
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>
             <input
@@ -78,6 +46,10 @@ const SignInPage = () => {
             />
           </div>
 
+          <p className="text-right">
+            <Link href="/verify" className="text-indigo-500">Forgot password?</Link>
+          </p>
+
           <button
             type="submit"
             className="w-full bg-button hover:bg-opacity-80 text-white font-semibold py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -85,6 +57,11 @@ const SignInPage = () => {
             Sign In
           </button>
         </form>
+
+        <p className="text-center mt-4 text-button">
+          New to this website?{" "}
+          <Link href="/signup" className="text-primary font-medium">Create an account</Link>
+        </p>
       </div>
     </div>
   );
