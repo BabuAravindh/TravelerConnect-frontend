@@ -8,8 +8,8 @@ const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 
-// Middleware
-app.use(express.json()); // ✅ Parses JSON body
+
+app.use(express.json()); 
 app.use(express.urlencoded({ extended: true })); // 
 app.use(
   cors({
@@ -19,13 +19,12 @@ app.use(
   })
 );
 
-// ✅ Apply Clerk authentication middleware (optional for protected routes)
-// app.use(ClerkExpressRequireAuth()); // ❌ Remove this if you don't want all routes to require auth
 
-// Routes
-app.use("/auth", authRoutes); // 🔹 Protect specific routes inside `authRoutes`
 
-// ✅ Connect to MongoDB
+// AuthRoutes
+app.use("/auth", authRoutes); 
+
+// Connection to mongodb atlas
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Connected to MongoDB"))

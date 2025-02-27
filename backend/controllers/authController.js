@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// 🛠️ **Signup Controller**
+// Signup Controller
 const signup = async (req, res) => {
     try {
         console.log("✅ Received Data:", req.body);
@@ -59,7 +59,7 @@ const signup = async (req, res) => {
     }
 };
 
-// 🔑 **Login Controller**
+// Login Controller
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -86,7 +86,7 @@ const login = async (req, res) => {
     }
 };
 
-// ✉️ **Forgot Password Controller**
+// Forgot Password Controller
 const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
@@ -129,7 +129,7 @@ const forgotPassword = async (req, res) => {
     }
 };
 
-// ✅ **Verify Reset Code Controller**
+// Verify Reset Code Controller
 const verifyResetCode = async (req, res) => {
     try {
         const { otp } = req.body;
@@ -149,7 +149,7 @@ const verifyResetCode = async (req, res) => {
     }
 };
 
-// 🔄 **Reset Password Controller**
+// Reset Password Controller
 const resetPassword = async (req, res) => {
     try {
         console.log("Received request:", req.body);
