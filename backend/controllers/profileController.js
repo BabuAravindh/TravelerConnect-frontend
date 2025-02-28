@@ -30,22 +30,17 @@ const createOrUpdateProfile = async (req, res) => {
     let { userId } = req.params;
     const profileData = req.body;
 
-    console.log("Received userId:", userId);
-    console.log("Type of userId:", typeof userId);
-    console.log("UserId Length:", userId.length);
+    userId = userId.trim().replace(/"/g, "");
 
-    // ✅ Step 1: Ensure userId is 24 characters
     if (!userId || userId.length !== 24) {
       return res.status(400).json({ message: "Invalid user ID format (must be 24 characters)" });
     }
 
-    // ✅ Step 2: Convert to ObjectId before querying
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Invalid ObjectId format" });
     }
     userId = new mongoose.Types.ObjectId(userId);
 
-    // ✅ Step 3: Validate role
     if (!profileData.role || !["user", "guide"].includes(profileData.role)) {
       return res.status(400).json({ message: "Role must be 'user' or 'guide'." });
     }
@@ -53,11 +48,13 @@ const createOrUpdateProfile = async (req, res) => {
     let profile = await UserProfile.findOne({ userId });
 
     if (profile) {
-      // ✅ Update existing profile
-      profile = await UserProfile.findOneAndUpdate({ userId }, profileData, { new: true });
+      profile = await UserProfile.findOneAndUpdate(
+        { userId },
+        { $set: profileData },
+        { new: true, runValidators: true }
+      );
       return res.status(200).json({ message: "Profile updated successfully", profile });
     } else {
-      // ✅ Create new profile
       profile = new UserProfile({ userId, ...profileData });
       await profile.save();
       return res.status(201).json({ message: "Profile created successfully", profile });
@@ -67,6 +64,7 @@ const createOrUpdateProfile = async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 };
+
 
 
 // ✅ Delete user/guide profile

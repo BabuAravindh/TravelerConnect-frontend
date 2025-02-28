@@ -27,10 +27,20 @@ export default function ProfilePage() {
   });
 
   const [isLoading, setIsLoading] = useState(true);
-  const [isNewUser, setIsNewUser] = useState(false); // Check if profile exists
-  const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  // ✅ Fetch user profile when component mounts
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+  useEffect(() => {
+    const storedUserId = localStorage.getItem("userId");
+    if (storedUserId) setUserId(storedUserId);
+  }, []);
+
+  useEffect(() => {
+    if (userId) fetchProfile();
+  }, [userId]);
+
   const fetchProfile = async () => {
     if (!userId) {
       setIsLoading(false);
@@ -39,21 +49,21 @@ export default function ProfilePage() {
 
     try {
       setIsLoading(true);
-      const res = await fetch(`http://localhost:5000/api/profile/${userId}`);
+      const res = await fetch(`${API_BASE_URL}/api/profile/${userId}`);
       const data = await res.json();
 
-      if (data.isNewUser) {
-        setIsNewUser(true); // No profile exists
+      if (!data.profile || Object.keys(data.profile).length === 0) {
+        setIsNewUser(true);
       } else {
         setProfile({
-          firstName: data.firstName || "",
-          lastName: data.lastName || "",
-          phone: data.phoneNumber || "",
-          dateOfBirth: data.dateOfBirth || "",
-          city: data.address?.city || "",
-          country: data.address?.countryId || "",
-          gender: data.gender || "",
-          profilePic: data.profilePicture || "/default-avatar.png",
+          firstName: data.profile.firstName || "",
+          lastName: data.profile.lastName || "",
+          phone: data.profile.phoneNumber || "",
+          dateOfBirth: data.profile.dateOfBirth || "",
+          city: data.profile.address?.city || "",
+          country: data.profile.address?.countryId || "",
+          gender: data.profile.gender || "",
+          profilePic: data.profile.profilePicture || "/default-avatar.png",
         });
         setIsNewUser(false);
       }
@@ -64,11 +74,6 @@ export default function ProfilePage() {
     }
   };
 
-  useEffect(() => {
-    fetchProfile();
-  }, [userId]);
-
-  // ✅ Handle Profile Creation
   const handleCreateProfile = async () => {
     if (!userId) {
       toast.error("User not found. Please log in.");
@@ -76,10 +81,10 @@ export default function ProfilePage() {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/profile/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/profile/${userId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: JSON.stringify({ userId, ...profile }),
       });
 
       if (!response.ok) throw new Error("Failed to create profile.");
@@ -92,7 +97,6 @@ export default function ProfilePage() {
     }
   };
 
-  // ✅ Handle Profile Update
   const handleUpdateProfile = async () => {
     if (!userId) {
       toast.error("User not found. Please log in.");
