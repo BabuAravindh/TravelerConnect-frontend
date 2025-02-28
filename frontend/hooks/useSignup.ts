@@ -12,9 +12,13 @@ const useSignup = () => {
     try {
       const response = await axios.post("http://localhost:5000/auth/signup", data);
       
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("name", response.data.user.name);
-      localStorage.setItem("role", response.data.user.role);
+      const { token, user } = response.data;
+
+      // ✅ Save user details to localStorage
+      localStorage.setItem("token", token);
+      localStorage.setItem("userId", user._id);  // ✅ Store user ID
+      localStorage.setItem("name", user.name);
+      localStorage.setItem("role", user.role);
 
       setServerMessage("✅ Signup successful! Redirecting...");
 

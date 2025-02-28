@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
-
+const country = require('./Country')
+const state = require('./State')
 const userProfileSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   firstName: { type: String, required: true },
@@ -20,6 +21,12 @@ const userProfileSchema = new mongoose.Schema({
     type: String,
     enum: ["male", "female", "others"],
   },
+  role: { 
+    type: String, 
+    enum: ["user", "guide"], 
+    required: true 
+  },
+  
 });
 
 const UserProfile = mongoose.model("UserProfile", userProfileSchema);

@@ -2,11 +2,32 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const cookieParser = require("cookie-parser");
-
-const authRoutes = require("./routes/authRoutes");
-
 const app = express();
+
+
+
+//Routes imports
+const authRoutes = require("./routes/authRoutes");
+const profileRoutes = require('./routes/profileRoutes')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 app.use(express.json()); 
@@ -23,6 +44,30 @@ app.use(
 
 // AuthRoutes
 app.use("/auth", authRoutes); 
+//ProfileRoutes
+app.use("/api/profile", profileRoutes);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Connection to mongodb atlas
 mongoose
