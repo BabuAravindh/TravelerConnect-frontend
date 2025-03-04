@@ -1,49 +1,46 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useState,useEffect } from "react";
-import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
+import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line
 } from "recharts";
 import Sidebar from "@/components/SideBar";
 
-const MapChart = dynamic(() => import("@/components/MapChart"), { ssr: false });
+const bookingData = [
+  { month: "Jan", bookings: 10 },
+  { month: "Feb", bookings: 15 },
+  { month: "Mar", bookings: 7 },
+  { month: "Apr", bookings: 12 },
+  { month: "May", bookings: 20 },
+];
 
-const GuideDashboard = ({ children }: { children: React.ReactNode }) => {
-  const [role, setRole] = useState(null);
+const earningData = [
+  { month: "Jan", earnings: 500 },
+  { month: "Feb", earnings: 750 },
+  { month: "Mar", earnings: 400 },
+  { month: "Apr", earnings: 900 },
+  { month: "May", earnings: 1100 },
+];
+
+export default function GuideDashboard() {
+  const [role, setRole] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const storedRole = localStorage.getItem("userRole");
     if (storedRole !== "guide") {
-      router.push("/"); // Redirect if not a guide
+      router.push("/");
     } else {
       setRole(storedRole);
     }
-  }, []);
+  }, [router]);
 
-  if (!role) return <p>Loading...</p>;
   const pathname = usePathname();
   const isOverviewPage = pathname === "/guides/dashboard";
 
-  const bookingData = [
-    { month: "Jan", bookings: 10 },
-    { month: "Feb", bookings: 15 },
-    { month: "Mar", bookings: 7 },
-    { month: "Apr", bookings: 12 },
-    { month: "May", bookings: 20 },
-  ];
-
-  const earningData = [
-    { month: "Jan", earnings: 500 },
-    { month: "Feb", earnings: 750 },
-    { month: "Mar", earnings: 400 },
-    { month: "Apr", earnings: 900 },
-    { month: "May", earnings: 1100 },
-  ];
+  if (!role) return <p>Loading...</p>;
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -76,13 +73,13 @@ const GuideDashboard = ({ children }: { children: React.ReactNode }) => {
               </DashboardCard>
             </div>
           ) : (
-            <div>{children}</div>
+            <p>No additional content</p>
           )}
         </div>
       </main>
     </div>
   );
-};
+}
 
 const DashboardCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="bg-gray-50 p-4 rounded-lg shadow-md">
@@ -90,5 +87,3 @@ const DashboardCard = ({ title, children }: { title: string; children: React.Rea
     {children}
   </div>
 );
-
-export default GuideDashboard;

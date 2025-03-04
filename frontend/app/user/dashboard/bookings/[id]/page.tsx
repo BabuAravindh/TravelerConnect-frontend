@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Calendar, Clock, IndianRupee, MapPin, User } from "lucide-react";
-
+import { Calendar, Clock, IndianRupee,  User } from "lucide-react";
+import Image from "next/image";
 type Booking = {
   _id: string;
   date: string;
@@ -47,7 +47,13 @@ export default function BookingDetails() {
 
       {booking && (
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <img src={booking.guideImage} alt={booking.guide} className="w-full h-60 object-cover rounded-lg" />
+          <Image 
+  src={booking.guideImage} 
+  alt={booking.guide} 
+  width={600}  // Adjust as needed
+  height={240} // Adjust as needed
+  className="w-full h-60 object-cover rounded-lg"
+/>
 
           <div className="mt-4">
             <h3 className="text-2xl font-semibold">{booking.location}</h3>

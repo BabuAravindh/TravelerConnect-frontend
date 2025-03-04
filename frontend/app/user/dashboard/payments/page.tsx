@@ -18,6 +18,12 @@ const lastPaymentDate = userPayments
   .filter(p => p.paymentStatus === 'completed')
   .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0]?.completedAt || 'N/A';
 
+const statusColors: Record<"completed" | "pending" | "failed", string> = {
+  completed: "bg-green-50 text-green-700 border-green-300",
+  pending: "bg-yellow-50 text-yellow-700 border-yellow-300",
+  failed: "bg-red-50 text-red-700 border-red-300"
+};
+
 const PaymentsPage = () => {
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -52,11 +58,7 @@ const PaymentsPage = () => {
             <div className="border-t border-gray-300 pt-4 space-y-4">
               {userPayments.map((payment) => {
                 const paymentMode = Object.values(modeOfPayment).find(m => m._id === payment.modeOfPaymentId);
-                const statusColors = {
-                  completed: "bg-green-50 text-green-700 border-green-300",
-                  pending: "bg-yellow-50 text-yellow-700 border-yellow-300",
-                  failed: "bg-red-50 text-red-700 border-red-300"
-                };
+                const paymentStatusClass = statusColors[payment.paymentStatus as keyof typeof statusColors];
 
                 return (
                   <motion.div 
@@ -66,14 +68,16 @@ const PaymentsPage = () => {
                     transition={{ duration: 0.3 }}
                   >
                     <Link href={`/user/dashboard/payments/${payment._id}`}>
-                      <div className={`p-6 rounded-lg shadow-sm flex justify-between items-center cursor-pointer border ${statusColors[payment.paymentStatus]}`}>
+                      <div className={`p-6 rounded-lg shadow-sm flex justify-between items-center cursor-pointer border ${paymentStatusClass}`}>
                         <div>
                           <p className="text-lg font-semibold text-gray-900">Rs. {payment.amount}</p>
                           <p className="text-sm text-gray-600">{paymentMode?.modeOfPayment || "Unknown Method"}</p>
                         </div>
                         <div className="text-right flex items-center gap-2">
-                          {payment.paymentStatus === 'completed' ? <CheckCircle className="text-green-700" /> : payment.paymentStatus === 'pending' ? <Clock className="text-yellow-700" /> : <XCircle className="text-red-700" />}
-                          <p className={`text-sm font-bold ${statusColors[payment.paymentStatus]}`}>{payment.paymentStatus}</p>
+                          {payment.paymentStatus === 'completed' ? <CheckCircle className="text-green-700" /> : 
+                          payment.paymentStatus === 'pending' ? <Clock className="text-yellow-700" /> : 
+                          <XCircle className="text-red-700" />}
+                          <p className={`text-sm font-bold ${paymentStatusClass}`}>{payment.paymentStatus}</p>
                           <p className="text-sm text-gray-500">{payment.updatedAt}</p>
                         </div>
                       </div>
@@ -85,7 +89,7 @@ const PaymentsPage = () => {
           </div>
         </main>
 
-        <footer className="bg-primary text-white py-6 text-center  shadow-lg">
+        <footer className="bg-primary text-white py-6 text-center shadow-lg">
           <p className="text-sm">&copy; 2025 TravelerConnect. All rights reserved.</p>
         </footer>
       </div>

@@ -1,4 +1,4 @@
-import GuideDashboard from "../page";
+
 
 export default function GuideReviews() {
     const reviews = [
@@ -23,24 +23,24 @@ export default function GuideReviews() {
     ];
   
     return (
-        <GuideDashboard>
-      <div classNameName="max-w-2xl mx-auto p-6 bg-white shadow-lg rounded-lg">
-        <h2 classNameName="text-2xl font-bold text-gray-800 mb-4">Reviews & Ratings</h2>
+        <>
+      <div className="max-w-2xl mx-auto p-6 bg-white shadow-lg rounded-lg">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Reviews & Ratings</h2>
         {reviews.length > 0 ? (
-          <ul classNameName="space-y-4">
+          <ul className="space-y-4">
             {reviews.map((review) => (
-              <li key={review._id} classNameName="p-4 border rounded-lg shadow-md bg-gray-50">
-                <p classNameName="font-semibold text-lg text-gray-800">{review.userId.name}</p>
-                <p classNameName="text-yellow-500 text-lg">⭐ {review.rating} / 5</p>
-                <p classNameName="text-gray-600">{review.review}</p>
+              <li key={review._id} className="p-4 border rounded-lg shadow-md bg-gray-50">
+                <p className="font-semibold text-lg text-gray-800">{review.userId.name}</p>
+                <p className="text-yellow-500 text-lg">⭐ {review.rating} / 5</p>
+                <p className="text-gray-600">{review.review}</p>
               </li>
             ))}
           </ul>
         ) : (
-          <p classNameName="text-gray-500 text-center">No reviews yet.</p>
+          <p className="text-gray-500 text-center">No reviews yet.</p>
         )}
       </div>
-      </GuideDashboard>
+      </>
     );
     
   }

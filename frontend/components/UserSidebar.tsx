@@ -3,17 +3,31 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, X } from "lucide-react";
-import { roleBasedNavItems } from "@/data/data"; // Import the nav items
+import { LogOut, Menu, X, Home, Calendar, MessageSquare, User } from "lucide-react";
+import { roleBasedNavItems } from "@/data/data";
+
+// Define valid user roles
+type UserRole = "admin" | "user" | "guide" | null;
+
+// Map icon names to actual Lucide icons
+const iconMap: Record<string, React.ElementType> = {
+  Home,
+  Calendar,
+  MessageSquare,
+  User,
+};
 
 const UserSidebar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [userRole, setUserRole] = useState(null);
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [userRole, setUserRole] = useState<UserRole>(null);
   const pathname = usePathname();
 
+  // Get user role from localStorage
   useEffect(() => {
-    const role = localStorage.getItem("userRole");
-    setUserRole(role);
+    const storedRole = localStorage.getItem("userRole") as UserRole;
+    if (storedRole === "admin" || storedRole === "user" || storedRole === "guide") {
+      setUserRole(storedRole);
+    }
   }, []);
 
   const handleLogout = () => {
@@ -22,7 +36,7 @@ const UserSidebar = () => {
     window.location.href = "/login";
   };
 
-  const navItems = roleBasedNavItems[userRole] || [];
+  const navItems = userRole ? roleBasedNavItems[userRole] : [];
 
   return (
     <>
@@ -47,8 +61,9 @@ const UserSidebar = () => {
 
         {/* Navigation Items */}
         <nav className="mt-6 space-y-2 px-4 h-screen">
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, label, icon }) => {
             const isActive = pathname === href;
+            const IconComponent = iconMap[icon] || User; // Default to `User` icon if not found
 
             return (
               <Link
@@ -58,7 +73,7 @@ const UserSidebar = () => {
                   isActive ? "bg-opacity-90 text-white" : "hover:bg-opacity-90 hover:text-white text-gray-300"
                 }`}
               >
-                <Icon size={20} className={isActive ? "text-white" : "text-gray-400"} />
+                <IconComponent size={20} className={isActive ? "text-white" : "text-gray-400"} />
                 <span className="text-sm font-medium">{label}</span>
               </Link>
             );

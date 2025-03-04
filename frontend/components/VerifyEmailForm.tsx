@@ -41,7 +41,7 @@ const VerifyEmailForm = () => {
                 {loading ? "Verifying..." : "Verify Account"}
               </button>
               <div className="flex flex-row items-center justify-center space-x-1 text-sm font-medium text-gray-500">
-                <p>Didn't receive code?</p>
+              <p>Didn&apos;t receive code?</p>
                 <button
                   type="button"
                   className="text-button disabled:opacity-50"

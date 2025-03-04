@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import useSignup from "@/hooks/useSignup";
 
+import useSignup from "@/hooks/useSignup";
+import Image from "next/image";
 const SignupPage = () => {
   const { serverMessage, handleSignup } = useSignup();
 
@@ -71,13 +71,13 @@ const SignupPage = () => {
         </div>
 
         {/* Right Section - Illustration */}
-        <div className="hidden lg:flex items-center justify-center w-1/2 bg-indigo-100">
-          <img
-            src="https://storage.googleapis.com/devitary-image-host.appspot.com/15848031292911696601-undraw_designer_life_w96d.svg"
-            alt="Traveler Illustration"
-            className="max-w-xs"
-          />
-        </div>
+        <Image
+  src="https://storage.googleapis.com/devitary-image-host.appspot.com/15848031292911696601-undraw_designer_life_w96d.svg"
+  alt="Traveler Illustration"
+  width={300} // Adjust width
+  height={300} // Adjust height
+  className="max-w-xs"
+/>
       </div>
     </div>
   );

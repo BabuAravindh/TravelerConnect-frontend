@@ -10,7 +10,7 @@ const dummyGuides = [
 ];
 
 const GuidesPage = () => {
-  const [guides, setGuides] = useState(dummyGuides);
+  const [guides] = useState(dummyGuides);
 
   return (
     <div className="flex">

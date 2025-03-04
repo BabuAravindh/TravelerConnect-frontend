@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import UserSidebar from "@/components/UserSidebar";
 import { Calendar, CheckCircle, Clock, IndianRupee, MapPin } from "lucide-react";
-
+import Image from "next/image";
 type Booking = {
   _id: string;
   tripDate: string;
@@ -29,7 +29,8 @@ export default function UserBookings() {
       setLoading(false);
       return;
     }
-
+    console.log(storedUserId)
+    console.log('http://localhost:5000/api/booking/user/${storedUserId}')
     fetch(`http://localhost:5000/api/booking/user/${storedUserId}`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch bookings");
@@ -43,17 +44,19 @@ export default function UserBookings() {
           throw new Error("Invalid response format, expected an array");
         }
 
-        const formattedBookings = data.map((booking: any) => ({
-          _id: booking._id,
+        const formattedBookings = data.map((booking: Booking) => ({
+          _id: booking._id.toString(),
           tripDate: booking.tripDate ? new Date(booking.tripDate).toDateString() : "N/A",
           bookingDate: booking.bookingDate ? new Date(booking.bookingDate).toDateString() : "N/A",
-          places: booking.places?.length > 0 ? booking.places.join(", ") : "Not specified",
-          guideName: booking.guideId?.name || "Guide not assigned",
+          places: Array.isArray(booking.places) ? booking.places.join(", ") : "Not specified",
+          guideName: booking.guideName || "Guide not assigned",
           guideImage: booking.guideImage || "https://example.com/default-guide.jpg",
-          duration: booking.duration || "N/A",
+          duration: typeof booking.duration === "number" ? booking.duration : parseInt(booking.duration) || 0,  // ✅ Ensure duration is a number
           price: booking.price ? `₹${booking.price}` : "N/A",
           status: booking.status || "Unknown",
         }));
+        
+        
 
         console.log("Formatted Bookings:", formattedBookings); // Debugging
         setBookings(formattedBookings);
@@ -75,17 +78,19 @@ export default function UserBookings() {
         {loading && <p className="text-gray-500 text-center">Loading bookings...</p>}
         {error && <p className="text-red-500 text-center">{error}</p>}
 
-        {!loading && !error && bookings.length > 0 ? (
+        {!loading && !error && Array.isArray(bookings) && bookings.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {bookings.map((booking) => (
               <Link key={booking._id} href={`/user/dashboard/bookings/${booking._id}`}>
                 <div className="bg-primary rounded-2xl shadow-lg overflow-hidden border border-gray-200 transform transition-all duration-300 hover:scale-[1.02]">
                   <div className="relative">
-                    <img
-                      src={booking.guideImage}
-                      alt={booking.guideName}
-                      className="w-full h-40 object-cover"
-                    />
+                  <Image 
+  src={booking.guideImage} 
+  alt={booking.guideName} 
+  width={400}  
+  height={160} 
+  className="w-full h-40 object-cover"
+/>
                     <div className="absolute bottom-2 left-2 bg-black/50 text-white px-3 py-1 text-sm rounded-lg">
                       Guide: {booking.guideName}
                     </div>

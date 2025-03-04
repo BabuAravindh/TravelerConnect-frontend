@@ -23,9 +23,10 @@ const HeroSection = () => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
     }, imageChangeTime);
-
+  
     return () => clearInterval(interval);
-  }, []);
+  }, [images.length]); // Add images.length as a dependency
+  ;
 
   return (
     <>

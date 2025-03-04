@@ -1,14 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Edit, Trash, UserCheck, UserX, Users, ShieldCheck, Lock, Settings } from "lucide-react";
+import { Search, Edit, Trash} from "lucide-react";
 import Link from "next/link";
 import UserSidebar from "@/components/UserSidebar";
 
-const UsersPage = () => {
-  const [users, setUsers] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortOrder, setSortOrder] = useState("asc");
+// Define a type for User
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: "User" | "Admin";
+}
+
+const UsersPage: React.FC = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     setTimeout(() => {
@@ -33,38 +41,11 @@ const UsersPage = () => {
       <UserSidebar />
 
       <div className="p-6 w-full">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-gray-800">User Management</h1>
           <span className="text-gray-500">🔹 Manage & Control All Users</span>
         </div>
 
-        {/* Quick Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 shadow-md rounded-lg flex items-center gap-4">
-            <Users size={32} className="text-blue-600" />
-            <div>
-              <p className="text-xl font-semibold">Total Users</p>
-              <p className="text-gray-500">3 Registered</p>
-            </div>
-          </div>
-          <div className="bg-white p-6 shadow-md rounded-lg flex items-center gap-4">
-            <ShieldCheck size={32} className="text-green-600" />
-            <div>
-              <p className="text-xl font-semibold">Admins</p>
-              <p className="text-gray-500">1 Admin</p>
-            </div>
-          </div>
-          <div className="bg-white p-6 shadow-md rounded-lg flex items-center gap-4">
-            <Lock size={32} className="text-red-600" />
-            <div>
-              <p className="text-xl font-semibold">Restricted Users</p>
-              <p className="text-gray-500">0 Blocked</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Search Bar */}
         <div className="mb-6 flex items-center bg-white p-4 rounded-lg shadow-md">
           <Search className="text-gray-400 mr-3" size={20} />
           <input
@@ -76,7 +57,6 @@ const UsersPage = () => {
           />
         </div>
 
-        {/* Users Table */}
         <div className="bg-white shadow-md rounded-lg overflow-hidden">
           <table className="w-full text-left">
             <thead>
@@ -95,11 +75,11 @@ const UsersPage = () => {
             <tbody>
               {sortedUsers.map((user) => (
                 <tr key={user.id} className="border-b hover:bg-gray-50">
-                 <td className="p-4">
-  <Link href={`/dashboard/users/${user.id}`} className="text-blue-600 hover:underline">
-    {user.name}
-  </Link>
-</td>
+                  <td className="p-4">
+                    <Link href={`/dashboard/users/${user.id}`} className="text-blue-600 hover:underline">
+                      {user.name}
+                    </Link>
+                  </td>
                   <td className="p-4">{user.email}</td>
                   <td className="p-4">
                     <span className={`px-3 py-1 rounded-full text-sm font-semibold 
@@ -119,31 +99,6 @@ const UsersPage = () => {
               ))}
             </tbody>
           </table>
-        </div>
-
-        {/* Information Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          <div className="bg-blue-50 p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Settings size={24} className="text-blue-600" /> How User Management Works?
-            </h2>
-            <ul className="text-gray-700 space-y-3">
-              <li>✅ **Registration & Roles:** Users sign up and get assigned roles.</li>
-              <li>✅ **Data Management:** Admins can update or delete user info.</li>
-              <li>✅ **Security:** Inactive or restricted users can be removed.</li>
-            </ul>
-          </div>
-
-          <div className="bg-green-50 p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <ShieldCheck size={24} className="text-green-600" /> Why User Management Matters?
-            </h2>
-            <ul className="text-gray-700 space-y-3">
-              <li>🔹 **Improved Security:** Prevents unauthorized access.</li>
-              <li>🔹 **Efficient Operations:** Streamlines user interactions.</li>
-              <li>🔹 **Role-Based Control:** Ensures proper access levels.</li>
-            </ul>
-          </div>
         </div>
       </div>
     </div>

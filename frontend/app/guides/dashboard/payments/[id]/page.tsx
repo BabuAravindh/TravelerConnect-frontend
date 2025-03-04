@@ -1,7 +1,13 @@
+// Remove or comment out unused imports
+
 'use client';
 
-import GuideDashboard from "../../page";
+
 import { useParams } from "next/navigation";
+
+// Comment out if you plan to use them later
+// import { CreditCard, Calendar } from "some-icon-library";
+// import UserSidebar from "somewhere";
 
 const payments = [
   {
@@ -37,7 +43,7 @@ const PaymentDetails = () => {
   }
 
   return (
-    <GuideDashboard>
+    <>
       <div className="max-w-3xl mx-auto p-6 bg-white shadow-md rounded-lg">
         <h2 className="text-2xl font-bold mb-4">💳 Payment Details</h2>
         <p className="text-lg font-semibold">Customer: {payment.customer}</p>
@@ -54,7 +60,7 @@ const PaymentDetails = () => {
           </ul>
         </div>
       </div>
-    </GuideDashboard>
+    </>
   );
 };
 

@@ -1,6 +1,49 @@
+import { FC } from "react";
 import { MessageSquare, Calendar, CreditCard, Star, User } from "lucide-react";
 
-const Dashboard = ({ userRole, userId, data }) => {
+type Message = {
+  id: string;
+  sender: string;
+  text: string;
+};
+
+type Booking = {
+  id: string;
+  guide: string;
+  status: string;
+};
+
+type Payment = {
+  id: string;
+  amount: string;
+  status: string;
+};
+
+type Rating = {
+  id: string;
+  rating: number;
+};
+
+type Profile = {
+  name: string;
+  email: string;
+};
+
+type DashboardData = {
+  profile?: Profile;
+  messages?: Message[];
+  myBookings?: Booking[];
+  myPayments?: Payment[];
+  ratings?: Rating[];
+};
+
+type DashboardProps = {
+  userRole: string;
+  userId: string;
+  data: Partial<DashboardData>;
+};
+
+const Dashboard: FC<DashboardProps> = ({ userRole, userId, data }) => {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-3xl font-bold text-gray-800">
@@ -8,7 +51,7 @@ const Dashboard = ({ userRole, userId, data }) => {
       </h1>
 
       {/* Profile Section */}
-      {data?.profile && (
+      {data.profile && (
         <section className="bg-white shadow-md rounded-xl p-5">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <User className="w-5 h-5 text-gray-500" />
@@ -29,12 +72,12 @@ const Dashboard = ({ userRole, userId, data }) => {
           <MessageSquare className="w-5 h-5 text-blue-500" />
           Messages
         </h2>
-        {data?.messages?.length > 0 ? (
+        {data.messages && data.messages.length > 0 ? (
           <ul className="mt-3 space-y-2">
             {data.messages.map((msg) => (
               <li key={msg.id} className="p-3 bg-gray-50 rounded-lg shadow-sm border">
-                <strong className={msg.sender == userId ? "text-blue-600" : "text-gray-700"}>
-                  {msg.sender == userId ? "You" : `User ${msg.sender}`}:
+                <strong className={msg.sender === userId ? "text-blue-600" : "text-gray-700"}>
+                  {msg.sender === userId ? "You" : `User ${msg.sender}`}:
                 </strong>{" "}
                 {msg.text}
               </li>
@@ -46,7 +89,7 @@ const Dashboard = ({ userRole, userId, data }) => {
       </section>
 
       {/* Bookings Section */}
-      {data?.myBookings?.length > 0 && (
+      {data.myBookings && data.myBookings.length > 0 && (
         <section className="bg-white shadow-md rounded-xl p-5">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <Calendar className="w-5 h-5 text-green-500" />
@@ -65,7 +108,7 @@ const Dashboard = ({ userRole, userId, data }) => {
       )}
 
       {/* Payments Section */}
-      {data?.myPayments?.length > 0 && (
+      {data.myPayments && data.myPayments.length > 0 && (
         <section className="bg-white shadow-md rounded-xl p-5">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-purple-500" />
@@ -74,7 +117,8 @@ const Dashboard = ({ userRole, userId, data }) => {
           <ul className="mt-3 space-y-2">
             {data.myPayments.map((payment) => (
               <li key={payment.id} className="p-3 bg-gray-50 rounded-lg shadow-sm border">
-                Payment <strong>#{payment.id}</strong> - <span className="text-gray-600">{payment.amount}</span> -{" "}
+                Payment <strong>#{payment.id}</strong> -{" "}
+                <span className="text-gray-600">{payment.amount}</span> -{" "}
                 <span className="text-gray-600">{payment.status}</span>
               </li>
             ))}
@@ -83,7 +127,7 @@ const Dashboard = ({ userRole, userId, data }) => {
       )}
 
       {/* Ratings Section */}
-      {data?.ratings?.length > 0 && (
+      {data.ratings && data.ratings.length > 0 && (
         <section className="bg-white shadow-md rounded-xl p-5">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <Star className="w-5 h-5 text-yellow-500" />

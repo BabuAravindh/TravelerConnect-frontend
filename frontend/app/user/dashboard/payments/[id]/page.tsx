@@ -3,8 +3,8 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { CheckCircle, Clock, XCircle, ArrowLeft, CreditCard, Calendar, Info } from 'lucide-react';
-import UserSidebar from '@/components/UserSidebar';
+import { CheckCircle, Clock, XCircle, ArrowLeft, Info } from 'lucide-react';
+
 import { payments, modeOfPayment } from '@/data/data';
 
 const PaymentDetailsPage = () => {

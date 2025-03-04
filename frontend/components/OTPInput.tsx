@@ -15,7 +15,11 @@ const OTPInput: React.FC<OTPInputProps> = ({ code, inputRefs, handleChange, hand
       {code.map((digit, index) => (
         <input
           key={index}
-          ref={(el) => (inputRefs.current![index] = el)}
+          ref={(el) => {
+            if (inputRefs.current) {
+              inputRefs.current[index] = el;
+            }
+          }}
           className="h-16 w-16 flex items-center justify-center rounded-xl border border-gray-200 bg-white px-5 text-center text-lg outline-none ring-primary focus:bg-gray-50 focus:ring-1"
           type="text"
           maxLength={1}

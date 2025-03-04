@@ -29,7 +29,7 @@ const getProfile = async (req, res) => {
 const createOrUpdateProfile = async (req, res) => {
   try {
     const { firstName, lastName, gender } = req.body;
-
+    
     // Check for missing required fields
     if (!firstName || !lastName) {
       return res.status(400).json({ error: "First name and last name are required." });
@@ -42,8 +42,8 @@ const createOrUpdateProfile = async (req, res) => {
     }
 
     // Proceed with profile creation or update
-    const profile = await Profile.findOneAndUpdate(
-      { userId: req.user.id },
+    const profile = await UserProfile.findOneAndUpdate(
+      { userId: req.userId },
       { firstName, lastName, gender },
       { new: true, upsert: true, runValidators: true }
     );

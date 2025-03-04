@@ -4,15 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 const ReviewForm = () => {
-  const [rating, setRating] = useState(null);
-  const [review, setReview] = useState('');
-
-  const handleRating = (value) => {
-    setRating(value);
-  };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const [rating, setRating] = useState<number | null>(null);
+  const [review, setReview] = useState<string>('');
 
   return (
-    <div className="p-4  mx-auto bg-primary rounded-lg shadow-md max-w-full sm:p-6 grid grid-cols-1 lg:grid-cols-6 gap-6">
+    <div className="p-4 mx-auto bg-primary rounded-lg shadow-md max-w-full sm:p-6 grid grid-cols-1 lg:grid-cols-6 gap-6">
       <div className="lg:col-span-4 col-span-1">
         <form className="space-y-4">
           <h2 className="text-2xl font-semibold text-white mb-4">Write a review</h2>
@@ -24,7 +21,7 @@ const ReviewForm = () => {
                   name="rating"
                   value={value}
                   className="hidden"
-                  onChange={() => handleRating(value)}
+                  onChange={() => setRating(value)}
                 />
                 ★
               </label>
@@ -33,7 +30,7 @@ const ReviewForm = () => {
           <textarea
             id="review"
             name="review"
-            rows="4"
+            rows={4}
             required
             className="block w-full p-3 text-sm text-gray-900 bg-gray-50 rounded-md border border-gray-300 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Write your review"
@@ -55,8 +52,8 @@ const ReviewForm = () => {
           <p className="ml-2 text-sm font-medium text-white">0 out of 0</p>
         </div>
         <p className="text-sm font-medium text-white">0 global ratings</p>
-        {[5, 4, 3, 2, 1].map((value, index) => (
-          <div key={index} className="flex items-center">
+        {[5, 4, 3, 2, 1].map((value) => (
+          <div key={value} className="flex items-center">
             <span className="text-sm font-medium text-white hover:underline shrink-0">{value} star</span>
             <div className="w-3/4 h-4 mx-2 bg-gray-200 rounded">
               <div className="h-4 bg-button rounded" style={{ width: '20%' }}></div>

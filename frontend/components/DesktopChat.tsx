@@ -1,23 +1,33 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
+import Image from "next/image";
 
-const ChatUI = () => {
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [message, setMessage] = useState("");
-  const [chats, setChats] = useState([]);
-  const endRef = useRef(null);
+interface User {
+  username: string;
+  avatar: string;
+}
 
-  const currentUser = { username: "John Doe", avatar: "/avatar.jpg" };
-  const users = [
+interface ChatMessage {
+  sender: string;
+  message: string;
+}
+
+const DesktopChat: React.FC = () => {
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [message, setMessage] = useState<string>("");
+  const [chats, setChats] = useState<ChatMessage[]>([]);
+  const endRef = useRef<HTMLDivElement | null>(null);
+
+  const currentUser: User = { username: "John Doe", avatar: "/avatar.jpg" };
+  const users: User[] = [
     { username: "Jane Doe", avatar: "/images/men1.jpg" },
     { username: "Alice", avatar: "/images/men2.jpg" },
     { username: "Bob", avatar: "/images/men3.jpg" },
   ];
 
-
   const sendMessage = () => {
     if (message.trim()) {
-      setChats([...chats, { sender: currentUser.username, message }]);
+      setChats((prevChats) => [...prevChats, { sender: currentUser.username, message }]);
       setMessage("");
     }
   };
@@ -33,7 +43,7 @@ const ChatUI = () => {
             className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-700 border-b border-black"
             onClick={() => setSelectedUser(user)}
           >
-            <img className="w-10 h-10 rounded-full" src={user.avatar} alt="avatar" />
+            <Image width={40} height={40} className="w-10 h-10 rounded-full" src={user.avatar} alt={user.username} />
             <span>{user.username}</span>
           </div>
         ))}
@@ -46,7 +56,7 @@ const ChatUI = () => {
             {/* Chat Header */}
             <div className="p-4 bg-primary border-b border-gray-700 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img className="w-10 h-10 rounded-full" src={selectedUser.avatar} alt="" />
+                <Image width={40} height={40} className="w-10 h-10 rounded-full" src={selectedUser.avatar} alt={selectedUser.username} />
                 <span className="font-semibold">{selectedUser.username}</span>
               </div>
               <button
@@ -103,4 +113,4 @@ const ChatUI = () => {
   );
 };
 
-export default ChatUI;
+export default DesktopChat;

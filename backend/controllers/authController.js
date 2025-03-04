@@ -63,28 +63,44 @@ const signup = async (req, res) => {
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
+
+        // Check if email and password exist
         if (!email || !password) {
             return res.status(400).json({ error: "Please enter a valid email and password" });
         }
 
+        // Find user by email
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(401).json({ error: "Invalid credentials" });
         }
 
+        // Check password
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
         if (!isPasswordCorrect) {
             return res.status(401).json({ error: "Invalid credentials" });
         }
 
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+        // Generate JWT token
+        const token = jwt.sign({ id: user._id.toString(), role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-        res.status(200).json({ message: "Login successful", user: { name: user.name, role: user.role }, token });
+        // Send response with user ID
+        res.status(200).json({
+            message: "Login successful",
+            user: {
+                _id: user._id.toString(),  // Ensure it's sent as a string
+                name: user.name,
+                role: user.role,
+            },
+            token
+        });
+
     } catch (error) {
         console.error("❌ Login error:", error);
         res.status(500).json({ error: "Internal server error" });
     }
 };
+
 
 // Forgot Password Controller
 const forgotPassword = async (req, res) => {

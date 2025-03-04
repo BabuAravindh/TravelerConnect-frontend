@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import GuideDashboard from "../../page";
-import { Calendar, MapPin, DollarSign, User, CheckCircle, Clock, IndianRupee } from "lucide-react";
+
+import { Calendar, MapPin, User, CheckCircle, Clock, IndianRupee } from "lucide-react";
 
 const bookingHistory = [
   {
@@ -29,7 +29,7 @@ const bookingHistory = [
 
 const BookingsHistoryPage = () => {
   return (
-    <GuideDashboard>
+    <>
       <div className="max-w-3xl mx-auto p-6">
         <h2 className="text-2xl font-bold mb-4">Booking History</h2>
 
@@ -85,7 +85,7 @@ const BookingsHistoryPage = () => {
           <p className="text-gray-600 text-center">No past bookings.</p>
         )}
       </div>
-    </GuideDashboard>
+    </>
   );
 };
 

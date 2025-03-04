@@ -5,10 +5,27 @@ import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Edit, Calendar, Mail, Phone, MapPin, ShieldCheck, Info } from "lucide-react";
 import Image from "next/image";
 
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  dob: string;
+  role: string;
+  avatar: string;
+  status: string;
+  membership: string;
+  bio: string;
+};
+
+
 const UserDetailPage = () => {
-  const { id } = useParams();
+  
+
+  const { id } = useParams<{ id: string }>(); // Ensure id is always a string
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);;
 
   useEffect(() => {
     setTimeout(() => {
@@ -40,11 +57,15 @@ const UserDetailPage = () => {
           bio: "Tech-savvy and data-driven. Managing digital strategies with precision.",
         },
       ];
-
-      const foundUser = userData.find((u) => u.id === parseInt(id));
+  
+      // Ensure `id` is a string before parsing
+      const foundUser = userData.find((u) => u.id === parseInt(id as string));
+      
+      // ✅ Update the state
       setUser(foundUser || null);
     }, 1000);
   }, [id]);
+  
 
   if (!user) {
     return <div className="flex min-h-screen items-center justify-center text-gray-500 text-lg">Loading user details...</div>;
@@ -93,7 +114,7 @@ const UserDetailPage = () => {
         <ul className="mt-4 text-lg text-gray-700 list-disc pl-8 leading-relaxed">
           <li>Admins can view, update, and manage user information seamlessly.</li>
           <li>Role-based permissions ensure secure and efficient access control.</li>
-          <li>Users' membership status determines their access level and privileges.</li>
+          <li>Users membership status determines their access level and privileges.</li>
           <li>The system provides a centralized view of all users for streamlined management.</li>
         </ul>
       </div>

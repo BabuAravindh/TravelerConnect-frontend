@@ -2,7 +2,6 @@
 import Image from "next/image";
 import { useState } from "react";
 import { Camera, Save, XCircle } from "lucide-react";
-import GuideDashboard from "../page";
 
 const initialProfile = {
   name: "Alex Johnson",
@@ -31,7 +30,7 @@ const EditProfilePage = () => {
   };
 
   return (
-    <GuideDashboard>
+    <>
       <div className="max-w-3xl mx-auto p-6 ">
         <h2 className="text-2xl font-bold mb-4">Edit Profile</h2>
 
@@ -109,7 +108,7 @@ const EditProfilePage = () => {
           </button>
         </div>
       </div>
-    </GuideDashboard>
+    </>
   );
 };
 

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import GuideDashboard from "../page";
-import { Calendar, MapPin, DollarSign, User, CheckCircle, Clock, IndianRupee } from "lucide-react";
+
+import { Calendar, MapPin, User, CheckCircle, Clock, IndianRupee } from "lucide-react";
 
 const bookings = [
   {
@@ -29,7 +29,7 @@ const bookings = [
 
 const BookingsPage = () => {
   return (
-    <GuideDashboard>
+    <>
       <div className="max-w-3xl mx-auto p-6">
         <h2 className="text-2xl font-bold mb-4">📌 Upcoming Bookings</h2>
 
@@ -85,7 +85,7 @@ const BookingsPage = () => {
           <p className="text-gray-600 text-center">No new bookings.</p>
         )}
       </div>
-    </GuideDashboard>
+    </>
   );
 };
 

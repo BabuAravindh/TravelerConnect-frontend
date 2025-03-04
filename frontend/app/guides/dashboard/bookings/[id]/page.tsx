@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import GuideDashboard from "@/app/guides/dashboard/page";
+
 import { Calendar, MapPin, Clock, DollarSign, User, Mail, Phone, ClipboardList } from "lucide-react";
 
 const bookings = [
@@ -29,14 +29,14 @@ const BookingDetails = () => {
 
   if (!booking) {
     return (
-      <GuideDashboard>
+      
         <div className="text-center text-red-500 font-semibold">Booking not found.</div>
-      </GuideDashboard>
+      
     );
   }
 
   return (
-    <GuideDashboard>
+    <>
       <div className="max-w-3xl mx-auto p-6 ">
         <h2 className="text-2xl font-bold mb-4">📜 Booking Details</h2>
 
@@ -87,7 +87,7 @@ const BookingDetails = () => {
           </p>
         </div>
       </div>
-    </GuideDashboard>
+    </>
   );
 };
 

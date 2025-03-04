@@ -6,7 +6,6 @@ import Link from "next/link";
 const Navbar = () => {
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Fetch user details from localStorage on mount
@@ -34,21 +33,39 @@ const Navbar = () => {
   // Generate dashboard path based on role
   const getDashboardPath = () => {
     if (userRole === "admin") return "/dashboard/admin";
-    if (userRole === "user") return "user/dashboard";
+    if (userRole === "user") return "/dashboard/user";
     if (userRole === "guide") return "/dashboard/guide";
     return "/dashboard";
   };
 
   return (
     <nav className="relative px-4 py-4 flex justify-between items-center bg-[#6899ab] text-white">
-      <Link href="/" className="text-xl font-bold">TravelerConnect</Link>
+      <Link href="/" className="text-xl font-bold">
+        TravelerConnect
+      </Link>
 
       {/* Desktop Menu */}
       <ul className="hidden lg:flex lg:space-x-6">
-        <li><Link href="/" className="text-white">Home</Link></li>
-        <li><Link href="/about" className="text-white">About Us</Link></li>
-        <li><Link href="/services" className="text-white">Services</Link></li>
-        <li><Link href="/contact" className="text-white">Contact</Link></li>
+        <li>
+          <Link href="/" className="text-white">
+            Home
+          </Link>
+        </li>
+        <li>
+          <Link href="/about" className="text-white">
+            About Us
+          </Link>
+        </li>
+        <li>
+          <Link href="/services" className="text-white">
+            Services
+          </Link>
+        </li>
+        <li>
+          <Link href="/contact" className="text-white">
+            Contact
+          </Link>
+        </li>
       </ul>
 
       {/* User Info & Auth Buttons */}

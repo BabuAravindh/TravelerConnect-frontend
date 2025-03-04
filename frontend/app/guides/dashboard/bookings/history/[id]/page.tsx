@@ -1,8 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import GuideDashboard from "../../../page";
-import { Calendar, MapPin, DollarSign, User, CheckCircle, Clock, IndianRupee } from "lucide-react";
+
+import { Calendar, MapPin, User, CheckCircle, Clock, IndianRupee } from "lucide-react";
 
 const bookingHistory = [
   {
@@ -37,14 +37,14 @@ const BookingDetailPage = () => {
 
   if (!booking) {
     return (
-      <GuideDashboard>
+    
         <div className="text-center text-gray-500 p-6">Booking not found.</div>
-      </GuideDashboard>
+      
     );
   }
 
   return (
-    <GuideDashboard>
+    <>
       <div className="max-w-3xl mx-auto p-6 bg-white shadow-lg rounded-xl border border-gray-200">
         <h2 className="text-2xl font-bold mb-4"> Booking Details</h2>
 
@@ -61,10 +61,11 @@ const BookingDetailPage = () => {
             <MapPin size={16} className="mr-2 text-gray-700" />
             {booking.location}
           </p>
-          <p className="flex items-center">
-            <User size={16} className="mr-2 text-gray-700" />
-            Guide: <span className="font-semibold ml-1">{booking.guide}</span>
-          </p>
+          <p className="text-sm text-gray-500 flex items-center">
+  <User size={14} className="mr-1" />
+  Guide: <span className="font-semibold ml-1">&quot;{booking.guide}&quot;</span>
+</p>
+
           <p className="flex items-center">
             <Clock size={16} className="mr-2 text-gray-700" />
             {booking.duration}
@@ -82,13 +83,14 @@ const BookingDetailPage = () => {
           {booking.review && (
             <div className="mt-4 p-4 border border-gray-300 rounded-lg bg-gray-50">
               <h3 className="text-xl font-semibold mb-2">🌟 Review & Rating</h3>
-              <p className="text-gray-700 italic">"{booking.review}"</p>
+              <p className="text-gray-700 italic">{booking.review}</p>
+
               <p className="mt-2 font-semibold text-yellow-500">⭐ {booking.rating}/5</p>
             </div>
           )}
         </div>
       </div>
-    </GuideDashboard>
+    </>
   );
 };
 

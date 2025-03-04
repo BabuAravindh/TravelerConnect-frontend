@@ -1,12 +1,9 @@
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Footer } from "@/components/Footer";
 import GuideListing from "@/components/GuideListing";
 import HeroSection from "@/components/Header";
 
 const Page: React.FC = () => {
-  
   return (
     <div className="flex flex-col min-h-screen">
       <HeroSection />

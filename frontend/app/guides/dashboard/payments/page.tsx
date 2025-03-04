@@ -1,6 +1,5 @@
 'use client';
 
-import GuideDashboard from "../page";
 import Link from "next/link";
 
 const payments = [
@@ -10,7 +9,7 @@ const payments = [
 
 const PaymentsPage = () => {
   return (
-    <GuideDashboard>
+    <>
       <div className="space-y-4">
         {payments.length ? (
           payments.map((payment) => (
@@ -28,7 +27,7 @@ const PaymentsPage = () => {
           <p className="text-gray-600 text-center">No recent payments.</p>
         )}
       </div>
-    </GuideDashboard>
+    </>
   );
 };
 

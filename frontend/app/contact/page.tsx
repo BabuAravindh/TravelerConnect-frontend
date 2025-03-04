@@ -57,7 +57,15 @@ const Page = () => {
                   <div className="mb-6">
                     <input type="text" id="name" autoComplete="given-name" placeholder="Your name" className="mb-2 w-full rounded-md border border-gray-400 py-2 pl-2 pr-4 shadow-md" name="name" />
                     <input type="email" id="email" autoComplete="email" placeholder="Your email address" className="mb-2 w-full rounded-md border border-gray-400 py-2 pl-2 pr-4 shadow-md" name="email" />
-                    <textarea id="textarea" name="textarea" cols="30" rows="5" placeholder="Write your message..." className="mb-2 w-full rounded-md border border-gray-400 py-2 pl-2 pr-4 shadow-md"></textarea>
+                    <textarea
+  id="textarea"
+  name="message"
+  cols={30}
+  rows={5}
+  placeholder="Write your message..."
+  className="mb-2 w-full rounded-md border border-gray-400 py-2 pl-2 pr-4 shadow-md"
+></textarea>
+
                   </div>
                   <div className="text-center">
                     <button type="submit" className="w-full bg-button text-white px-6 py-3 text-xl rounded-md">Send Message</button>
