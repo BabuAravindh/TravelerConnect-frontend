@@ -25,45 +25,40 @@ const getProfile = async (req, res) => {
   }
 };
 
+
 const createOrUpdateProfile = async (req, res) => {
   try {
-    let { userId } = req.params;
-    const profileData = req.body;
+    const { firstName, lastName, gender } = req.body;
 
-    userId = userId.trim().replace(/"/g, "");
-
-    if (!userId || userId.length !== 24) {
-      return res.status(400).json({ message: "Invalid user ID format (must be 24 characters)" });
+    // Check for missing required fields
+    if (!firstName || !lastName) {
+      return res.status(400).json({ error: "First name and last name are required." });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res.status(400).json({ message: "Invalid ObjectId format" });
-    }
-    userId = new mongoose.Types.ObjectId(userId);
-
-    if (!profileData.role || !["user", "guide"].includes(profileData.role)) {
-      return res.status(400).json({ message: "Role must be 'user' or 'guide'." });
+    // Validate gender (assuming gender is an enum with specific values)
+    const validGenders = ["Male", "Female", "Other"]; // Adjust based on your schema
+    if (!validGenders.includes(gender)) {
+      return res.status(400).json({ error: "Invalid gender value." });
     }
 
-    let profile = await UserProfile.findOne({ userId });
+    // Proceed with profile creation or update
+    const profile = await Profile.findOneAndUpdate(
+      { userId: req.user.id },
+      { firstName, lastName, gender },
+      { new: true, upsert: true, runValidators: true }
+    );
 
-    if (profile) {
-      profile = await UserProfile.findOneAndUpdate(
-        { userId },
-        { $set: profileData },
-        { new: true, runValidators: true }
-      );
-      return res.status(200).json({ message: "Profile updated successfully", profile });
-    } else {
-      profile = new UserProfile({ userId, ...profileData });
-      await profile.save();
-      return res.status(201).json({ message: "Profile created successfully", profile });
-    }
+    res.status(200).json(profile);
   } catch (error) {
     console.error("Error saving profile:", error);
-    res.status(500).json({ message: "Server error", error });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+
+
+
+
 
 
 

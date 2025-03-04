@@ -20,6 +20,7 @@ const userProfileSchema = new mongoose.Schema({
   gender: {
     type: String,
     enum: ["male", "female", "others"],
+    required:true,
   },
   role: { 
     type: String, 

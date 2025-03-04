@@ -1,215 +1,164 @@
 "use client";
 
+import Image from "next/image";
+import { Camera } from "lucide-react";
+import { userProfiles } from "@/data/data";
 import { useState, useEffect } from "react";
-import toast, { Toaster } from "react-hot-toast";
-
-interface Profile {
-  firstName: string;
-  lastName: string;
-  phone: string;
-  dateOfBirth: string;
-  city: string;
-  country: string;
-  gender: string;
-  profilePic: string;
-}
+import UserSidebar from "@/components/UserSidebar";
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<Profile>({
-    firstName: "",
-    lastName: "",
-    phone: "",
-    dateOfBirth: "",
-    city: "",
-    country: "",
-    gender: "",
-    profilePic: "/default-avatar.png",
-  });
-
+  const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isNewUser, setIsNewUser] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   useEffect(() => {
-    const storedUserId = localStorage.getItem("userId");
-    if (storedUserId) setUserId(storedUserId);
+    const profileData = userProfiles.profile1;
+    if (profileData) {
+      setProfile({
+        firstName: profileData.firstName || "",
+        lastName: profileData.lastName || "",
+        profilePic: profileData.profilePicture || "/default-avatar.png",
+        phone: profileData.phoneNumber || "",
+        dateOfBirth: profileData.dateOfBirth || "",
+        city: profileData.address.city || "",
+        country: profileData.address.countryId || "",
+        dateJoined: profileData.dateJoined || "",
+        lastLogin: profileData.lastLogin || "",
+        gender: profileData.gender || "",
+      });
+      setIsLoading(false);
+    }
   }, []);
 
-  useEffect(() => {
-    if (userId) fetchProfile();
-  }, [userId]);
+  const handleChange = (e) => {
+    setProfile((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-  const fetchProfile = async () => {
-    if (!userId) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const res = await fetch(`${API_BASE_URL}/api/profile/${userId}`);
-      const data = await res.json();
-
-      if (!data.profile || Object.keys(data.profile).length === 0) {
-        setIsNewUser(true);
-      } else {
-        setProfile({
-          firstName: data.profile.firstName || "",
-          lastName: data.profile.lastName || "",
-          phone: data.profile.phoneNumber || "",
-          dateOfBirth: data.profile.dateOfBirth || "",
-          city: data.profile.address?.city || "",
-          country: data.profile.address?.countryId || "",
-          gender: data.profile.gender || "",
-          profilePic: data.profile.profilePicture || "/default-avatar.png",
-        });
-        setIsNewUser(false);
+  const handleProfilePicUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("File size must be less than 5MB.");
+        return;
       }
-    } catch (err) {
-      toast.error("Failed to fetch profile.");
-    } finally {
-      setIsLoading(false);
+      if (!file.type.startsWith("image/")) {
+        alert("Please upload an image file.");
+        return;
+      }
+      setProfile((prev) => ({
+        ...prev,
+        profilePic: URL.createObjectURL(file),
+      }));
     }
   };
 
-  const handleCreateProfile = async () => {
-    if (!userId) {
-      toast.error("User not found. Please log in.");
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/profile/${userId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, ...profile }),
-      });
-
-      if (!response.ok) throw new Error("Failed to create profile.");
-
-      toast.success("Profile created successfully!");
-      setIsNewUser(false);
-      await fetchProfile();
-    } catch (error) {
-      toast.error("Error creating profile.");
-    }
-  };
-
-  const handleUpdateProfile = async () => {
-    if (!userId) {
-      toast.error("User not found. Please log in.");
-      return;
-    }
-
-    try {
-      const response = await fetch(`http://localhost:5000/api/profile/${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
-      });
-
-      if (!response.ok) throw new Error("Failed to update profile.");
-
-      toast.success("Profile updated successfully!");
-      await fetchProfile();
-    } catch (error) {
-      toast.error("Error updating profile.");
-    }
-  };
-
-  if (isLoading) return <p>Loading...</p>;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center text-white text-lg">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-lg mx-auto p-4">
-      <Toaster position="top-right" />
+    <div className="min-h-screen flex bg-gradient-to-br from-[#6999aa] to-[#527a8c]">
+      {/* Sidebar */}
+      <UserSidebar />
 
-      {isNewUser ? (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold">No profile found</h2>
-          <p className="text-gray-600 mb-4">Click below to create your profile.</p>
-          <button
-            onClick={handleCreateProfile}
-            className="bg-blue-500 text-white px-4 py-2 rounded-md"
-          >
-            Create Profile
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Profile Details</h2>
+      {/* Main Content */}
+      <div className="flex-grow flex justify-center items-center px-6 py-10">
+        <div className="w-full max-w-4xl flex flex-col md:flex-row gap-8">
+          {/* Profile Picture Card */}
+          <div className="bg-white/20 backdrop-blur-lg shadow-lg rounded-xl p-6 w-full md:w-1/3 flex flex-col items-center border border-[#6999aa]/50">
+            <h2 className="text-xl font-bold text-white mb-4">Profile Picture</h2>
+            <div className="relative w-28 h-28 sm:w-36 sm:h-36">
+              <Image
+                src={profile.profilePic}
+                alt="Profile Picture"
+                width={144}
+                height={144}
+                className="object-cover w-full h-full rounded-full border-4 border-white shadow-md"
+              />
+              <label
+                htmlFor="profilePicUpload"
+                className="absolute bottom-2 right-2 bg-[#1b374c] text-white p-2 rounded-full cursor-pointer hover:bg-[#132430] transition"
+              >
+                <Camera size={18} />
+              </label>
+              <input
+                type="file"
+                id="profilePicUpload"
+                className="hidden"
+                onChange={handleProfilePicUpload}
+                accept="image/*"
+              />
+            </div>
+            <p className="text-sm text-gray-200 mt-2">Upload a new picture</p>
+          </div>
 
-          <label className="block text-gray-600">First Name:</label>
-          <input
-            type="text"
-            value={profile.firstName}
-            onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
-            className="w-full border p-2 rounded-md mb-3"
-          />
+          {/* Profile Information Card */}
+          <div className="bg-white/20 backdrop-blur-lg shadow-lg rounded-xl p-6 w-full md:w-2/3 border border-[#6999aa]/50">
+            <h2 className="text-xl font-bold text-white text-center">Profile Details</h2>
 
-          <label className="block text-gray-600">Last Name:</label>
-          <input
-            type="text"
-            value={profile.lastName}
-            onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
-            className="w-full border p-2 rounded-md mb-3"
-          />
+            {/* Profile Form */}
+            <form className="mt-6 space-y-4">
+              {[ 
+                { label: "First Name", name: "firstName", type: "text" },
+                { label: "Last Name", name: "lastName", type: "text" },
+                { label: "Phone", name: "phone", type: "text" },
+                { label: "Date of Birth", name: "dateOfBirth", type: "date" },
+                { label: "City", name: "city", type: "text" },
+                { label: "Country", name: "country", type: "text" },
+                { label: "Gender", name: "gender", type: "text" },
+              ].map(({ label, name, type }) => (
+                <div key={name}>
+                  <label className="block text-sm font-medium text-gray-200">{label}</label>
+                  <input
+                    type={type}
+                    name={name}
+                    value={profile[name]}
+                    onChange={handleChange}
+                    className="mt-1 block w-full p-2 border rounded-lg bg-white/30 text-white placeholder-gray-300 border-[#6999aa]/50 focus:ring-white focus:border-white"
+                    placeholder={label}
+                    required
+                  />
+                </div>
+              ))}
 
-          <label className="block text-gray-600">Phone:</label>
-          <input
-            type="text"
-            value={profile.phone}
-            onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-            className="w-full border p-2 rounded-md mb-3"
-          />
+              {/* Read-only Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-200">Date Joined</label>
+                  <input
+                    type="text"
+                    value={profile.dateJoined}
+                    readOnly
+                    className="mt-1 block w-full p-2 border rounded-lg bg-white/30 text-white border-[#6999aa]/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200">Last Login</label>
+                  <input
+                    type="text"
+                    value={profile.lastLogin}
+                    readOnly
+                    className="mt-1 block w-full p-2 border rounded-lg bg-white/30 text-white border-[#6999aa]/50"
+                  />
+                </div>
+              </div>
 
-          <label className="block text-gray-600">Date of Birth:</label>
-          <input
-            type="date"
-            value={profile.dateOfBirth}
-            onChange={(e) => setProfile({ ...profile, dateOfBirth: e.target.value })}
-            className="w-full border p-2 rounded-md mb-3"
-          />
-
-          <label className="block text-gray-600">City:</label>
-          <input
-            type="text"
-            value={profile.city}
-            onChange={(e) => setProfile({ ...profile, city: e.target.value })}
-            className="w-full border p-2 rounded-md mb-3"
-          />
-
-          <label className="block text-gray-600">Country:</label>
-          <input
-            type="text"
-            value={profile.country}
-            onChange={(e) => setProfile({ ...profile, country: e.target.value })}
-            className="w-full border p-2 rounded-md mb-3"
-          />
-
-          <label className="block text-gray-600">Gender:</label>
-          <select
-            value={profile.gender}
-            onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
-            className="w-full border p-2 rounded-md mb-3"
-          >
-            <option value="">Select</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-
-          <div className="mt-4 flex justify-between">
-            <button
-              onClick={handleUpdateProfile}
-              className="bg-green-500 text-white px-4 py-2 rounded-md"
-            >
-              Update Profile
-            </button>
+              {/* Save Button */}
+              <div className="flex justify-center mt-4">
+                <button
+                  type="submit"
+                  className="px-6 py-2 text-white bg-[#1b374c] rounded-lg hover:bg-[#132430] transition shadow-md hover:shadow-lg hover:scale-105 transform duration-300"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
