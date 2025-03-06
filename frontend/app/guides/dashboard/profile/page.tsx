@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { Camera, Save, XCircle } from "lucide-react";
+import UserSidebar from "@/components/UserSidebar";
 
 const initialProfile = {
   name: "Alex Johnson",
@@ -30,7 +31,8 @@ const EditProfilePage = () => {
   };
 
   return (
-    <>
+    <div className="flex flex-row">
+    <UserSidebar/>
       <div className="max-w-3xl mx-auto p-6 ">
         <h2 className="text-2xl font-bold mb-4">Edit Profile</h2>
 
@@ -108,7 +110,7 @@ const EditProfilePage = () => {
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

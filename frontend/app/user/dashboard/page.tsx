@@ -1,166 +1,202 @@
 "use client";
 
 import Image from "next/image";
-import { Camera } from "lucide-react";
+import { Pencil, Save, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import UserSidebar from "@/components/UserSidebar";
+import toast from "react-hot-toast";
 
-type Profile = {
-  _id: string;
-  userId: string;
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+interface Profile {
   firstName: string;
   lastName: string;
-  phoneNumber: string;
+  profilePic: string;
+  phone: string;
   dateOfBirth: string;
-  profilePicture: string;
-  gender: string;
-  role: string;
+  city: string;
+  country: string;
   dateJoined: string;
-  address: {
-    street: string;
-    city: string;
-    stateId: string | null;
-    countryId: string | null;
-    postalCode: string;
-  };
-};
+  lastLogin: string;
+  gender: string;
+}
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
-
     if (!storedUserId) {
-      setError("User ID not found. Please log in.");
-      setIsLoading(false);
+      console.error("❌ User ID not found in localStorage");
       return;
     }
-
-    console.log(`Fetching profile from: http://localhost:5000/api/profile/${storedUserId}`);
+    setUserId(storedUserId);
 
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/profile/${storedUserId}`);
-    
-        if (!res.ok) {
-          throw new Error("Failed to fetch profile data.");
-        }
-    
-        const data: Profile = await res.json();
-        setProfile(data);
-      } catch (err: unknown) { // Use `unknown` instead of `any`
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("An unknown error occurred.");
-        }
+        const res = await fetch(`${API_URL}/api/profile/${storedUserId}`);
+        if (!res.ok) throw new Error("Profile not found");
+
+        const data = await res.json();
+        setProfile({
+          firstName: data.firstName || "John",
+          lastName: data.lastName || "Doe",
+          profilePic: data.profilePic || "https://picsum.photos/300/300?grayscale",
+          phone: data.phoneNumber || "",
+          dateOfBirth: data.dateOfBirth ? data.dateOfBirth.split("T")[0] : "",
+          city: data.address?.city || "Madurai",
+          country: data.address?.country?.name || "India",
+          dateJoined: data.dateJoined ? data.dateJoined.split("T")[0] : "",
+          lastLogin: data.lastLogin ? data.lastLogin.split("T")[0] : "",
+          gender: data.gender || "Male",
+        });
+      } catch (error) {
+        console.error("❌ Error fetching profile:", error);
+        toast.error("Failed to load profile.");
       } finally {
         setIsLoading(false);
       }
     };
-    
 
     fetchProfile();
   }, []);
 
+  const handleEdit = () => setIsEditing(true);
+  const handleCancel = () => setIsEditing(false);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setProfile((prev) =>
-      prev ? { ...prev, [e.target.name]: e.target.value } : null
-    );
+    const { name, value } = e.target;
+    setProfile((prev) => (prev ? { ...prev, [name]: value } : prev));
   };
 
-  const handleProfilePicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userId || !profile) {
+      toast.error("User ID is missing.");
+      return;
+    }
 
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("File size must be less than 5MB.");
-        return;
+    const updatedProfile = {
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      phoneNumber: profile.phone,
+      dateOfBirth: profile.dateOfBirth,
+      address: { city: profile.city, country: profile.country },
+      gender: profile.gender,
+      profilePicture: profile.profilePic,
+    };
+
+    try {
+      const res = await fetch(`${API_URL}/api/profile/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedProfile),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to update profile");
       }
-      if (!file.type.startsWith("image/")) {
-        alert("Please upload an image file.");
-        return;
-      }
-      setProfile((prev) =>
-        prev ? { ...prev, profilePicture: URL.createObjectURL(file) } : null
-      );
+
+      toast.success("Profile updated successfully!");
+      setIsEditing(false);
+    } catch (error) {
+      console.error("❌ Error updating profile:", error);
+      toast.error("❌ " + (error as Error).message);
     }
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex justify-center items-center text-white text-lg">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex justify-center items-center text-white text-lg">
-        {error}
-      </div>
-    );
+    return <div className="min-h-screen flex justify-center items-center text-white text-lg">Loading...</div>;
   }
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-[#6999aa] to-[#527a8c]">
-      {/* Sidebar */}
       <UserSidebar />
-
-      {/* Profile Content */}
-      <div className="flex flex-col items-center w-full p-6">
-        <h1 className="text-white text-2xl mb-4">Profile</h1>
-
-        {profile && (
-          <div className="bg-white p-4 rounded-lg shadow-lg w-full max-w-md">
-            <div className="relative w-32 h-32 mx-auto mb-4">
-              <Image
-                src={profile.profilePicture || "/default-profile.png"}
-                alt="Profile Picture"
-                width={128}
-                height={128}
-                className="rounded-full object-cover"
-              />
-              <label className="absolute bottom-0 right-0 bg-gray-700 text-white p-1 rounded-full cursor-pointer">
-                <Camera size={18} />
-                <input type="file" className="hidden" onChange={handleProfilePicUpload} />
-              </label>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-gray-700">First Name</label>
-              <input
-                type="text"
-                name="firstName"
-                value={profile.firstName}
-                onChange={handleChange}
-                className="border p-2 rounded"
-              />
-
-              <label className="text-gray-700">Last Name</label>
-              <input
-                type="text"
-                name="lastName"
-                value={profile.lastName}
-                onChange={handleChange}
-                className="border p-2 rounded"
-              />
-
-              <label className="text-gray-700">Phone Number</label>
-              <input
-                type="text"
-                name="phoneNumber"
-                value={profile.phoneNumber}
-                onChange={handleChange}
-                className="border p-2 rounded"
-              />
+      <div className="flex-grow flex justify-center items-center px-6 py-10">
+        <div className="w-full max-w-4xl flex flex-col md:flex-row gap-8">
+          {/* Profile Picture Section */}
+          <div className="bg-white/20 p-6 rounded-xl w-full md:w-1/3 flex flex-col items-center">
+            <h2 className="text-xl font-bold text-white mb-4">Profile Picture</h2>
+            <div className="relative w-28 h-28">
+              <Image src={profile?.profilePic || ""} alt="Profile" width={144} height={144} className="rounded-full" />
             </div>
           </div>
-        )}
+
+          {/* Profile Details Section */}
+          <div className="bg-white/20 p-6 rounded-xl w-full md:w-2/3">
+            <h2 className="text-xl font-bold text-white text-center">Profile Details</h2>
+
+            {!isEditing ? (
+              <div className="mt-6 space-y-4 text-white">
+                <p><strong>Name:</strong> {profile?.firstName} {profile?.lastName}</p>
+                <p><strong>Phone:</strong> {profile?.phone}</p>
+                <p><strong>Date of Birth:</strong> {profile?.dateOfBirth}</p>
+                <p><strong>City:</strong> {profile?.city}</p>
+                <p><strong>Country:</strong> {profile?.country}</p>
+                <p><strong>Gender:</strong> {profile?.gender}</p>
+                <button onClick={handleEdit} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-2">
+                  <Pencil size={16} /> Edit Profile
+                </button>
+              </div>
+            ) : (
+              <form className="mt-6 space-y-4" onSubmit={handleSave}>
+                {/* Standard Fields */}
+                {["firstName", "lastName", "phone", "dateOfBirth", "gender"].map((field) => (
+                  <div key={field}>
+                    <label className="block text-sm font-medium text-gray-200">{field}</label>
+                    <input 
+                      type="text" 
+                      name={field} 
+                      value={profile?.[field as keyof Profile] || ""} 
+                      onChange={handleChange} 
+                      className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white" 
+                      required 
+                    />
+                  </div>
+                ))}
+
+                {/* City and Country Fields (Handled Separately) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-200">City</label>
+                  <input 
+                    type="text" 
+                    name="city" 
+                    value={profile?.city || ""} 
+                    onChange={handleChange} 
+                    className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white" 
+                    required 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-200">Country</label>
+                  <input 
+                    type="text" 
+                    name="country" 
+                    value={profile?.country || ""} 
+                    onChange={handleChange} 
+                    className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white" 
+                    required 
+                  />
+                </div>
+
+                {/* Save & Cancel Buttons */}
+                <div className="flex gap-4">
+                  <button type="submit" className="px-6 py-2 bg-green-600 text-white rounded-lg flex items-center gap-2">
+                    <Save size={16} /> Save Changes
+                  </button>
+                  <button onClick={handleCancel} className="px-6 py-2 bg-red-600 text-white rounded-lg flex items-center gap-2">
+                    <X size={16} /> Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

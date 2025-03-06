@@ -4,7 +4,8 @@
 import useSignup from "@/hooks/useSignup";
 import Image from "next/image";
 const SignupPage = () => {
-  const { serverMessage, handleSignup } = useSignup();
+  const { handleSignup, loading } = useSignup();
+
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -49,15 +50,19 @@ const SignupPage = () => {
               className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
 
-            <button
-              type="submit"
-              className="w-full py-3 bg-button text-white font-semibold rounded-lg hover:bg-opacity-80 transition"
-            >
-              Create Account
-            </button>
+<button
+  type="submit"
+  disabled={loading}
+  className={`w-full py-3 bg-button text-white font-semibold rounded-lg transition ${
+    loading ? "opacity-50 cursor-not-allowed" : "hover:bg-opacity-80"
+  }`}
+>
+  {loading ? "Creating Account..." : "Create Account"}
+</button>
+
           </form>
 
-          {serverMessage && <p className="mt-4 text-center text-red-500">{serverMessage}</p>}
+
 
           <p className="mt-4 text-sm text-center text-gray-600">
             By signing up, you agree to our{" "}

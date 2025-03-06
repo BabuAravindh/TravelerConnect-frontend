@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
+import { toast } from "react-hot-toast";
 const useResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -35,7 +35,7 @@ const useResetPassword = () => {
         throw new Error(data?.message || "Failed to reset password");
       }
 
-      alert("Password reset successfully!");
+      toast.success("password changed successfully");
       router.push("/login");
     } catch (err: any) {
       setError(err.message || "Something went wrong");

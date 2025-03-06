@@ -6,7 +6,8 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line
 } from "recharts";
-import Sidebar from "@/components/SideBar";
+
+import UserSidebar from "@/components/UserSidebar";
 
 const bookingData = [
   { month: "Jan", bookings: 10 },
@@ -43,10 +44,10 @@ export default function GuideDashboard() {
   if (!role) return <p>Loading...</p>;
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <Sidebar />
-      <main className="flex-1 p-6">
-        <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-6">
+    <div className="flex min-h-screen">
+      <UserSidebar/>
+      <main className="flex-1 p-6 ">
+        <div className="max-w-6xl mx-auto  shadow-lg rounded-xl p-6">
           <h1 className="text-2xl font-semibold text-center mb-6">📊 Guide Dashboard</h1>
           {isOverviewPage ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

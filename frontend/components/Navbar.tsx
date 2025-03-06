@@ -8,15 +8,26 @@ const Navbar = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  // Fetch user details from localStorage on mount
-  useEffect(() => {
+
+  const fetchUserData = () => {
     const storedName = localStorage.getItem("userName");
     const storedRole = localStorage.getItem("userRole");
 
-    if (storedName && storedRole) {
-      setUserName(storedName);
-      setUserRole(storedRole);
-    }
+    setUserName(storedName);
+    setUserRole(storedRole);
+  };
+
+
+  useEffect(() => {
+    fetchUserData();
+
+
+    const handleStorageChange = () => fetchUserData();
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
   // Logout handler
@@ -32,9 +43,9 @@ const Navbar = () => {
 
   // Generate dashboard path based on role
   const getDashboardPath = () => {
-    if (userRole === "admin") return "/dashboard/admin";
-    if (userRole === "user") return "/dashboard/user";
-    if (userRole === "guide") return "/dashboard/guide";
+    if (userRole === "admin") return "/dashboard";
+    if (userRole === "user") return "/user/dashboard";
+    if (userRole === "guide") return "/guides/dashboard";
     return "/dashboard";
   };
 

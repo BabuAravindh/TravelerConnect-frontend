@@ -1,15 +1,27 @@
 "use client";
 
 import Link from "next/link";
-
+import { FC } from "react";
 import { Calendar, MapPin, User, CheckCircle, Clock, IndianRupee } from "lucide-react";
+import UserSidebar from "@/components/UserSidebar";
 
-const bookings = [
+interface Booking {
+  id: number;
+  name: string;
+  date: string;
+  location: string;
+  guide: string;
+  duration: string;
+  price: string;
+  paymentStatus: "Completed" | "Pending";
+}
+
+const bookings: Booking[] = [
   {
     id: 1,
     name: "John Doe",
     date: "2025-02-12",
-    location: "Chennai, Tamil nadu",
+    location: "Chennai, Tamil Nadu",
     guide: "Alex Johnson",
     duration: "5 hours",
     price: "Rs.10000",
@@ -19,7 +31,7 @@ const bookings = [
     id: 2,
     name: "Emma Smith",
     date: "2025-02-15",
-    location: "Madurai, Tamil nadu",
+    location: "Madurai, Tamil Nadu",
     guide: "Maria Rossi",
     duration: "6 hours",
     price: "Rs.12000",
@@ -27,13 +39,17 @@ const bookings = [
   },
 ];
 
-const BookingsPage = () => {
+const BookingsPage: FC = () => {
   return (
-    <>
-      <div className="max-w-3xl mx-auto p-6">
+    <div className="flex">
+      {/* Sidebar */}
+      <UserSidebar />
+
+      {/* Main Content */}
+      <div className="flex-1 max-w-3xl mx-auto p-6">
         <h2 className="text-2xl font-bold mb-4">📌 Upcoming Bookings</h2>
 
-        {bookings.length ? (
+        {bookings.length > 0 ? (
           bookings.map((booking) => (
             <Link key={booking.id} href={`/guides/dashboard/bookings/${booking.id}`}>
               <div className="bg-gray-100 p-4 rounded-lg shadow-md cursor-pointer hover:bg-gray-200 transition-all mb-4">
@@ -68,13 +84,17 @@ const BookingsPage = () => {
                     {booking.duration}
                   </p>
                   <p className="flex items-center">
-             <IndianRupee size={16} className="mr-2 text-gray-700" />
+                    <IndianRupee size={16} className="mr-2 text-gray-700" />
                     {booking.price}
                   </p>
                 </div>
 
                 {/* Payment Status */}
-                <p className={`mt-3 font-medium text-sm flex items-center ${booking.paymentStatus === "Completed" ? "text-green-600" : "text-yellow-600"}`}>
+                <p
+                  className={`mt-3 font-medium text-sm flex items-center ${
+                    booking.paymentStatus === "Completed" ? "text-green-600" : "text-yellow-600"
+                  }`}
+                >
                   <CheckCircle size={16} className="mr-1" />
                   {booking.paymentStatus}
                 </p>
@@ -85,7 +105,7 @@ const BookingsPage = () => {
           <p className="text-gray-600 text-center">No new bookings.</p>
         )}
       </div>
-    </>
+    </div>
   );
 };
 
