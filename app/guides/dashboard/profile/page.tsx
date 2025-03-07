@@ -1,39 +1,69 @@
-"use client"
+"use client";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, Save, XCircle } from "lucide-react";
 import UserSidebar from "@/components/UserSidebar";
 
-const initialProfile = {
-  name: "Alex Johnson",
-  profilePic: "/images/men2.jpg",
-  bio: "Passionate tour guide with a love for history and culture. I specialize in immersive experiences around Barcelona.",
-  experience: "5 Years",
-  location: "Barcelona, Spain",
-  languages: "English, Spanish, French",
-  specialization: "Historical Tours, Food & Wine Tours, Art & Architecture",
-  availability: "Monday - Saturday (9 AM - 6 PM)",
-  pricePerTour: "$80 per tour",
-  email: "alex.johnson@example.com",
-  phone: "+34 678 901 234",
-};
-
 const EditProfilePage = () => {
-  const [profile, setProfile] = useState(initialProfile);
-  const [profilePic, setProfilePic] = useState(profile.profilePic);
+  const [profile, setProfile] = useState<any>(null);
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  const userId = localStorage.getItem("userId"); // Replace with actual logged-in user ID
+
+  // ✅ Fetch guide profile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${userId}`);
+        if (!response.ok) throw new Error("Failed to fetch profile");
+        const data = await response.json();
+        setProfile(data);
+        setProfilePic(data.profilePic || "/default-profile.jpg");
+        setLoading(false);
+      } catch (error) {
+        console.error(error);
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [userId]);
+
+  if (loading) return <div className="text-center p-6">Loading...</div>;
+  if (!profile) return <div className="text-center p-6 text-red-500">Profile not found</div>;
+
+  // ✅ Handle form input change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setProfile({ ...profile, [e.target.name]: e.target.value });
   };
 
-  const handleSave = () => {
-    console.log("Profile Saved", profile);
+  const handleSave = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      });
+  
+      if (!response.ok) throw new Error("Failed to update profile");
+  
+      // Refetch profile data
+      const updatedResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${userId}`);
+      const updatedData = await updatedResponse.json();
+      setProfile(updatedData); // Update UI
+  
+      alert("Profile updated successfully!");
+    } catch (error) {
+      console.error(error);
+      alert("Error updating profile");
+    }
   };
+  
 
   return (
     <div className="flex flex-row">
-    <UserSidebar/>
-      <div className="max-w-3xl mx-auto p-6 ">
+      <UserSidebar />
+      <div className="max-w-3xl mx-auto p-6">
         <h2 className="text-2xl font-bold mb-4">Edit Profile</h2>
 
         {/* Profile Image Upload */}
@@ -45,57 +75,20 @@ const EditProfilePage = () => {
             </label>
             <input type="file" id="profilePicUpload" className="hidden" onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) setProfilePic(URL.createObjectURL(file));
+              if (file) setProfilePic(URL.createObjectURL(file)); // Update preview
+              // TODO: Upload file to backend & update profile.profilePic
             }} />
           </div>
         </div>
 
         {/* Form Fields */}
         <div className="grid grid-cols-2 gap-4 mt-6">
-          <div>
-            <label className="font-medium">Full Name</label>
-            <input type="text" name="name" value={profile.name} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
-          </div>
-
-          <div>
-            <label className="font-medium">Location</label>
-            <input type="text" name="location" value={profile.location} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
-          </div>
-
-          <div>
-            <label className="font-medium">Experience</label>
-            <input type="text" name="experience" value={profile.experience} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
-          </div>
-
-          <div>
-            <label className="font-medium">Languages</label>
-            <input type="text" name="languages" value={profile.languages} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
-          </div>
-
-          <div>
-            <label className="font-medium">Specialization</label>
-            <input type="text" name="specialization" value={profile.specialization} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
-          </div>
-
-          <div>
-            <label className="font-medium">Availability</label>
-            <input type="text" name="availability" value={profile.availability} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
-          </div>
-
-          <div>
-            <label className="font-medium">Price Per Tour</label>
-            <input type="text" name="pricePerTour" value={profile.pricePerTour} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
-          </div>
-
-          <div>
-            <label className="font-medium">Email</label>
-            <input type="email" name="email" value={profile.email} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
-          </div>
-
-          <div>
-            <label className="font-medium">Phone</label>
-            <input type="text" name="phone" value={profile.phone} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
-          </div>
+          {["name", "location", "experience", "languages", "specialization", "availability", "pricePerTour", "email", "phone"].map((field) => (
+            <div key={field}>
+              <label className="font-medium capitalize">{field.replace(/([A-Z])/g, " $1")}</label>
+              <input type="text" name={field} value={profile[field] || ""} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
+            </div>
+          ))}
         </div>
 
         {/* Action Buttons */}

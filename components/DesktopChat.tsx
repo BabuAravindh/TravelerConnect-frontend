@@ -1,116 +1,232 @@
-"use client";
-import React, { useState, useRef } from "react";
-import Image from "next/image";
+import { useEffect, useState } from "react";
 
-interface User {
-  username: string;
-  avatar: string;
-}
+// Base API URL
+const API_BASE_URL = "http://localhost:5000/api/chats";
 
-interface ChatMessage {
-  sender: string;
-  message: string;
-}
+// Helper function to get userId and token from localStorage
+const getUserId = () => localStorage.getItem("userId");
+const getToken = () => localStorage.getItem("token");
+const token = getToken();
+console.log("Authorization Token:", token);  // Check token value
 
-const DesktopChat: React.FC = () => {
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [message, setMessage] = useState<string>("");
-  const [chats, setChats] = useState<ChatMessage[]>([]);
-  const endRef = useRef<HTMLDivElement | null>(null);
 
-  const currentUser: User = { username: "John Doe", avatar: "/avatar.jpg" };
-  const users: User[] = [
-    { username: "Jane Doe", avatar: "/images/men1.jpg" },
-    { username: "Alice", avatar: "/images/men2.jpg" },
-    { username: "Bob", avatar: "/images/men3.jpg" },
-  ];
+const getUsers = async () => {
+  const token = getToken();
+  const userId = getUserId();
+  if (!token || !userId) {
+    console.error("Token or userId is missing");
+    return [];
+  }
 
-  const sendMessage = () => {
-    if (message.trim()) {
-      setChats((prevChats) => [...prevChats, { sender: currentUser.username, message }]);
-      setMessage("");
+  try {
+    const response = await fetch(`${API_BASE_URL}/`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    console.log("Response status:", response.status); // Log response status
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to fetch users: ${error.message}`);
+    }
+
+    const data = await response.json();
+    console.log("Fetched users data:", data); // Log fetched data
+    return data;
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return [];
+  }
+};
+
+
+
+// Fetch Conversations
+const getUserConversations = async () => {
+  const userId = getUserId();
+  if (!userId) return [];
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
+    if (!response.ok) throw new Error("Failed to fetch conversations");
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : data.conversations || [];
+  } catch (error) {
+    console.error("Error fetching conversations:", error);
+    return [];
+  }
+};
+
+// Fetch Messages for Selected Conversation
+const getMessages = async (conversationId: string) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/${conversationId}`, {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    });
+
+    if (!response.ok) throw new Error("Failed to fetch messages");
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : data.messages || [];
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    return [];
+  }
+};
+
+// Send Message
+const sendMessage = async (receiverId: string, message: string) => {
+  const senderId = getUserId();
+  const token = getToken();
+  if (!senderId || !receiverId || !token) return;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/send/${receiverId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: "include",
+      body: JSON.stringify({ message }),
+    });
+
+    if (!response.ok) throw new Error("Failed to send message");
+    return await response.json();
+  } catch (error) {
+    console.error("Error sending message:", error);
+  }
+};
+
+// Chat Component
+const ChatApp = () => {
+  const [users, setUsers] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [messages, setMessages] = useState<Array<{ senderId: string; message: string }>>([]);
+  const [newMessage, setNewMessage] = useState("");
+
+  // Load Users
+  useEffect(() => {
+    getUsers().then(setUsers);
+  }, []);
+
+  // Load Conversations
+  useEffect(() => {
+    getUserConversations().then(setConversations);
+  }, []);
+
+  // Load Messages for selected conversation
+  useEffect(() => {
+    if (selectedConversation) {
+      getMessages(selectedConversation._id).then(setMessages);
+    }
+  }, [selectedConversation]);
+
+  // Send Message Handler
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) {
+      console.error("Message is empty");
+      return;
+    }
+    if (!selectedConversation || !selectedConversation._id) {
+      console.error("No conversation selected");
+      return;
+    }
+
+    const senderId = getUserId();
+    const receiver = selectedConversation.participants.find((p) => String(p._id) !== senderId);
+
+    if (!receiver) {
+      console.error("Receiver not found");
+      return;
+    }
+
+    const response = await sendMessage(receiver._id, newMessage);
+    if (response) {
+      setMessages([...messages, { senderId, message: newMessage }]);
+      setNewMessage("");
     }
   };
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
-      {/* Sidebar */}
-      <div className="w-1/4 bg-primary p-4 border-r border-gray-700">
-        <h2 className="text-lg font-semibold mb-4">Chats</h2>
-        {users.map((user) => (
-          <div
-            key={user.username}
-            className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-gray-700 border-b border-black"
-            onClick={() => setSelectedUser(user)}
-          >
-            <Image width={40} height={40} className="w-10 h-10 rounded-full" src={user.avatar} alt={user.username} />
-            <span>{user.username}</span>
-          </div>
-        ))}
+    <div className="flex h-screen">
+      {/* Chat List (Users) */}
+      <div className="w-1/3 bg-gray-900 h-screen p-4">
+        <h2 className="text-lg font-bold text-white mb-4">Chats</h2>
+        <div className="space-y-3">
+          {users.map((user) => (
+            <div
+              key={user._id}
+              className={`flex items-center p-4 border-b border-gray-700 hover:bg-gray-700 cursor-pointer ${
+                selectedConversation?._id === user._id ? "bg-gray-700" : ""
+              }`}
+              onClick={() => setSelectedConversation(user)}
+            >
+              <div className="flex-1">
+                <p className="font-semibold text-white">{user.name}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Chat Section */}
-      <div className="flex flex-col flex-1">
-        {selectedUser ? (
+      {/* Chat Window */}
+      <div className="w-2/3 bg-gray-800 h-screen flex flex-col">
+        {selectedConversation ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 bg-primary border-b border-gray-700 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Image width={40} height={40} className="w-10 h-10 rounded-full" src={selectedUser.avatar} alt={selectedUser.username} />
-                <span className="font-semibold">{selectedUser.username}</span>
-              </div>
-              <button
-                className="text-sm text-gray-400 hover:text-gray-200"
-                onClick={() => setSelectedUser(null)}
-              >
-                Back
-              </button>
+            <div className="p-4 bg-gray-900 font-semibold border-b border-gray-700">
+              {selectedConversation.name || "Unknown User"}
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {chats.map((chat, index) => (
-                <div
-                  key={index}
-                  className={`flex ${chat.sender === currentUser.username ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`p-3 rounded-lg max-w-xs ${
-                      chat.sender === currentUser.username ? "bg-button" : "bg-gray-700"
-                    }`}
-                  >
-                    <p>{chat.message}</p>
+            {/* Chat Messages */}
+            <div className="flex-1 p-4 overflow-y-auto space-y-2">
+              {messages.map((msg, index) => {
+                const isSentByUser = String(msg.senderId) === String(getUserId());
+
+                return (
+                  <div key={index} className={`flex ${isSentByUser ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`p-3 rounded-lg max-w-xs ${
+                        isSentByUser ? "bg-blue-500 text-white" : "bg-gray-700 text-white"
+                      }`}
+                    >
+                      {msg.message}
+                    </div>
                   </div>
-                </div>
-              ))}
-              <div ref={endRef}></div>
+                );
+              })}
             </div>
 
             {/* Message Input */}
-            <div className="p-4 bg-gray-800 border-t border-gray-700 flex gap-4">
+            <div className="p-4 border-t border-gray-700 flex">
               <input
                 type="text"
+                className="flex-1 p-2 bg-gray-900 text-white border border-gray-600 rounded-lg"
                 placeholder="Type a message..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="flex-1 bg-gray-700 p-3 rounded-lg outline-none"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
               />
-              <button
-                onClick={sendMessage}
-                className="bg-button px-4 py-2 rounded-lg hover:bg-opacity-90"
-              >
+              <button className="ml-2 bg-blue-600 px-4 py-2 rounded-lg text-white" onClick={handleSendMessage}>
                 Send
               </button>
             </div>
           </>
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <h2 className="text-lg">Select a chat to start messaging</h2>
-          </div>
+          <div className="w-full h-full flex items-center justify-center text-gray-400">Select a conversation</div>
         )}
       </div>
     </div>
   );
 };
 
-export default DesktopChat;
+export default ChatApp;

@@ -8,7 +8,6 @@ const Navbar = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-
   const fetchUserData = () => {
     const storedName = localStorage.getItem("userName");
     const storedRole = localStorage.getItem("userRole");
@@ -17,10 +16,8 @@ const Navbar = () => {
     setUserRole(storedRole);
   };
 
-
   useEffect(() => {
     fetchUserData();
-
 
     const handleStorageChange = () => fetchUserData();
     window.addEventListener("storage", handleStorageChange);
@@ -99,6 +96,12 @@ const Navbar = () => {
                 <Link href={getDashboardPath()} className="block px-4 py-2 hover:bg-gray-200">
                   Dashboard
                 </Link>
+                {/* Become a Guide Button (Only for Users, not Admins or Guides) */}
+                {userRole === "user" && (
+                  <Link href="/become-a-guide" className="block px-4 py-2 hover:bg-gray-200">
+                    Become a Guide
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 hover:bg-gray-200"
