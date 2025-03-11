@@ -30,9 +30,7 @@ const useSignup = () => {
       if (user?.id && user?.name && user?.role && token) {
         // ✅ Store user data securely
         localStorage.setItem("token", token);
-        localStorage.setItem("userId", user.id);
-        localStorage.setItem("userName", user.name);
-        localStorage.setItem("userRole", user.role);
+      
 
         setServerMessage("✅ Signup successful! Redirecting...");
         toast.success("✅ Signup successful! Check your email to verify your account.");

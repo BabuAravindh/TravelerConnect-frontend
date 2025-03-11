@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line
-} from "recharts";
+import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
 import UserSidebar from "@/components/UserSidebar";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import useAuth from "@/hooks/useAuth"; // Use your existing auth hook
 
 const bookingData = [
   { month: "Jan", bookings: 10 },
@@ -26,62 +25,63 @@ const earningData = [
 ];
 
 export default function GuideDashboard() {
-  const [role, setRole] = useState<string | null>(null);
+  const { userRole } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    const storedRole = localStorage.getItem("userRole");
-    if (storedRole !== "guide") {
-      router.push("/");
-    } else {
-      setRole(storedRole);
-    }
-  }, [router]);
-
   const pathname = usePathname();
   const isOverviewPage = pathname === "/guides/dashboard";
 
-  if (!role) return <p>Loading...</p>;
+  // Redirect if the user is not a guide
+  useEffect(() => {
+    if (userRole && userRole !== "guide") {
+      router.push("/");
+    }
+  }, [userRole, router]);
+
+  if (!userRole) return <p className="text-center py-10">Loading...</p>;
+  if (userRole !== "guide") return null; // Prevent flashing wrong content
 
   return (
-    <div className="flex min-h-screen">
-      <UserSidebar/>
-      <main className="flex-1 p-6 ">
-        <div className="max-w-6xl mx-auto  shadow-lg rounded-xl p-6">
-          <h1 className="text-2xl font-semibold text-center mb-6">📊 Guide Dashboard</h1>
-          {isOverviewPage ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <DashboardCard title="📅 Booking Trends">
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={bookingData}>
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="bookings" fill="#4F46E5" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </DashboardCard>
+    <ProtectedRoute>
+      <div className="flex min-h-screen">
+        <UserSidebar />
+        <main className="flex-1 p-6">
+          <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-6">
+            <h1 className="text-2xl font-semibold text-center mb-6">📊 Guide Dashboard</h1>
+            {isOverviewPage ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <DashboardCard title="📅 Booking Trends">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={bookingData}>
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="bookings" fill="#4F46E5" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </DashboardCard>
 
-              <DashboardCard title="💰 Earnings History">
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={earningData}>
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="earnings" stroke="#22C55E" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </DashboardCard>
-            </div>
-          ) : (
-            <p>No additional content</p>
-          )}
-        </div>
-      </main>
-    </div>
+                <DashboardCard title="💰 Earnings History">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={earningData}>
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="earnings" stroke="#22C55E" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </DashboardCard>
+              </div>
+            ) : (
+              <p className="text-center text-gray-600">No additional content</p>
+            )}
+          </div>
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 }
 
+// Dashboard Card Component
 const DashboardCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="bg-gray-50 p-4 rounded-lg shadow-md">
     <h2 className="text-lg font-semibold mb-3">{title}</h2>

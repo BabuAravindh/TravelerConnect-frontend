@@ -25,10 +25,6 @@ const useLogin = () => {
 
    
       localStorage.setItem("token", data.token);
-      localStorage.setItem("userRole", data.user.role);
-      localStorage.setItem("userName", data.user.name);
-      localStorage.setItem("userId", data.user._id); 
-
       router.push("/");
     } catch (error: any) {
       setError(error.message);

@@ -1,40 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import useAuth from "@/hooks/useAuth"; // Import the custom hook
 
 const Navbar = () => {
-  const [userName, setUserName] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { userName, userRole } = useAuth(); // Use custom hook
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  const fetchUserData = () => {
-    const storedName = localStorage.getItem("userName");
-    const storedRole = localStorage.getItem("userRole");
-
-    setUserName(storedName);
-    setUserRole(storedRole);
-  };
-
-  useEffect(() => {
-    fetchUserData();
-
-    const handleStorageChange = () => fetchUserData();
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
 
   // Logout handler
   const handleLogout = () => {
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userRole");
-
-    setUserName(null);
-    setUserRole(null);
-
+    localStorage.removeItem("token");
     window.location.href = "/login"; // Redirect to login
   };
 
@@ -48,32 +24,14 @@ const Navbar = () => {
 
   return (
     <nav className="relative px-4 py-4 flex justify-between items-center bg-[#6899ab] text-white">
-      <Link href="/" className="text-xl font-bold">
-        TravelerConnect
-      </Link>
+      <Link href="/" className="text-xl font-bold">TravelerConnect</Link>
 
       {/* Desktop Menu */}
       <ul className="hidden lg:flex lg:space-x-6">
-        <li>
-          <Link href="/" className="text-white">
-            Home
-          </Link>
-        </li>
-        <li>
-          <Link href="/about" className="text-white">
-            About Us
-          </Link>
-        </li>
-        <li>
-          <Link href="/services" className="text-white">
-            Services
-          </Link>
-        </li>
-        <li>
-          <Link href="/contact" className="text-white">
-            Contact
-          </Link>
-        </li>
+        <li><Link href="/" className="text-white">Home</Link></li>
+        <li><Link href="/about" className="text-white">About Us</Link></li>
+        <li><Link href="/services" className="text-white">Services</Link></li>
+        <li><Link href="/contact" className="text-white">Contact</Link></li>
       </ul>
 
       {/* User Info & Auth Buttons */}
@@ -96,7 +54,6 @@ const Navbar = () => {
                 <Link href={getDashboardPath()} className="block px-4 py-2 hover:bg-gray-200">
                   Dashboard
                 </Link>
-                {/* Become a Guide Button (Only for Users, not Admins or Guides) */}
                 {userRole === "user" && (
                   <Link href="/become-a-guide" className="block px-4 py-2 hover:bg-gray-200">
                     Become a Guide

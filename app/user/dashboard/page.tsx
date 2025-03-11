@@ -5,6 +5,7 @@ import { Pencil, Save, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import UserSidebar from "@/components/UserSidebar";
 import toast from "react-hot-toast";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -113,7 +114,7 @@ export default function ProfilePage() {
     return <div className="min-h-screen flex justify-center items-center text-white text-lg">Loading...</div>;
   }
 
-  return (
+  return (<ProtectedRoute>
     <div className="min-h-screen flex bg-gradient-to-br from-[#6999aa] to-[#527a8c]">
       <UserSidebar />
       <div className="flex-grow flex justify-center items-center px-6 py-10">
@@ -199,5 +200,6 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

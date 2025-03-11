@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, Menu, X, Home, Calendar, MessageSquare, User } from "lucide-react";
 import { roleBasedNavItems } from "@/data/data";
-
-// Define valid user roles
-type UserRole = "admin" | "user" | "guide" | null;
+import useAuth from "@/hooks/useAuth"; // Import useAuth hook
 
 // Map icon names to actual Lucide icons
 const iconMap: Record<string, React.ElementType> = {
@@ -19,20 +17,11 @@ const iconMap: Record<string, React.ElementType> = {
 
 const UserSidebar = () => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
-  const [userRole, setUserRole] = useState<UserRole>(null);
   const pathname = usePathname();
-
-  // Get user role from localStorage
-  useEffect(() => {
-    const storedRole = localStorage.getItem("userRole") as UserRole;
-    if (storedRole === "admin" || storedRole === "user" || storedRole === "guide") {
-      setUserRole(storedRole);
-    }
-  }, []);
+  const { userName, userRole } = useAuth(); // Get username and role from token
 
   const handleLogout = () => {
-    localStorage.removeItem("username");
-    localStorage.removeItem("userRole");
+    localStorage.removeItem("token"); // Remove token on logout
     window.location.href = "/login";
   };
 
@@ -55,8 +44,9 @@ const UserSidebar = () => {
         } md:relative`}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-center p-5 border-b border-gray-700">
+        <div className="flex flex-col items-center justify-center p-5 border-b border-gray-700">
           <h1 className="text-lg font-bold text-gray-200 text-center">TravelerConnect</h1>
+          {userName && <p className="text-sm text-gray-300">Welcome, {userName} 👋</p>}
         </div>
 
         {/* Navigation Items */}
