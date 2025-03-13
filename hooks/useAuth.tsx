@@ -20,7 +20,9 @@ const useAuth = () => {
 
       if (token) {
         try {
+         
           const decoded: DecodedToken = jwtDecode(token);
+         
           setUserId(decoded.id); // Extract userId
           setUserName(decoded.user);
           setUserRole(decoded.role);

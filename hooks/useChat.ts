@@ -30,7 +30,11 @@ const fetchData = async (url: string, token: string | null, options: RequestInit
         "Content-Type": "application/json",
       },
     });
-    return response.ok ? response.json() : null;
+
+    const data = await response.json();
+    console.log(`Response from ${url}:`, data); // ✅ Log API response
+
+    return response.ok ? data : null;
   } catch (error) {
     console.error("Error fetching data:", error);
     return null;
@@ -60,7 +64,7 @@ const useChat = () => {
   useEffect(() => {
     if (!selectedConversation || !token) return;
 
-    fetchData(`${API_BASE_URL}/${selectedConversation._id}`, token).then(setMessages)
+    fetchData(`${API_BASE_URL}/${selectedConversation._id}`, token).then(setMessages);
 
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
@@ -88,6 +92,8 @@ const useChat = () => {
       body: JSON.stringify({ senderId: userId, message: newMessage }),
     });
 
+    console.log("Message Send API Response:", data); // ✅ Log send message API response
+
     if (data?.success) {
       setMessages((prev) => [...prev, { senderId: userId, message: newMessage }]);
       setNewMessage("");
@@ -95,45 +101,40 @@ const useChat = () => {
   };
 
   const handleSelectUser = async (user: User) => {
-    // Check if conversation already exists
     let conversation = conversations.find((conv) =>
       conv.participants.some((p) => p._id === user._id)
     );
-  
+
     if (!conversation) {
       console.log("No existing conversation, creating a new one...");
-      
-      // Call API to create a new conversation
-      const newConversation = await fetch("http://localhost:5000/api/chats/start-conversation", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // Use actual token
-        },
-        body: JSON.stringify({ receiverId: user._id }),
-      })
-      .then(res => res.json())
-      .catch(error => {
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/startConversation`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ receiverId: user._id }),
+        });
+
+        const newConversation = await response.json();
+        console.log("Start Conversation API Response:", newConversation); // ✅ Log API response
+
+        if (!newConversation || !newConversation._id) {
+          console.error("Failed to create a new conversation");
+          return;
+        }
+
+        setConversations((prev) => [...prev, newConversation]);
+        conversation = newConversation;
+      } catch (error) {
         console.error("Error creating conversation:", error);
-        return null;
-      });
-      
-      console.log("API Response:", newConversation);
-      
-      if (!newConversation || !newConversation._id) {
-        console.error("Failed to create a new conversation");
-        return;
       }
-  
-      // Update state with new conversation
-      setConversations((prev) => [...prev, newConversation]);
-      conversation = newConversation; // Assign to selected conversation
     }
-  
-    // Set the selected conversation
+
     setSelectedConversation(conversation);
   };
-  
 
   return {
     users,
@@ -145,7 +146,7 @@ const useChat = () => {
     setNewMessage,
     handleSendMessage,
     handleSelectUser,
-    userId
+    userId,
   };
 };
 

@@ -20,27 +20,7 @@ const ChatApp: React.FC = () => {
   } = useChat();
 
   // Fetch messages when a conversation is selected
-  useEffect(() => {
-    if (selectedConversation) {
-      const fetchMessages = async () => {
-        try {
-          const res = await fetch(
-         `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${selectedConversation._id}`
-
-          );
-          if (!res.ok) throw new Error("Failed to fetch messages");
-
-          const data = await res.json();
-          setMessages(data);
-        } catch (error) {
-          console.error("Error fetching messages:", error);
-        }
-      };
-
-      fetchMessages();
-    }
-  }, [selectedConversation, setMessages]);
-
+ 
   return (
     <div className="flex h-screen">
       {/* Sidebar for User List */}

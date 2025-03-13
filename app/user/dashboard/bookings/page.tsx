@@ -1,73 +1,58 @@
 "use client";
 import { useState, useEffect } from "react";
+import axios from "axios";
 import Link from "next/link";
 import UserSidebar from "@/components/UserSidebar";
-import { Calendar, CheckCircle, Clock, IndianRupee, MapPin } from "lucide-react";
-import Image from "next/image";
+import { Calendar, CheckCircle, IndianRupee } from "lucide-react";
+import useAuth from "@/hooks/useAuth";
+
 type Booking = {
   _id: string;
   tripDate: string;
   bookingDate: string;
-  places: string;
-  guideName: string;
-  guideImage: string;
-  duration: number;
   price: string;
   status: string;
 };
 
 export default function UserBookings() {
+  const { userId} = useAuth(); // Ensure auth is loaded
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedUserId = localStorage.getItem("userId");
+    if ( !userId) return; // ✅ Wait until auth is loaded and userId is available
 
-    if (!storedUserId) {
-      setError("User ID not found. Please log in.");
-      setLoading(false);
-      return;
-    }
-    console.log(storedUserId)
-    console.log('http://localhost:5000/api/booking/user/${storedUserId}')
-    fetch(`http://localhost:5000/api/booking/user/${storedUserId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch bookings");
-        return res.json();
-      })
-      .then((data) => {
-        console.log("Fetched Data:", data); // Debugging
+    const fetchBookings = async () => {
+      try {
+        console.log("Fetching bookings for user:", userId);
+        const apiUrl = `http://localhost:5000/api/bookings/user/${userId}`;
+        console.log("API URL:", apiUrl);
 
-        if (!Array.isArray(data)) {
-          console.error("Unexpected response format:", data);
-          throw new Error("Invalid response format, expected an array");
-        }
+        const { data } = await axios.get(apiUrl, { withCredentials: true }); // ✅ Include credentials if needed
+        console.log("Fetched Data:", data);
 
-        const formattedBookings = data.map((booking: Booking) => ({
-          _id: booking._id.toString(),
-          tripDate: booking.tripDate ? new Date(booking.tripDate).toDateString() : "N/A",
-          bookingDate: booking.bookingDate ? new Date(booking.bookingDate).toDateString() : "N/A",
-          places: Array.isArray(booking.places) ? booking.places.join(", ") : "Not specified",
-          guideName: booking.guideName || "Guide not assigned",
-          guideImage: booking.guideImage || "https://example.com/default-guide.jpg",
-          duration: typeof booking.duration === "number" ? booking.duration : parseInt(booking.duration) || 0,  // ✅ Ensure duration is a number
-          price: booking.price ? `₹${booking.price}` : "N/A",
-          status: booking.status || "Unknown",
-        }));
-        
-        
+        if (!Array.isArray(data)) throw new Error("Invalid response format");
 
-        console.log("Formatted Bookings:", formattedBookings); // Debugging
-        setBookings(formattedBookings);
-        setLoading(false);
-      })
-      .catch((err) => {
+        setBookings(
+          data.map((booking) => ({
+            _id: booking._id.toString(),
+            tripDate: booking.tripDate ? new Date(booking.tripDate).toDateString() : "N/A",
+            bookingDate: booking.bookingDate ? new Date(booking.bookingDate).toDateString() : "N/A",
+            price: booking.price ? `₹${booking.price}` : "N/A",
+            status: booking.status || "Unknown",
+          }))
+        );
+      } catch (err: any) {
         console.error("Error fetching bookings:", err);
-        setError(err.message);
+        setError(err.response?.data?.message || "Failed to fetch bookings");
+      } finally {
         setLoading(false);
-      });
-  }, []);
+      }
+    };
+
+    fetchBookings();
+  }, [userId]); // ✅ Only fetch when `isLoaded` and `userId` are available
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -78,40 +63,20 @@ export default function UserBookings() {
         {loading && <p className="text-gray-500 text-center">Loading bookings...</p>}
         {error && <p className="text-red-500 text-center">{error}</p>}
 
-        {!loading && !error && Array.isArray(bookings) && bookings.length > 0 ? (
+        {!loading && !error && bookings.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {bookings.map((booking) => (
               <Link key={booking._id} href={`/user/dashboard/bookings/${booking._id}`}>
                 <div className="bg-primary rounded-2xl shadow-lg overflow-hidden border border-gray-200 transform transition-all duration-300 hover:scale-[1.02]">
-                  <div className="relative">
-                  <Image 
-  src={booking.guideImage} 
-  alt={booking.guideName} 
-  width={400}  
-  height={160} 
-  className="w-full h-40 object-cover"
-/>
-                    <div className="absolute bottom-2 left-2 bg-black/50 text-white px-3 py-1 text-sm rounded-lg">
-                      Guide: {booking.guideName}
-                    </div>
-                  </div>
                   <div className="p-5">
                     <div className="flex justify-between items-center text-white">
                       <p className="flex items-center">
                         <Calendar size={16} className="mr-2 text-white" />
                         {booking.tripDate}
                       </p>
-                      <p className="flex items-center">
-                        <MapPin size={16} className="mr-2 text-white" />
-                        {booking.places}
-                      </p>
                     </div>
 
                     <div className="flex justify-between items-center mt-3 text-white">
-                      <p className="flex items-center">
-                        <Clock size={16} className="mr-2 text-white" />
-                        {booking.duration} days
-                      </p>
                       <p className="flex items-center font-semibold text-primary">
                         <IndianRupee size={16} className="mr-2 text-primary" />
                         {booking.price}
