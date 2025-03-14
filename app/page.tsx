@@ -2,11 +2,11 @@
 import { Footer } from "@/components/Footer";
 import GuideListing from "@/components/GuideListing";
 import HeroSection from "@/components/Header";
-import ProtectedRoute from "@/components/ProtectedRoute";
+
 
 const Page: React.FC = () => {
   return (
-    <ProtectedRoute allowGuest>
+    
     <div className="flex flex-col min-h-screen">
       <HeroSection />
 
@@ -19,7 +19,7 @@ const Page: React.FC = () => {
 
       <Footer />
     </div>
-    </ProtectedRoute>
+    
   );
 };
 

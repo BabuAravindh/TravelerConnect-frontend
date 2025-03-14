@@ -6,7 +6,6 @@ import useChat from "@/hooks/useChat";
 
 const MobileChat = () => {
   const {
-    users,
     conversations,
     selectedConversation,
     setSelectedConversation,
@@ -15,7 +14,7 @@ const MobileChat = () => {
     setNewMessage,
     handleSendMessage,
     userId,
-  } = useChat();
+  } = useChat(); // Removed 'users' since it's unused
 
   const [isClient, setIsClient] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -76,18 +75,19 @@ const MobileChat = () => {
 
       {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto space-y-2">
-              {messages.map((msg, index) => (
-                <div className={`flex  ${msg.senderId === userId || (typeof msg.senderId === "object" && msg.senderId._id === userId) ? "justify-end" : "justify-start"}`} key={msg._id || msg.timestamp}>
-                <div className={`p-3 rounded-lg max-w-xs ${msg.senderId === userId || (typeof msg.senderId === "object" && msg.senderId._id === userId) ? "bg-primary text-white" : "bg-gray-700 text-white"}`}>
-                  {msg.message}
-                </div>
-              </div>
-              
-              ))}
-              <div ref={endRef}></div>
+        {messages.map((msg) => ( // Removed 'index' as it's unused
+          <div 
+            className={`flex ${msg.senderId === userId || (typeof msg.senderId === "object" && msg.senderId._id === userId) ? "justify-end" : "justify-start"}`} 
+            key={msg._id || msg.timestamp}
+          >
+            <div className={`p-3 rounded-lg max-w-xs ${msg.senderId === userId || (typeof msg.senderId === "object" && msg.senderId._id === userId) ? "bg-primary text-white" : "bg-gray-700 text-white"}`}>
+              {msg.message}
             </div>
+          </div>
+        ))}
+        <div ref={endRef}></div>
+      </div>
 
-        
       {/* Message Input */}
       <div className="p-3 bg-gray-800 flex items-center gap-3">
         <input

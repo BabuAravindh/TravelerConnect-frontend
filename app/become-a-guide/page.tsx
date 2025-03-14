@@ -37,8 +37,7 @@ const BecomeAGuide = () => {
 
   // Validation function
   const validateForm = () => {
-    let valid = true;
-    let newErrors: Record<string, string> = {};
+    const newErrors: Record<string, string> = {};
 
     if (!formData.fullName.trim()) newErrors.fullName = "Full Name is required";
     if (!formData.email.trim() || !/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Valid Email is required";
@@ -46,7 +45,7 @@ const BecomeAGuide = () => {
     if (!formData.dob) newErrors.dob = "Date of Birth is required";
     if (!formData.experience.trim() || isNaN(Number(formData.experience)) || Number(formData.experience) < 0) 
       newErrors.experience = "Enter valid years of experience";
-    
+
     if (!formData.expertise.trim()) newErrors.expertise = "Expertise is required";
     const languagesList = formData.languages.split(",").map(lang => lang.trim());
     if (languagesList.length < 2) newErrors.languages = "You must speak at least two languages";
@@ -67,9 +66,8 @@ const BecomeAGuide = () => {
     if (!validateForm()) return;
 
     const formDataToSend = new FormData();
-    Object.keys(formData).forEach((key) => {
-      const value = formData[key as keyof typeof formData];
-      if (value) formDataToSend.append(key, value as any);
+    Object.entries(formData).forEach(([key, value]) => {
+      if (value) formDataToSend.append(key, value as Blob);
     });
 
     try {
@@ -90,7 +88,8 @@ const BecomeAGuide = () => {
       } else {
         setMessage("Failed to send request. Please try again.");
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error(error);
       setMessage("An error occurred. Please try again.");
     }
   };

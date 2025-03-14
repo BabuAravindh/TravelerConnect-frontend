@@ -9,7 +9,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Toaster position="top-center" reverseOrder={false} />
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>{children}</AuthProvider> {/* ✅ Wraps entire app */}
       </body>
     </html>
   );

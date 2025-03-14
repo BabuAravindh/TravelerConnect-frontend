@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
-import UserSidebar from "@/components/UserSidebar";
-import ProtectedRoute from "@/components/ProtectedRoute";
+
+
 import useAuth from "@/hooks/useAuth"; // Use your existing auth hook
 
 const bookingData = [
@@ -41,9 +41,9 @@ export default function GuideDashboard() {
   if (userRole !== "guide") return null; // Prevent flashing wrong content
 
   return (
-    <ProtectedRoute>
+   
       <div className="flex min-h-screen">
-        <UserSidebar />
+
         <main className="flex-1 p-6">
           <div className="max-w-6xl mx-auto bg-white shadow-lg rounded-xl p-6">
             <h1 className="text-2xl font-semibold text-center mb-6">📊 Guide Dashboard</h1>
@@ -77,7 +77,7 @@ export default function GuideDashboard() {
           </div>
         </main>
       </div>
-    </ProtectedRoute>
+
   );
 }
 

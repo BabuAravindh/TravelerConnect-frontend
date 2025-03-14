@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FC } from "react";
 import { Calendar, MapPin, User, CheckCircle, Clock, IndianRupee } from "lucide-react";
-import UserSidebar from "@/components/UserSidebar";
+
 
 interface Booking {
   id: number;
@@ -43,7 +43,7 @@ const BookingsPage: FC = () => {
   return (
     <div className="flex">
       {/* Sidebar */}
-      <UserSidebar />
+   
 
       {/* Main Content */}
       <div className="flex-1 max-w-3xl mx-auto p-6">

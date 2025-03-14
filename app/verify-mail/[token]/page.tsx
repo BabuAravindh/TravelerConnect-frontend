@@ -32,7 +32,7 @@ const VerifyEmailPage = () => {
 
         if (response.ok) {
           setMessage(data.message);
-          setTimeout(() => router.push("/create-profile"), 3000);
+          setTimeout(() => router.push("/"), 3000);
         } else {
           setError(data.message || "Verification failed.");
         }

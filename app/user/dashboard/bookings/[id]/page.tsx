@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { Calendar, Clock, IndianRupee, User } from "lucide-react";
 import Image from "next/image";
 
@@ -27,10 +27,11 @@ export default function BookingDetails() {
 
     const fetchBookingDetails = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/bookings/${id}`);
+        const response = await axios.get<Booking>(`http://localhost:5000/api/bookings/${id}`);
         setBooking(response.data);
-      } catch (err: any) {
-        setError(err.response?.data?.message || "Failed to fetch booking details");
+      } catch (err) {
+        const error = err as AxiosError<{ message?: string }>;
+        setError(error.response?.data?.message || "Failed to fetch booking details");
       } finally {
         setLoading(false);
       }
@@ -49,13 +50,12 @@ export default function BookingDetails() {
       {booking && (
         <div className="bg-white p-6 rounded-lg shadow-md">
           <Image
-  src={booking.guideImage || "https://picsum.photos/600/240"} 
-  alt={booking.guide}
-  width={600}
-  height={240}
-  className="w-full h-60 object-cover rounded-lg"
-/>
-
+            src={booking.guideImage || "https://picsum.photos/600/240"}
+            alt={booking.guide}
+            width={600}
+            height={240}
+            className="w-full h-60 object-cover rounded-lg"
+          />
 
           <div className="mt-4">
             <h3 className="text-2xl font-semibold">{booking.location}</h3>

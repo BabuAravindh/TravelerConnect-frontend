@@ -1,105 +1,223 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Camera, Save, XCircle } from "lucide-react";
-import UserSidebar from "@/components/UserSidebar";
+import { Camera, Save } from "lucide-react"; // Removed XCircle
+import { useAuth } from "@/context/AuthContext";
+import toast from "react-hot-toast";
+
+type Profile = {
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  experience: string;
+  languages: string;
+  specialization: string;
+  availability: string;
+  pricePerTour: string;
+  profilePic?: string;
+};
 
 const EditProfilePage = () => {
-  const [profile, setProfile] = useState<any>(null);
+  const { user, loading } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [profilePic, setProfilePic] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  const userId = localStorage.getItem("userId"); // Replace with actual logged-in user ID
-
-  // ✅ Fetch guide profile
   useEffect(() => {
+    if (loading || !user) return;
+
     const fetchProfile = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${userId}`);
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${user.id}`
+        );
         if (!response.ok) throw new Error("Failed to fetch profile");
-        const data = await response.json();
+
+        const data: Profile = await response.json();
         setProfile(data);
         setProfilePic(data.profilePic || "/default-profile.jpg");
-        setLoading(false);
       } catch (error) {
         console.error(error);
-        setLoading(false);
+        toast.error("Failed to fetch profile.");
+      } finally {
+        setFetching(false);
       }
     };
+
     fetchProfile();
-  }, [userId]);
+  }, [user, loading]);
 
-  if (loading) return <div className="text-center p-6">Loading...</div>;
-  if (!profile) return <div className="text-center p-6 text-red-500">Profile not found</div>;
-
-  // ✅ Handle form input change
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
-  };
-
-  const handleSave = async () => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
-      });
-  
-      if (!response.ok) throw new Error("Failed to update profile");
-  
-      // Refetch profile data
-      const updatedResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${userId}`);
-      const updatedData = await updatedResponse.json();
-      setProfile(updatedData); // Update UI
-  
-      alert("Profile updated successfully!");
-    } catch (error) {
-      console.error(error);
-      alert("Error updating profile");
+  // ✅ Handle File Upload
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setProfilePic(URL.createObjectURL(file));
     }
   };
-  
+
+  const uploadImage = async () => {
+    if (!selectedFile) return null;
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const data = await response.json();
+      return data.imageUrl;
+    } catch (error) {
+      console.error("Image upload failed:", error);
+      return null;
+    }
+  };
+
+  // ✅ Form Validation
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+
+    if (!profile?.name?.trim()) newErrors.name = "Name is required.";
+    if (!profile?.email?.trim()) newErrors.email = "Email is required.";
+    else if (!/\S+@\S+\.\S+/.test(profile.email))
+      newErrors.email = "Invalid email format.";
+
+    if (!profile?.phone?.trim()) newErrors.phone = "Phone number is required.";
+    else if (!/^\d{10}$/.test(profile.phone))
+      newErrors.phone = "Phone must be 10 digits.";
+
+    if (!profile?.location?.trim())
+      newErrors.location = "Location is required.";
+    if (!profile?.experience?.trim())
+      newErrors.experience = "Experience is required.";
+    if (!profile?.languages?.trim())
+      newErrors.languages = "Languages are required.";
+    if (!profile?.specialization?.trim())
+      newErrors.specialization = "Specialization is required.";
+    if (!profile?.availability?.trim())
+      newErrors.availability = "Availability is required.";
+    if (!profile?.pricePerTour?.trim())
+      newErrors.pricePerTour = "Price per tour is required.";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // ✅ Handle Profile Update
+  const handleSave = async () => {
+    if (!validateForm()) {
+      toast.error("Please fix the errors before submitting.");
+      return;
+    }
+
+    let uploadedImageUrl = profile?.profilePic || "";
+    if (selectedFile) {
+      uploadedImageUrl = await uploadImage();
+      if (!uploadedImageUrl) return toast.error("Image upload failed!");
+    }
+
+    try {
+      if (!user) {
+        toast.error("User not found.");
+        return;
+      }
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${user?.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...profile, profilePic: uploadedImageUrl }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update profile");
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      console.error("Profile update failed:", error);
+      toast.error("Profile update failed!");
+    }
+  };
+
+  if (loading || fetching)
+    return <div className="text-center p-6">Loading...</div>;
+  if (!profile)
+    return (
+      <div className="text-center p-6 text-red-500">Profile not found</div>
+    );
 
   return (
-    <div className="flex flex-row">
-      <UserSidebar />
+    <div className="flex">
       <div className="max-w-3xl mx-auto p-6">
         <h2 className="text-2xl font-bold mb-4">Edit Profile</h2>
 
         {/* Profile Image Upload */}
         <div className="flex flex-col items-center">
           <div className="relative">
-            <Image src={profilePic} alt="Profile Picture" width={120} height={120} className="rounded-full shadow-md border" />
-            <label htmlFor="profilePicUpload" className="absolute bottom-0 right-0 bg-gray-800 text-white p-2 rounded-full cursor-pointer">
+            <Image
+              src={profilePic || "/default-profile.jpg"}
+              alt="Profile Picture"
+              width={120}
+              height={120}
+              className="rounded-full shadow-md border"
+            />
+            <label
+              htmlFor="profilePicUpload"
+              className="absolute bottom-0 right-0 bg-gray-800 text-white p-2 rounded-full cursor-pointer"
+            >
               <Camera size={18} />
             </label>
-            <input type="file" id="profilePicUpload" className="hidden" onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) setProfilePic(URL.createObjectURL(file)); // Update preview
-              // TODO: Upload file to backend & update profile.profilePic
-            }} />
+            <input
+              type="file"
+              id="profilePicUpload"
+              className="hidden"
+              onChange={handleFileChange}
+            />
           </div>
         </div>
 
         {/* Form Fields */}
         <div className="grid grid-cols-2 gap-4 mt-6">
-          {["name", "location", "experience", "languages", "specialization", "availability", "pricePerTour", "email", "phone"].map((field) => (
+          {Object.keys(profile as Profile).map((field) => (
             <div key={field}>
-              <label className="font-medium capitalize">{field.replace(/([A-Z])/g, " $1")}</label>
-              <input type="text" name={field} value={profile[field] || ""} onChange={handleChange} className="w-full mt-1 p-2 border rounded-lg" />
+              <label className="font-medium capitalize">
+                {field.replace(/([A-Z])/g, " $1")}
+              </label>
+              <input
+                type="text"
+                name={field}
+                value={profile?.[field as keyof Profile] || ""} // ✅ Use keyof Profile
+                onChange={(e) =>
+                  setProfile((prevProfile) => ({
+                    ...prevProfile!,
+                    [field]: e.target.value,
+                  }))
+                }
+                className={`w-full mt-1 p-2 border rounded-lg ${
+                  errors[field] ? "border-red-500" : ""
+                }`}
+              />
+              {errors[field] && (
+                <p className="text-red-500 text-sm mt-1">{errors[field]}</p>
+              )}
             </div>
           ))}
         </div>
 
         {/* Action Buttons */}
         <div className="mt-6 flex space-x-4">
-          <button onClick={handleSave} className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow">
+          <button
+            onClick={handleSave}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow"
+          >
             <Save size={18} />
             <span>Save</span>
-          </button>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow">
-            <XCircle size={18} />
-            <span>Cancel</span>
           </button>
         </div>
       </div>

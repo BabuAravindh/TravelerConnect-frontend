@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import DesktopChat from "@/components/DesktopChat";
 import MobileChat from "@/components/MobileChat";
-import UserSidebar from "@/components/UserSidebar";
+
 
 const ChatContainer: React.FC = () => {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
@@ -16,8 +16,7 @@ const ChatContainer: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex">
-      <UserSidebar />
+    <div className="flex">   
       <div className="flex-1 h-screen">{isMobile ? <MobileChat /> : <DesktopChat />}</div>
     </div>
   );

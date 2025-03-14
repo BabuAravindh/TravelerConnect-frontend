@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import useAuth from "@/hooks/useAuth";
 
 interface Message {
   _id: string;
   senderId: string;
   receiverId: string;
-  message: string; // Instead of `content`
+  message: string; // Fixed field name
   timestamp: string;
 }
-
 
 const API_BASE_URL = "http://localhost:5000/api/chats"; // Adjust as needed
 const SOCKET_SERVER_URL = "http://localhost:5000"; // Backend WebSocket server URL
@@ -20,7 +19,7 @@ const ChatMessageArea = ({ guideId }: { guideId: string }) => {
   const { userId } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [socket, setSocket] = useState<any>(null);
+  const [socket, setSocket] = useState<Socket | null>(null); // ✅ Fixed TypeScript error
 
   // Initialize socket connection
   useEffect(() => {
@@ -71,18 +70,18 @@ const ChatMessageArea = ({ guideId }: { guideId: string }) => {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !socket) return; // Prevent sending empty messages
-  
+
     const tempMessage: Message = {
       _id: `temp-${Date.now()}`,
-      senderId: userId,
+      senderId: userId as string,
       receiverId: guideId,
-      content: newMessage.trim(), // Use 'content' instead of 'message' if needed
+      message: newMessage.trim(), // ✅ Fixed field name
       timestamp: new Date().toISOString(),
     };
-  
+
     // Optimistic UI update
     setMessages((prev) => [...prev, tempMessage]);
-  
+
     try {
       const res = await fetch(`${API_BASE_URL}/send/${guideId}`, {
         method: "POST",
@@ -92,20 +91,18 @@ const ChatMessageArea = ({ guideId }: { guideId: string }) => {
         },
         body: JSON.stringify({ senderId: userId, message: newMessage.trim() }),
       });
-  
+
       const data = await res.json();
-      
+
       if (!data?.success) {
         // Remove the temp message on failure
         setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
       } else {
         // Update the last message with the actual message data from the backend
         setMessages((prev) =>
-          prev.map((msg) =>
-            msg._id === tempMessage._id ? data.message : msg
-          )
+          prev.map((msg) => (msg._id === tempMessage._id ? data.message : msg))
         );
-  
+
         // Emit message to socket server
         socket.emit("send-message", data.message);
       }
@@ -114,10 +111,9 @@ const ChatMessageArea = ({ guideId }: { guideId: string }) => {
       // Remove temp message on error
       setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
     }
-  
+
     setNewMessage(""); // Reset input after sending
   };
-  
 
   return (
     <div className="bg-[#6999aa] shadow-lg rounded-lg p-4 max-w-6xl mx-auto">

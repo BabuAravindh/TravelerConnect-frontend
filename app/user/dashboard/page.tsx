@@ -3,9 +3,9 @@
 import Image from "next/image";
 import { Pencil, Save, X } from "lucide-react";
 import { useState, useEffect } from "react";
-import UserSidebar from "@/components/UserSidebar";
+
 import toast from "react-hot-toast";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext"; // Assuming you have an AuthContext
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -23,22 +23,17 @@ interface Profile {
 }
 
 export default function ProfilePage() {
+  const { user } = useAuth(); // Get user info from AuthContext
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedUserId = localStorage.getItem("userId");
-    if (!storedUserId) {
-      console.error("❌ User ID not found in localStorage");
-      return;
-    }
-    setUserId(storedUserId);
+    if (!user?.id) return; // Ensure user ID is available
 
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/profile/${storedUserId}`);
+        const res = await fetch(`${API_URL}/api/profile/${user.id}`);
         if (!res.ok) throw new Error("Profile not found");
 
         const data = await res.json();
@@ -63,7 +58,7 @@ export default function ProfilePage() {
     };
 
     fetchProfile();
-  }, []);
+  }, [user?.id]);
 
   const handleEdit = () => setIsEditing(true);
   const handleCancel = () => setIsEditing(false);
@@ -75,7 +70,7 @@ export default function ProfilePage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId || !profile) {
+    if (!user?.id || !profile) {
       toast.error("User ID is missing.");
       return;
     }
@@ -91,7 +86,7 @@ export default function ProfilePage() {
     };
 
     try {
-      const res = await fetch(`${API_URL}/api/profile/${userId}`, {
+      const res = await fetch(`${API_URL}/api/profile/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedProfile),
@@ -114,16 +109,22 @@ export default function ProfilePage() {
     return <div className="min-h-screen flex justify-center items-center text-white text-lg">Loading...</div>;
   }
 
-  return (<ProtectedRoute>
+  return (
     <div className="min-h-screen flex bg-gradient-to-br from-[#6999aa] to-[#527a8c]">
-      <UserSidebar />
+     
       <div className="flex-grow flex justify-center items-center px-6 py-10">
         <div className="w-full max-w-4xl flex flex-col md:flex-row gap-8">
           {/* Profile Picture Section */}
           <div className="bg-white/20 p-6 rounded-xl w-full md:w-1/3 flex flex-col items-center">
             <h2 className="text-xl font-bold text-white mb-4">Profile Picture</h2>
             <div className="relative w-28 h-28">
-              <Image src={profile?.profilePic || ""} alt="Profile" width={144} height={144} className="rounded-full" />
+              <Image
+                src={profile?.profilePic || ""}
+                alt="Profile"
+                width={144}
+                height={144}
+                className="rounded-full"
+              />
             </div>
           </div>
 
@@ -139,58 +140,64 @@ export default function ProfilePage() {
                 <p><strong>City:</strong> {profile?.city}</p>
                 <p><strong>Country:</strong> {profile?.country}</p>
                 <p><strong>Gender:</strong> {profile?.gender}</p>
-                <button onClick={handleEdit} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-2">
+                <button
+                  onClick={handleEdit}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-2"
+                >
                   <Pencil size={16} /> Edit Profile
                 </button>
               </div>
             ) : (
               <form className="mt-6 space-y-4" onSubmit={handleSave}>
-                {/* Standard Fields */}
                 {["firstName", "lastName", "phone", "dateOfBirth", "gender"].map((field) => (
                   <div key={field}>
                     <label className="block text-sm font-medium text-gray-200">{field}</label>
-                    <input 
-                      type="text" 
-                      name={field} 
-                      value={profile?.[field as keyof Profile] || ""} 
-                      onChange={handleChange} 
-                      className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white" 
-                      required 
+                    <input
+                      type="text"
+                      name={field}
+                      value={profile?.[field as keyof Profile] || ""}
+                      onChange={handleChange}
+                      className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white"
+                      required
                     />
                   </div>
                 ))}
 
-                {/* City and Country Fields (Handled Separately) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-200">City</label>
-                  <input 
-                    type="text" 
-                    name="city" 
-                    value={profile?.city || ""} 
-                    onChange={handleChange} 
-                    className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white" 
-                    required 
+                  <input
+                    type="text"
+                    name="city"
+                    value={profile?.city || ""}
+                    onChange={handleChange}
+                    className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white"
+                    required
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-200">Country</label>
-                  <input 
-                    type="text" 
-                    name="country" 
-                    value={profile?.country || ""} 
-                    onChange={handleChange} 
-                    className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white" 
-                    required 
+                  <input
+                    type="text"
+                    name="country"
+                    value={profile?.country || ""}
+                    onChange={handleChange}
+                    className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white"
+                    required
                   />
                 </div>
 
-                {/* Save & Cancel Buttons */}
                 <div className="flex gap-4">
-                  <button type="submit" className="px-6 py-2 bg-green-600 text-white rounded-lg flex items-center gap-2">
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg flex items-center gap-2"
+                  >
                     <Save size={16} /> Save Changes
                   </button>
-                  <button onClick={handleCancel} className="px-6 py-2 bg-red-600 text-white rounded-lg flex items-center gap-2">
+                  <button
+                    onClick={handleCancel}
+                    className="px-6 py-2 bg-red-600 text-white rounded-lg flex items-center gap-2"
+                  >
                     <X size={16} /> Cancel
                   </button>
                 </div>
@@ -200,6 +207,5 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
-    </ProtectedRoute>
   );
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { CheckCircle, Clock, XCircle, CreditCard, Calendar, RefreshCw, DollarSign } from "lucide-react";
-import UserSidebar from "@/components/UserSidebar";
+
 import { payments, modeOfPayment } from "@/data/data"; 
 
 const userPayments = Object.values(payments);
@@ -27,7 +27,7 @@ const statusColors: Record<"completed" | "pending" | "failed", string> = {
 const PaymentsPage = () => {
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <UserSidebar />
+      
       <div className="flex-1 flex flex-col">
         <header className="bg-primary text-white py-6 px-10 flex flex-col md:flex-row justify-between items-center shadow-lg">
           <h1 className="text-3xl font-bold">My Payments</h1>

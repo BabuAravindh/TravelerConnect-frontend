@@ -21,7 +21,7 @@ const GuideListing = () => {
   useEffect(() => {
     const fetchGuides = async () => {
       try {
-        const { data } = await axios.get("http://localhost:5000/api/guide/profile");
+        const { data } = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile`);
         setGuides(data);
       } catch (error) {
         console.error("Error fetching guides:", error);

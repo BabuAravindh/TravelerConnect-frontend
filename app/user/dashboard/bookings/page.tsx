@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import Link from "next/link";
-import UserSidebar from "@/components/UserSidebar";
+
 import { Calendar, CheckCircle, IndianRupee } from "lucide-react";
 import useAuth from "@/hooks/useAuth";
 
@@ -15,13 +15,13 @@ type Booking = {
 };
 
 export default function UserBookings() {
-  const { userId} = useAuth(); // Ensure auth is loaded
+  const { userId } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if ( !userId) return; // ✅ Wait until auth is loaded and userId is available
+    if (!userId) return;
 
     const fetchBookings = async () => {
       try {
@@ -29,10 +29,8 @@ export default function UserBookings() {
         const apiUrl = `http://localhost:5000/api/bookings/user/${userId}`;
         console.log("API URL:", apiUrl);
 
-        const { data } = await axios.get(apiUrl, { withCredentials: true }); // ✅ Include credentials if needed
+        const { data } = await axios.get<Booking[]>(apiUrl, { withCredentials: true });
         console.log("Fetched Data:", data);
-
-        if (!Array.isArray(data)) throw new Error("Invalid response format");
 
         setBookings(
           data.map((booking) => ({
@@ -43,20 +41,20 @@ export default function UserBookings() {
             status: booking.status || "Unknown",
           }))
         );
-      } catch (err: any) {
-        console.error("Error fetching bookings:", err);
-        setError(err.response?.data?.message || "Failed to fetch bookings");
+      } catch (err) {
+        const error = err as AxiosError<{ message?: string }>;
+        console.error("Error fetching bookings:", error);
+        setError(error.response?.data?.message || "Failed to fetch bookings");
       } finally {
         setLoading(false);
       }
     };
 
     fetchBookings();
-  }, [userId]); // ✅ Only fetch when `isLoaded` and `userId` are available
+  }, [userId]);
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <UserSidebar />
       <div className="flex-1 p-6 md:ml-64">
         <h2 className="text-3xl font-semibold text-gray-900 mb-6">📌 Your Bookings</h2>
 

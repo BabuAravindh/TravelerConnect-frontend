@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect,useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
 import UserSidebar from "@/components/UserSidebar";
-import ProtectedRoute from "@/components/ProtectedRoute";
 import useAuth from "@/hooks/useAuth"; // Use the custom auth hook
 
 const bookingData = [
@@ -25,7 +24,14 @@ const earningData = [
 ];
 
 export default function GuideDashboard() {
-  const { userRole, loading } = useAuth();
+  const { userRole } = useAuth();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (userRole !== null) {
+      setLoading(false);
+    }
+  }, [userRole]);
   const router = useRouter();
   const pathname = usePathname();
   const isOverviewPage = pathname === "/guides/dashboard";
@@ -41,7 +47,6 @@ export default function GuideDashboard() {
   if (userRole !== "guide") return null; // Prevent flashing wrong content
 
   return (
-    <ProtectedRoute>
       <div className="flex min-h-screen">
         <UserSidebar />
         <main className="flex-1 p-6">
@@ -77,7 +82,7 @@ export default function GuideDashboard() {
           </div>
         </main>
       </div>
-    </ProtectedRoute>
+    
   );
 }
 

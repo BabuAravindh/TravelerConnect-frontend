@@ -1,24 +1,23 @@
-"use client";
-
+"use client"
 import { useState } from "react";
 import Link from "next/link";
-import useAuth from "@/hooks/useAuth"; // Import the custom hook
+import { useAuth } from "@/context/AuthContext"; 
 
 const Navbar = () => {
-  const { userName, userRole } = useAuth(); // Use custom hook
+  const { user } = useAuth(); 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Logout handler
   const handleLogout = () => {
     localStorage.removeItem("token");
-    window.location.href = "/login"; // Redirect to login
+    window.location.href = "/login"; 
   };
 
   // Generate dashboard path based on role
   const getDashboardPath = () => {
-    if (userRole === "admin") return "/dashboard";
-    if (userRole === "user") return "/user/dashboard";
-    if (userRole === "guide") return "/guides/dashboard";
+    if (user?.role === "admin") return "/dashboard";
+    if (user?.role === "user") return "/user/dashboard";
+    if (user?.role === "guide") return "/guides/dashboard";
     return "/dashboard";
   };
 
@@ -36,13 +35,13 @@ const Navbar = () => {
 
       {/* User Info & Auth Buttons */}
       <div className="hidden lg:flex space-x-3">
-        {userName ? (
+        {user ? (
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="flex items-center space-x-2 py-2 px-4 text-white border rounded-xl hover:bg-opacity-90"
             >
-              <span className="font-semibold">{userName}</span>
+              <span className="font-semibold">{user.name}</span> {/* Use user.name */}
               <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
               </svg>
@@ -54,7 +53,7 @@ const Navbar = () => {
                 <Link href={getDashboardPath()} className="block px-4 py-2 hover:bg-gray-200">
                   Dashboard
                 </Link>
-                {userRole === "user" && (
+                {user.role === "user" && (
                   <Link href="/become-a-guide" className="block px-4 py-2 hover:bg-gray-200">
                     Become a Guide
                   </Link>

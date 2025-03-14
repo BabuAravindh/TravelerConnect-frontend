@@ -38,7 +38,7 @@ const GuideProfile = () => {
     const fetchGuide = async () => {
       try {
         const res = await axios.get(`http://localhost:5000/api/guide/profile/${id}`);
-        const { govId, ...guideData } = res.data; // Exclude govId
+        const {...guideData } = res.data; // Exclude govId
         setGuide(guideData);
       } catch (error) {
         console.error("Error fetching guide:", error);

@@ -1,6 +1,6 @@
 "use client";
 
-import UserSidebar from "@/components/UserSidebar";
+
 import Link from "next/link";
 
 const payments = [
@@ -12,7 +12,7 @@ const PaymentsPage: React.FC = () => {
   return (
     <div className="flex">
       {/* Sidebar */}
-      <UserSidebar />
+
 
       {/* Main Content */}
       <div className="flex-1 p-6">

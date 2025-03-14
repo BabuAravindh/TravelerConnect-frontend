@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, X, Home, Calendar, MessageSquare, User } from "lucide-react";
 import { roleBasedNavItems } from "@/data/data";
-import useAuth from "@/hooks/useAuth"; // Import useAuth hook
+import useAuth from "@/hooks/useAuth";
 
-// Map icon names to actual Lucide icons
+// Icon mapping
 const iconMap: Record<string, React.ElementType> = {
   Home,
   Calendar,
@@ -16,20 +16,21 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const UserSidebar = () => {
-  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
-  const { userName, userRole } = useAuth(); // Get username and role from token
+  const router = useRouter();
+  const { userName, userRole } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Remove token on logout
-    window.location.href = "/login";
+    localStorage.removeItem("token");
+    router.push("/login"); // Redirect to login page
   };
 
   const navItems = userRole ? roleBasedNavItems[userRole] : [];
 
   return (
     <>
-      {/* Sidebar Toggle Button (Mobile) */}
+      {/* Mobile Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="fixed top-5 left-5 z-50 bg-button text-white p-2 rounded-md shadow-md md:hidden"
@@ -39,29 +40,30 @@ const UserSidebar = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 min-h-screen z-20 w-64 bg-button text-white shadow-lg transform transition-transform duration-300 ease-in-out md:translate-x-0 ${
+        className={`fixed top-0 left-0 h-screen w-64 bg-button text-white shadow-lg transform transition-transform duration-300 ease-in-out md:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         } md:relative`}
       >
-        {/* Sidebar Header */}
+        {/* Header */}
         <div className="flex flex-col items-center justify-center p-5 border-b border-gray-700">
           <h1 className="text-lg font-bold text-gray-200 text-center">TravelerConnect</h1>
           {userName && <p className="text-sm text-gray-300">Welcome, {userName} 👋</p>}
         </div>
 
-        {/* Navigation Items */}
-        <nav className="mt-6 space-y-2 px-4 h-screen">
+        {/* Navigation */}
+        <nav className="mt-6 space-y-2 px-4">
           {navItems.map(({ href, label, icon }) => {
             const isActive = pathname === href;
-            const IconComponent = iconMap[icon] || User; // Default to `User` icon if not found
+            const IconComponent = iconMap[icon] || User;
 
             return (
               <Link
                 key={href}
                 href={href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 ${
-                  isActive ? "bg-opacity-90 text-white" : "hover:bg-opacity-90 hover:text-white text-gray-300"
+                  isActive ? "bg-gray-700 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
                 }`}
+                onClick={() => setIsOpen(false)} // Close sidebar on mobile
               >
                 <IconComponent size={20} className={isActive ? "text-white" : "text-gray-400"} />
                 <span className="text-sm font-medium">{label}</span>
@@ -69,7 +71,7 @@ const UserSidebar = () => {
             );
           })}
 
-          {/* Logout */}
+          {/* Logout Button */}
           <button
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 text-red-400 hover:bg-red-600 hover:text-white mt-6"
             onClick={handleLogout}
@@ -79,6 +81,14 @@ const UserSidebar = () => {
           </button>
         </nav>
       </aside>
+
+      {/* Overlay (for mobile) */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
     </>
   );
 };
