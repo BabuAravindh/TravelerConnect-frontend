@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Camera, Save } from "lucide-react"; // Removed XCircle
+import { Camera, Save } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
 
@@ -93,18 +93,12 @@ const EditProfilePage = () => {
     else if (!/^\d{10}$/.test(profile.phone))
       newErrors.phone = "Phone must be 10 digits.";
 
-    if (!profile?.location?.trim())
-      newErrors.location = "Location is required.";
-    if (!profile?.experience?.trim())
-      newErrors.experience = "Experience is required.";
-    if (!profile?.languages?.trim())
-      newErrors.languages = "Languages are required.";
-    if (!profile?.specialization?.trim())
-      newErrors.specialization = "Specialization is required.";
-    if (!profile?.availability?.trim())
-      newErrors.availability = "Availability is required.";
-    if (!profile?.pricePerTour?.trim())
-      newErrors.pricePerTour = "Price per tour is required.";
+    if (!profile?.location?.trim()) newErrors.location = "Location is required.";
+    if (!profile?.experience?.trim()) newErrors.experience = "Experience is required.";
+    if (!profile?.languages?.trim()) newErrors.languages = "Languages are required.";
+    if (!profile?.specialization?.trim()) newErrors.specialization = "Specialization is required.";
+    if (!profile?.availability?.trim()) newErrors.availability = "Availability is required.";
+    if (!profile?.pricePerTour?.trim()) newErrors.pricePerTour = "Price per tour is required.";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -184,27 +178,34 @@ const EditProfilePage = () => {
 
         {/* Form Fields */}
         <div className="grid grid-cols-2 gap-4 mt-6">
-          {Object.keys(profile as Profile).map((field) => (
-            <div key={field}>
-              <label className="font-medium capitalize">
-                {field.replace(/([A-Z])/g, " $1")}
-              </label>
+          {[
+            { label: "Name", key: "name" },
+            { label: "Email", key: "email" },
+            { label: "Phone", key: "phone" },
+            { label: "Location", key: "location" },
+            { label: "Experience", key: "experience" },
+            { label: "Languages", key: "languages" },
+            { label: "Specialization", key: "specialization" },
+            { label: "Availability", key: "availability" },
+            { label: "Price Per Tour", key: "pricePerTour" },
+          ].map(({ label, key }) => (
+            <div key={key}>
+              <label className="font-medium">{label}</label>
               <input
                 type="text"
-                name={field}
-                value={profile?.[field as keyof Profile] || ""} // ✅ Use keyof Profile
+                value={profile?.[key] || ""}
                 onChange={(e) =>
                   setProfile((prevProfile) => ({
                     ...prevProfile!,
-                    [field]: e.target.value,
+                    [key]: e.target.value,
                   }))
                 }
                 className={`w-full mt-1 p-2 border rounded-lg ${
-                  errors[field] ? "border-red-500" : ""
+                  errors[key] ? "border-red-500" : ""
                 }`}
               />
-              {errors[field] && (
-                <p className="text-red-500 text-sm mt-1">{errors[field]}</p>
+              {errors[key] && (
+                <p className="text-red-500 text-sm mt-1">{errors[key]}</p>
               )}
             </div>
           ))}

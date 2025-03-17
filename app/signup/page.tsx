@@ -1,36 +1,54 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import toast from "react-hot-toast";
+import useSignup from "@/hooks/useSignup";
+import Image from "next/image";
 
-const SignUpPage = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [errors, setErrors] = useState({ email: "", password: "", confirmPassword: "" });
+const SignupPage = () => {
+  const { handleSignup, loading } = useSignup();
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+
+  const [errors, setErrors] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
   const validateForm = () => {
-    const newErrors = { email: "", password: "", confirmPassword: "" }; // ✅ Fixed "prefer-const"
+    let newErrors = { fullName: "", email: "", password: "", confirmPassword: "" };
     let isValid = true;
 
-    if (!email.trim()) {
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = "Full name is required.";
+      isValid = false;
+    }
+
+    if (!formData.email.trim()) {
       newErrors.email = "Email is required.";
       isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
       newErrors.email = "Enter a valid email address.";
       isValid = false;
     }
 
-    if (!password.trim()) {
+    if (!formData.password.trim()) {
       newErrors.password = "Password is required.";
       isValid = false;
-    } else if (password.length < 6) {
+    } else if (formData.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters.";
       isValid = false;
     }
 
-    if (confirmPassword !== password) {
+    if (!formData.confirmPassword.trim()) {
+      newErrors.confirmPassword = "Please confirm your password.";
+      isValid = false;
+    } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match.";
       isValid = false;
     }
@@ -39,105 +57,130 @@ const SignUpPage = () => {
     return isValid;
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!validateForm()) return;
-
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+    if (validateForm()) {
+      handleSignup({
+        name: formData.fullName,
+        email: formData.email,
+        password: formData.password,
       });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success("Account created successfully! Please check your email for verification.");
-      } else {
-        toast.error(data.error || "Failed to sign up.");
-      }
-    } catch {
-      toast.error("Something went wrong. Please try again."); // ✅ Removed unused `err`
     }
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setErrors({ ...errors, [e.target.name]: "" }); // Clear error on input change
+  };
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-primary p-6">
-      <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-2xl border border-gray-200">
-        <h1 className="text-3xl font-bold text-gray-900 text-center mb-6">Sign Up</h1>
-
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setErrors((prev) => ({ ...prev, email: "" })); // ✅ Functional state update
-              }}
-              placeholder="Enter your email"
-              className={`mt-2 w-full p-3 border rounded-lg focus:ring-blue-500 shadow-sm ${
-                errors.email ? "border-red-500" : "border-gray-300"
-              }`}
-            />
-            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+    <div className="min-h-screen bg-primary flex justify-center items-center">
+      <div className="max-w-screen-xl bg-white shadow-lg rounded-lg flex w-full overflow-hidden">
+        {/* Left Section - Sign Up Form */}
+        <div className="w-full lg:w-1/2 p-8 lg:p-12">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900">Sign Up</h1>
+            <p className="text-gray-600 mt-2">Create your TravelerConnect account</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setErrors((prev) => ({ ...prev, password: "" }));
-              }}
-              placeholder="Enter your password"
-              className={`mt-2 w-full p-3 border rounded-lg focus:ring-blue-500 shadow-sm ${
-                errors.password ? "border-red-500" : "border-gray-300"
+          {/* Sign Up Form */}
+          <form className="space-y-4 mt-6" onSubmit={handleSubmit}>
+            {/* Full Name */}
+            <div>
+              <input
+                type="text"
+                name="fullName"
+                placeholder="Full Name"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
+                  errors.fullName ? "border-red-500 focus:ring-red-400" : "focus:ring-indigo-400"
+                }`}
+                value={formData.fullName}
+                onChange={handleChange}
+              />
+              {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
+            </div>
+
+            {/* Email */}
+            <div>
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
+                  errors.email ? "border-red-500 focus:ring-red-400" : "focus:ring-indigo-400"
+                }`}
+                value={formData.email}
+                onChange={handleChange}
+              />
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+            </div>
+
+            {/* Password */}
+            <div>
+              <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
+                  errors.password ? "border-red-500 focus:ring-red-400" : "focus:ring-indigo-400"
+                }`}
+                value={formData.password}
+                onChange={handleChange}
+              />
+              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <input
+                type="password"
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
+                  errors.confirmPassword ? "border-red-500 focus:ring-red-400" : "focus:ring-indigo-400"
+                }`}
+                value={formData.confirmPassword}
+                onChange={handleChange}
+              />
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full py-3 bg-button text-white font-semibold rounded-lg transition ${
+                loading ? "opacity-50 cursor-not-allowed" : "hover:bg-opacity-80"
               }`}
-            />
-            {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
-          </div>
+            >
+              {loading ? "Creating Account..." : "Create Account"}
+            </button>
+          </form>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                setErrors((prev) => ({ ...prev, confirmPassword: "" }));
-              }}
-              placeholder="Confirm your password"
-              className={`mt-2 w-full p-3 border rounded-lg focus:ring-blue-500 shadow-sm ${
-                errors.confirmPassword ? "border-red-500" : "border-gray-300"
-              }`}
-            />
-            {errors.confirmPassword && (
-              <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
-            )}
-          </div>
+          <p className="mt-4 text-sm text-center text-gray-600">
+            By signing up, you agree to our{" "}
+            <a href="#" className="text-indigo-500">Terms & Privacy Policy</a>.
+          </p>
 
-          <button
-            type="submit"
-            className="w-full bg-button hover:bg-opacity-80 text-white font-semibold py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            Sign Up
-          </button>
-        </form>
+          <p className="mt-4 text-sm text-center">
+            Already have an account?{" "}
+            <a href="/login" className="text-indigo-500 font-medium">Log in</a>
+          </p>
+        </div>
 
-        <p className="text-center mt-4 text-button">
-          Already have an account?{" "}
-          <Link href="/login" className="text-primary font-medium">
-            Sign in
-          </Link>
-        </p>
+        {/* Right Section - Illustration */}
+        <Image
+          src="https://storage.googleapis.com/devitary-image-host.appspot.com/15848031292911696601-undraw_designer_life_w96d.svg"
+          alt="Traveler Illustration"
+          width={300}
+          height={300}
+          className="max-w-xs"
+        />
       </div>
     </div>
   );
 };
 
-export default SignUpPage;
+export default SignupPage;

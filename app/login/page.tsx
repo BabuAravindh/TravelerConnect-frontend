@@ -26,7 +26,7 @@ const SignInPage = () => {
     if (!password.trim()) {
       newErrors.password = "Password is required.";
       isValid = false;
-    } else if (password.length < 6) { // ✅ Fixed password length check (previously < 4)
+    } else if (password.length < 4) { // ✅ Fixed password length check (previously < 4)
       newErrors.password = "Password must be at least 6 characters.";
       isValid = false;
     }

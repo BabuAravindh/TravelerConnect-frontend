@@ -9,12 +9,11 @@ interface User {
 }
 
 interface Message {
-  _id: string; 
+  _id: string;
   senderId: string | { _id: string };
   message: string;
-  timestamp?: string; 
+  timestamp?: string;
 }
-
 
 interface Conversation {
   _id: string;
@@ -66,18 +65,18 @@ const useChat = () => {
     setToken(storedToken);
   }, []);
 
-  // Fetch users & conversations
   useEffect(() => {
     if (!userId || !token) return;
-
-    fetchData<User[]>(`${API_BASE_URL}/`, token).then((data) => {
-      if (data) setUsers(data);
-    });
-
-    fetchData<Conversation[]>(`${API_BASE_URL}/user/${userId}`, token).then((data) => {
-      if (data) setConversations(data);
+  
+    Promise.all([
+      fetchData<User[]>(`${API_BASE_URL}`, token),
+      fetchData<Conversation[]>(`${API_BASE_URL}/user/${userId}`, token),
+    ]).then(([usersData, conversationsData]) => {
+      if (usersData) setUsers(usersData.filter((user) => user._id !== userId));
+      if (conversationsData) setConversations(conversationsData);
     });
   }, [userId, token]);
+  
 
   // Subscribe to Pusher for real-time messages
   useEffect(() => {
@@ -105,13 +104,14 @@ const useChat = () => {
 
   // Fetch messages for the selected conversation
   useEffect(() => {
-    if (!selectedConversation || !token) return;
-
-    console.log("Fetching messages for:", selectedConversation._id);
-    fetchData<Message[]>(`${API_BASE_URL}/${selectedConversation._id}`, token).then((data) => {
-      if (data) setMessages(data);
-    });
+    setMessages([]); // Clear old messages when switching conversations
+    if (selectedConversation && token) {
+      fetchData<Message[]>(`${API_BASE_URL}/${selectedConversation._id}`, token).then((data) => {
+        if (data) setMessages(data);
+      });
+    }
   }, [selectedConversation, token]);
+  
 
   // Handle sending a message
   const handleSendMessage = async () => {
@@ -160,8 +160,6 @@ const useChat = () => {
       console.log("✅ Created new conversation:", conversation);
 
       setConversations((prev) => [...prev, ...(conversation ? [conversation] : [])]);
-
-      
     }
 
     setSelectedConversation(conversation);

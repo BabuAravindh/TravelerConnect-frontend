@@ -39,7 +39,7 @@ const GuideLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="bg-primary shadow px-6 py-4 flex justify-between items-center border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Welcome, {user?.id}</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Welcome, {user?.name}</h2>
           <span className="text-sm text-gray-600 bg-gray-200 px-3 py-1 rounded-md">
             Role: {user?.role}
           </span>
