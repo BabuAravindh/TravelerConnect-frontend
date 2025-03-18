@@ -1,118 +1,142 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { io, Socket } from "socket.io-client";
 import useAuth from "@/hooks/useAuth";
+import useChat from "@/hooks/useChat";
+import { io, Socket } from "socket.io-client";
 
 interface Message {
   _id: string;
   senderId: string;
   receiverId: string;
-  message: string; // Fixed field name
+  message: string;
   timestamp: string;
 }
 
-const API_BASE_URL = "http://localhost:5000/api/chats"; // Adjust as needed
 const SOCKET_SERVER_URL = "http://localhost:5000"; // Backend WebSocket server URL
 
 const ChatMessageArea = ({ guideId }: { guideId: string }) => {
   const { userId } = useAuth();
+  const { fetchOrCreateConversation } = useChat();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [socket, setSocket] = useState<Socket | null>(null); // ✅ Fixed TypeScript error
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
-  // Initialize socket connection
+  // ✅ Fetch or create conversation on mount
   useEffect(() => {
-    if (!userId || !guideId) return;
+    const getConversation = async () => {
+      if (!userId || !guideId) return;
+      const conversation = await fetchOrCreateConversation(guideId);
+      if (conversation) {
+        console.log("✅ Conversation ID:", conversation._id);
+        setConversationId(conversation._id);
+      }
+    };
+    getConversation();
+  }, [userId, guideId]);
+
+  // ✅ Initialize socket connection after conversationId is set
+  useEffect(() => {
+    if (!userId || !guideId || !conversationId) return;
 
     const newSocket = io(SOCKET_SERVER_URL, {
-      query: { userId, guideId },
+      query: { userId, guideId, conversationId },
+    });
+
+    newSocket.on("connect", () => {
+      console.log("✅ Connected to Socket.io server");
+    });
+
+    newSocket.on("new-message", (message: Message) => {
+      console.log("📩 New message received:", message);
+      setMessages((prev) => [...prev, message]);
     });
 
     setSocket(newSocket);
 
-    newSocket.on("connect", () => {
-      console.log("Connected to Socket.io server");
-    });
-
-    newSocket.on("new-message", (message: Message) => {
-      console.log("New message received via Socket.io:", message);
-      setMessages((prev) => [...prev, message]);
-    });
-
     return () => {
       newSocket.disconnect();
     };
-  }, [userId, guideId]);
+  }, [userId, guideId, conversationId]);
 
-  // Fetch Messages
+  // ✅ Fetch messages after getting conversationId
   useEffect(() => {
     const fetchMessages = async () => {
-      if (!userId || !guideId) return;
+      if (!conversationId) return;
 
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/conversation?userId=${userId}&guideId=${guideId}`,
-          {
-            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-          }
-        );
+        const res = await fetch(`http://localhost:5000/api/chats/${conversationId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
 
         const data = await res.json();
+        console.log("📜 Fetched messages:", data);
         setMessages(data);
       } catch (error) {
-        console.error("Error fetching messages:", error);
+        console.error("❌ Error fetching messages:", error);
       }
     };
 
     fetchMessages();
-  }, [userId, guideId]);
+  }, [conversationId]);
 
+  // ✅ Send message function
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !socket) return; // Prevent sending empty messages
-
-    const tempMessage: Message = {
-      _id: `temp-${Date.now()}`,
-      senderId: userId as string,
-      receiverId: guideId,
-      message: newMessage.trim(), // ✅ Fixed field name
-      timestamp: new Date().toISOString(),
-    };
-
-    // Optimistic UI update
-    setMessages((prev) => [...prev, tempMessage]);
-
+    if (!newMessage.trim() || !userId || !conversationId) return;
+  
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("❌ No token found.");
+      return;
+    }
+  
+    console.log("⚠️ Sending message with conversation ID:", conversationId);
+  
     try {
-      const res = await fetch(`${API_BASE_URL}/send/${guideId}`, {
+      const res = await fetch(`http://localhost:5000/api/chats/send/${conversationId}`, {
         method: "POST",
         headers: {
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({ senderId: userId, message: newMessage.trim() }),
+        body: JSON.stringify({
+          senderId: userId,
+          message: newMessage,
+        }),
       });
-
-      const data = await res.json();
-
-      if (!data?.success) {
-        // Remove the temp message on failure
-        setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
+  
+      const response = await res.json();
+  
+      if (!res.ok) {
+        console.error("❌ Message sending failed:", response);
+        return;
+      }
+  
+      console.log("✅ Message sent:", response);
+  
+      // Optimistically update UI
+      const newMsg: Message = {
+        _id: response.messageId,
+        senderId: userId,
+        receiverId: guideId,
+        message: newMessage,
+        timestamp: new Date().toISOString(),
+      };
+  
+      setMessages((prev) => [...prev, newMsg]);
+      setNewMessage("");
+  
+      // Emit the message via WebSocket
+      if (socket) {
+        console.log("📡 Emitting message via WebSocket:", newMsg);
+        socket.emit("send-message", newMsg);
       } else {
-        // Update the last message with the actual message data from the backend
-        setMessages((prev) =>
-          prev.map((msg) => (msg._id === tempMessage._id ? data.message : msg))
-        );
-
-        // Emit message to socket server
-        socket.emit("send-message", data.message);
+        console.error("❌ Socket is not connected.");
       }
     } catch (error) {
-      console.error("Error sending message:", error);
-      // Remove temp message on error
-      setMessages((prev) => prev.filter((msg) => msg._id !== tempMessage._id));
+      console.error("❌ Error sending message:", error);
     }
-
-    setNewMessage(""); // Reset input after sending
   };
 
   return (

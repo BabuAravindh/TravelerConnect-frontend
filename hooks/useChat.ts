@@ -170,6 +170,50 @@ const useChat = () => {
     console.log("🗂 Conversations:", conversations);
   }, [conversations]);
 
+
+  
+  const fetchOrCreateConversation = async (guideId: string) => {
+    if (!userId || !token) return null;
+  
+    try {
+      console.log(`${API_BASE_URL}/conversation/${userId}/${guideId}`)
+      const response = await fetch(`${API_BASE_URL}/conversation/${userId}/${guideId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+  
+      const data = await response.json();
+      if (data?.conversation) {
+        setSelectedConversation(data.conversation); // ✅ Set conversation in state
+        return data.conversation;
+      }
+  
+      // If no conversation exists, create one
+      const createResponse = await fetch(`${API_BASE_URL}/startConversation`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ receiverId: guideId }),
+      });
+  
+      const createData = await createResponse.json();
+      if (createData?.conversation) {
+        setSelectedConversation(createData.conversation); // ✅ Set conversation in state
+        return createData.conversation;
+      }
+  
+      return null;
+    } catch (error) {
+      console.error("Error fetching/creating conversation:", error);
+      return null;
+    }
+  };
+  
+  
   return {
     users,
     conversations,
@@ -181,6 +225,7 @@ const useChat = () => {
     handleSendMessage,
     handleSelectUser,
     userId,
+    fetchOrCreateConversation
   };
 };
 

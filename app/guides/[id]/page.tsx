@@ -9,7 +9,7 @@ import Navbar from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import ChatMessageArea from "@/components/ChatMessageArea";
 import toast from "react-hot-toast";
-import { useAuth } from "@/context/AuthContext"; // ✅ Using only useAuth()
+import { useAuth } from "@/context/AuthContext";
 
 interface Guide {
   _id: string;
@@ -32,8 +32,8 @@ interface Guide {
 const GuideProfile = () => {
   const params = useParams();
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth(); // ✅ Get user from AuthContext
-  const guideId = params?.id as string; // Guide ID from URL
+  const { user, loading: authLoading } = useAuth();
+  const guideId = params?.id as string; 
 
   const [guide, setGuide] = useState<Guide | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,9 +52,8 @@ const GuideProfile = () => {
 
     if (guideId) fetchGuide();
   }, [guideId]);
-
-  if (authLoading || loading) return <p>Loading...</p>; // ✅ Prevent UI rendering while loading
-  if (!user) return <p>User not authenticated</p>; // ✅ Handle unauthenticated state
+  if (authLoading || loading) return <p>Loading...</p>;  
+  if (!user) return <p>User not authenticated</p>; 
 
   const handleRequest = async () => {
     if (!user?.id) {
@@ -63,8 +62,8 @@ const GuideProfile = () => {
     }
   
     const requestData = {
-      customerId: user.id, // ✅ User ID from AuthContext
-      guideId: guideId, // ✅ Guide ID from URL
+      customerId: user.id, 
+      guideId: guideId, 
       paymentStatus: "pending",
     };
   
@@ -73,13 +72,20 @@ const GuideProfile = () => {
     try {
       const response = await axios.post("http://localhost:5000/api/requests", requestData);
   
-      toast.success("Request sent to the guide!");
-      console.log("Request Created:", response.data);
+     
+      if (response.data?.message === "You have already sent a request. Try again later.") {
+        toast.success(response.data.message); // ✅ Show info toast for duplicate requests
+      } else {
+        toast.success("Request sent to the guide!"); // ✅ Show success toast for new requests
+        console.log("Request Created:", response.data);
+      }
     } catch (error) {
-      toast.error("Failed to send request.");
+      toast.error(error.response?.data?.message || "Failed to send request.");
       console.error("Error:", error);
     }
   };
+  
+  
   
 
   return (
@@ -166,7 +172,7 @@ const GuideProfile = () => {
             {/* Book Guide & Request Chat Buttons */}
             <div className="mt-6 flex justify-center gap-4">
               <button
-                onClick={() => router.push(`/book-guide/${guideId}`)}
+                onClick={() => router.push(`/guides/book_guide/${guideId}`)}
                 className="bg-button hover:bg-opacity-90 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition"
               >
                 📅 Book Guide
