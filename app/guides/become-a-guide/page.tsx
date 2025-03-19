@@ -3,6 +3,31 @@
 import { useState } from "react";
 
 const BecomeAGuide = () => {
+  const languagesList = [
+    "English",
+    "Spanish",
+    "French",
+    "German",
+    "Chinese",
+    "Hindi",
+    "Arabic",
+  ];
+
+  const countriesList = [
+    { id: "US", name: "United States" },
+    { id: "IN", name: "India" },
+    { id: "UK", name: "United Kingdom" },
+    { id: "CA", name: "Canada" },
+    // Add more countries
+  ];
+
+  const statesList = [
+    { id: "NY", name: "New York" },
+    { id: "CA", name: "California" },
+    { id: "TX", name: "Texas" },
+    // Add more states
+  ];
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -17,6 +42,8 @@ const BecomeAGuide = () => {
     bio: "",
     availability: "",
     pricing: "",
+    countryId: "",
+    stateId: "",
     govId: null as File | null,
     profilePicture: null as File | null,
   });
@@ -24,18 +51,15 @@ const BecomeAGuide = () => {
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Handle input change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Handle file uploads
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setFormData({ ...formData, [e.target.name]: file });
   };
 
-  // Validation function
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -45,17 +69,17 @@ const BecomeAGuide = () => {
     if (!formData.dob) newErrors.dob = "Date of Birth is required";
     if (!formData.experience.trim() || isNaN(Number(formData.experience)) || Number(formData.experience) < 0) 
       newErrors.experience = "Enter valid years of experience";
-
     if (!formData.expertise.trim()) newErrors.expertise = "Expertise is required";
-    const languagesList = formData.languages.split(",").map(lang => lang.trim());
-    if (languagesList.length < 2) newErrors.languages = "You must speak at least two languages";
+    const languagesListArr = formData.languages.split(",").map(lang => lang.trim());
+    if (languagesListArr.length < 2) newErrors.languages = "You must speak at least two languages";
     if (!formData.locations.trim()) newErrors.locations = "At least one location is required";
     if (!formData.bio.trim() || formData.bio.length < 50) newErrors.bio = "Bio must be at least 50 characters long";
     if (!formData.availability) newErrors.availability = "Availability status is required";
     if (!formData.pricing.trim() || isNaN(Number(formData.pricing))) newErrors.pricing = "Enter valid pricing amount";
-
     if (!formData.govId) newErrors.govId = "Government ID is required";
     if (!formData.profilePicture) newErrors.profilePicture = "Profile Picture is required";
+    if (!formData.countryId) newErrors.countryId = "Country is required";
+    if (!formData.stateId) newErrors.stateId = "State is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -117,11 +141,32 @@ const BecomeAGuide = () => {
           <option value="Other">Other</option>
         </select>
 
-        <input type="text" name="languages" placeholder="Languages (comma-separated)" onChange={handleChange} className="w-full p-2 border rounded" required />
+        <select name="languages" onChange={handleChange} className="w-full p-2 border rounded" required>
+          <option value="">Select Languages</option>
+          {languagesList.map((language) => (
+            <option key={language} value={language}>{language}</option>
+          ))}
+        </select>
         {errors.languages && <p className="text-red-500 text-sm">{errors.languages}</p>}
 
         <textarea name="bio" placeholder="Bio (at least 50 characters)" onChange={handleChange} className="w-full p-2 border rounded" required />
         {errors.bio && <p className="text-red-500 text-sm">{errors.bio}</p>}
+
+        <select name="countryId" onChange={handleChange} className="w-full p-2 border rounded" required>
+          <option value="">Select Country</option>
+          {countriesList.map((country) => (
+            <option key={country.id} value={country.id}>{country.name}</option>
+          ))}
+        </select>
+        {errors.countryId && <p className="text-red-500 text-sm">{errors.countryId}</p>}
+
+        <select name="stateId" onChange={handleChange} className="w-full p-2 border rounded" required>
+          <option value="">Select State</option>
+          {statesList.map((state) => (
+            <option key={state.id} value={state.id}>{state.name}</option>
+          ))}
+        </select>
+        {errors.stateId && <p className="text-red-500 text-sm">{errors.stateId}</p>}
 
         <input type="file" name="profilePicture" onChange={handleFileChange} className="w-full p-2 border rounded" required />
         {errors.profilePicture && <p className="text-red-500 text-sm">{errors.profilePicture}</p>}

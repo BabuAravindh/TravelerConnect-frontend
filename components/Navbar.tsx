@@ -54,7 +54,7 @@ const Navbar = () => {
                   Dashboard
                 </Link>
                 {user.role === "user" && (
-                  <Link href="/become-a-guide" className="block px-4 py-2 hover:bg-gray-200">
+                  <Link href="/guides/become-a-guide" className="block px-4 py-2 hover:bg-gray-200">
                     Become a Guide
                   </Link>
                 )}
