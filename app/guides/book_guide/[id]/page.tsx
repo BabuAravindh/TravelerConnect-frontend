@@ -9,67 +9,78 @@ const BookingForm = () => {
   const router = useRouter();
   const params = useParams();
   const { user } = useAuth();
+  const [token, setToken] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     startDate: "",
     endDate: "",
     price: "",
-    budget: "", // Added Budget Field
+    budget: "", // Budget Field
     selectedActivities: [],
     state: "",
     message: "",
   });
-  const [activities, setActivities] = useState([]);
-  const [states, setStates] = useState([]);
+
+
   const guideId = params.id;
 
   useEffect(() => {
-    const fetchStatesAndActivities = async () => {
-      try {
-        // Fetch states
-        const stateResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/state`);
-        if (stateResponse.ok) {
-          const stateData = await stateResponse.json();
-          setStates(stateData);
-        } else {
-          toast.error("Failed to fetch states.");
-        }
-
-        // Fetch all activities
-        const activityResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/activities`);
-        if (activityResponse.ok) {
-          const activityData = await activityResponse.json();
-          setActivities(activityData);
-        } else {
-          toast.error("Failed to fetch activities.");
-        }
-      } catch (error) {
-        toast.error("Error fetching data.");
-      }
-    };
-
-    fetchStatesAndActivities();
+    setToken(localStorage.getItem("token") || null);
   }, []);
+
+  
+  const fetchLastBudget = async (userId: string, guideId: string, token: string) => {
+    try {
+      if (!token) throw new Error("Authentication token is missing");
+
+      const conversationRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/chats/conversation/${userId}/${guideId}`,
+        { method: "GET", headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!conversationRes.ok) throw new Error("Failed to fetch conversation");
+      const { conversationId } = await conversationRes.json();
+
+      const budgetRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/chats/conversations/${conversationId}/lastBudget`,
+        { method: "GET", headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!budgetRes.ok) throw new Error("Failed to fetch last budget message");
+      const lastBudgetMessage = await budgetRes.json();
+
+      console.log("Last Budget Message:", lastBudgetMessage);
+
+      return lastBudgetMessage.message;
+    } catch (error) {
+      console.error("Error fetching last budget:", error);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (user?.id && guideId && token) {
+      fetchLastBudget(user.id, guideId, token).then((data) => {
+        if (data) {
+          const extractedBudget = data.replace(/\D/g, ""); // Extracts only numbers
+          setFormData((prev) => ({ ...prev, budget: extractedBudget }));
+        }
+      });
+    }
+  }, [user, guideId, token]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleActivityChange = (e) => {
-    const { value, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      selectedActivities: checked
-        ? [...prev.selectedActivities, value]
-        : prev.selectedActivities.filter((activity) => activity !== value),
-    }));
-  };
+ 
 
   const validateForm = () => {
     const { startDate, endDate, price, budget, selectedActivities, state } = formData;
     const today = new Date().toISOString().split("T")[0];
 
-    if (!startDate || !endDate || !price || !budget || selectedActivities.length === 0 || !state) {
+    if (!startDate || !endDate  || !budget ) {
       toast.error("All fields are required.");
       return false;
     }
@@ -84,7 +95,7 @@ const BookingForm = () => {
       return false;
     }
 
-    if (isNaN(price) || Number(price) <= 0 || isNaN(budget) || Number(budget) <= 0) {
+    if (isNaN(Number(budget)) || Number(budget) <= 0) {
       toast.error("Price and Budget must be valid positive numbers.");
       return false;
     }
@@ -107,20 +118,20 @@ const BookingForm = () => {
       guideId,
       startDate: formData.startDate,
       endDate: formData.endDate,
-      price: formData.price,
-      budget: formData.budget, // Sending Budget
-      state: formData.state,
-      activities: formData.selectedActivities,
+      budget: formData.budget,
       status: "pending",
       paymentStatus: "pending",
     };
 
-    console.log("Submitting Booking Data:", bookingData); // Debug Log
+    console.log("Submitting Booking Data:", bookingData);
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(bookingData),
       });
 
@@ -142,60 +153,12 @@ const BookingForm = () => {
         Booking Form
       </div>
       <form className="py-4 px-6" onSubmit={handleSubmit}>
-        <input
-          type="date"
-          name="startDate"
-          value={formData.startDate}
-          onChange={handleInputChange}
-          required
-          className="mb-4 w-full px-3 py-2 border rounded"
-        />
-        <input
-          type="date"
-          name="endDate"
-          value={formData.endDate}
-          onChange={handleInputChange}
-          required
-          className="mb-4 w-full px-3 py-2 border rounded"
-        />
-        <input
-          type="number"
-          name="price"
-          value={formData.price}
-          onChange={handleInputChange}
-          required
-          className="mb-4 w-full px-3 py-2 border rounded"
-          placeholder="Enter Price"
-        />
-        <input
-          type="number"
-          name="budget"
-          value={formData.budget}
-          onChange={handleInputChange}
-          required
-          className="mb-4 w-full px-3 py-2 border rounded"
-          placeholder="Enter Budget"
-        />
-        <select
-          name="state"
-          value={formData.state}
-          onChange={handleInputChange}
-          required
-          className="mb-4 w-full px-3 py-2 border rounded"
-        >
-          <option value="">Select State</option>
-          {states.map((state) => (
-            <option key={state._id} value={state._id}>
-              {state.stateName}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="bg-gray-900 text-white py-2 px-4 rounded hover:bg-gray-800 w-full"
-        >
-          Submit Booking
-        </button>
+        <input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} required className="mb-4 w-full px-3 py-2 border rounded" />
+        <input type="date" name="endDate" value={formData.endDate} onChange={handleInputChange} required className="mb-4 w-full px-3 py-2 border rounded" />
+      
+        <input type="number" name="budget" value={formData.budget} onChange={handleInputChange} required className="mb-4 w-full px-3 py-2 border rounded" placeholder="Enter Budget" />
+       
+        <button type="submit" className="bg-gray-900 text-white py-2 px-4 rounded hover:bg-gray-800 w-full">Submit Booking</button>
       </form>
     </div>
   );

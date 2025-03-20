@@ -1,210 +1,279 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Camera, Save } from "lucide-react";
 import toast from "react-hot-toast";
+import axios from "axios";
+import { useAuth } from "@/context/AuthContext";
+import Select from "react-select";
 
-const countries = ["India", "USA", "Canada", "Australia"];
-const states = ["Maharashtra", "California", "Ontario", "New South Wales"];
-const services = ["Hiking", "Trekking", "City Tours", "Wildlife Safaris"];
-const languagesList = ["English", "Spanish", "French", "German"];
+const genderOptions = [
+  { label: "Male", value: "male" },
+  { label: "Female", value: "female" },
+  { label: "Others", value: "others" },
+];
 
-type Profile = {
-  userId: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  dateOfBirth?: string;
-  profilePicture?: string;
-  countryId: string;
-  stateId: string;
-  dateJoined?: string;
-  lastLogin?: string;
-  gender: 'male' | 'female' | 'others';
-  role: 'user' | 'guide';
-  languages: string[];
-  certifications?: string;
-  govId: string;
-  servicesOffered: string[];
-  bio: string;
-};
+const languagesList = [
+  { label: "English", value: "English" },
+  { label: "Spanish", value: "Spanish" },
+  { label: "French", value: "French" },
+  { label: "German", value: "German" },
+];
 
 const EditProfilePage = () => {
-  const [profile, setProfile] = useState<Profile>({
-    userId: "123456",
-    firstName: "John",
-    lastName: "Doe",
-    phoneNumber: "123-456-7890",
-    dateOfBirth: "1990-01-01",
-    profilePicture: "https://picsum.photos/300/300?grayscale",
-    countryId: "India",
-    stateId: "Maharashtra",
-    dateJoined: "2022-01-01",
-    lastLogin: "2023-12-31",
-    gender: "male",
-    role: "guide",
-    languages: ["English", "Spanish"],
-    certifications: "Certified Mountain Guide",
-    govId: "ID123456789",
-    servicesOffered: ["Hiking", "Trekking"],
-    bio: "Experienced guide with a deep passion for the outdoors.",
-  });
-
+  const [profile, setProfile] = useState<any | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [countries, setCountries] = useState<any[]>([]);
+  const [states, setStates] = useState<any[]>([]);
+  const [activitiesList, setActivitiesList] = useState<any[]>([]);
+  const [languagesList, setLanguagesList] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const { user } = useAuth();
+
+  // Fetch Profile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/guide/profile/${user.id}`);
+        const fetchedProfile = response.data;
+  
+        setProfile({
+          firstName: fetchedProfile.firstName || "sakthi",
+          lastName: fetchedProfile.lastName || "ganesh",
+          email: fetchedProfile.email || "babuaravindh2@gmail.com",
+          role: fetchedProfile.role || "guide",
+          isVerified: fetchedProfile.isVerified ?? true,
+          phoneNumber: fetchedProfile.phoneNumber || "91069513",
+          gender: fetchedProfile.gender || "male",
+          dateJoined: fetchedProfile.dateJoined || "2025-02-28T00:00:00.000Z",
+          state: fetchedProfile.state || "Tamil Nadu",
+          country: fetchedProfile.country || "India",
+          bio: fetchedProfile.bio || "Experienced guide with expertise in mountain hiking and city tours.",
+          activities: Array.isArray(fetchedProfile.activities) ? fetchedProfile.activities : [],
+          languages: Array.isArray(fetchedProfile.languages) ? fetchedProfile.languages : ["Hindi", "Tamil"],
+         
+        });
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        toast.error("Failed to fetch profile.");
+      }
+    };
+  
+    if (user?.id) fetchProfile();
+  }, [user?.id]);
+  
+  // Fetch Countries, States, and Activities
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [countriesRes, statesRes, activitiesRes,languagesRes] = await Promise.all([
+          axios.get("http://localhost:5000/api/predefine/countries"),
+          axios.get("http://localhost:5000/api/predefine/states"),
+          axios.get("http://localhost:5000/api/activities"),
+          axios.get("http://localhost:5000/api/predefine/languages"),
+        ]);
+  
+        setCountries(
+          countriesRes.data.map((c: { countryName: string }) => ({
+            label: c.countryName, 
+            value: c.countryName,
+          }))
+        );
+  
+        setStates(
+          statesRes.data.map((s: { stateName: string }) => ({
+            label: s.stateName, 
+            value: s.stateName,
+          }))
+        );
+  
+        setActivitiesList(activitiesRes.data.map((activity: any) => ({ label: activity.activityName, value: activity.activityName })));
+        setLanguagesList(languagesRes.data.map((lang: any) => ({ label: lang.languageName, value: lang.languageName })));
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast.error("Failed to fetch required data.");
+      }
+    };
+  
+    fetchData();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setProfile({ ...profile, profilePicture: URL.createObjectURL(file) });
+      setProfile((prev) => prev ? { ...prev, profilePic: URL.createObjectURL(file) } : prev);
     }
   };
 
-  const handleSave = () => {
-    toast.success("Profile updated successfully!");
-    console.log("Updated Profile:", profile);  // This logs the updated profile in the frontend
+  const handleInputChange = (key: string, value: string | string[] | null) => {
+    setProfile((prev) =>
+      prev ? { ...prev, [key]: Array.isArray(value) ? value : value } : prev
+    );
   };
+  const validateProfile = (profile: any) => {
+    const errors: { [key: string]: string } = {};
+  
+    if (!profile.firstName.trim()) errors.firstName = "First Name is required.";
+    if (!profile.lastName.trim()) errors.lastName = "Last Name is required.";
+    if (!profile.phoneNumber.trim()) {
+      errors.phoneNumber = "Phone Number is required.";
+    } else if (!/^\d{10,15}$/.test(profile.phoneNumber)) {
+      errors.phoneNumber = "Phone Number must be 10-15 digits.";
+    }
+    if (!profile.bio.trim()) errors.bio = "Bio is required.";
+    if (!profile.gender) errors.gender = "Gender is required.";
+    if (!profile.languages || profile.languages.length === 0)
+      errors.languages = "At least one language must be selected.";
+    if (!profile.activities || profile.activities.length === 0)
+      errors.activities = "At least one activity must be selected.";
+    if (!profile.country) errors.country = "Country is required.";
+    if (!profile.state) errors.state = "State is required.";
+  
+    return errors;
+  };
+  
+
+  const handleSave = async () => {
+    const errors = validateProfile(profile);
+    if (Object.keys(errors).length > 0) {
+      Object.values(errors).forEach((error) => toast.error(error));
+      return;
+    }
+  
+    setIsSaving(true);
+    try {
+      console.log(profile)
+      await axios.put(`http://localhost:5000/api/guide/profile/${user.id}`, profile, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+
+  if (!profile || countries.length === 0 || states.length === 0 || activitiesList.length === 0)
+    return <p>Loading...</p>;
 
   return (
     <div className="max-w-3xl mx-auto p-6">
       <h2 className="text-2xl font-bold mb-4">Edit Guide Profile</h2>
+
+      {/* Profile Picture */}
       <div className="flex flex-col items-center">
         <div className="relative">
           <Image
-            src={profile.profilePicture}
+            src={profile.profilePic || "https://picsum.photos/300/300?grayscale"}
             alt="Profile Picture"
             width={120}
             height={120}
             className="rounded-full shadow-md border"
           />
-          <label
-            htmlFor="profilePicUpload"
-            className="absolute bottom-0 right-0 bg-gray-800 text-white p-2 rounded-full cursor-pointer"
-          >
+          <label htmlFor="profilePicUpload" className="absolute bottom-0 right-0 bg-gray-800 text-white p-2 rounded-full cursor-pointer">
             <Camera size={18} />
           </label>
-          <input
-            type="file"
-            id="profilePicUpload"
-            className="hidden"
-            onChange={handleFileChange}
-          />
+          <input type="file" id="profilePicUpload" className="hidden" onChange={handleFileChange} />
         </div>
       </div>
 
+      {/* Form Fields */}
       <div className="grid grid-cols-2 gap-4 mt-4">
-        {["firstName", "lastName", "phoneNumber", "dateOfBirth", "bio", "govId"].map((key) => (
+        {[ 
+          { label: "First Name", key: "firstName" },
+          { label: "Last Name", key: "lastName" },
+          { label: "Phone Number", key: "phoneNumber" },
+          { label: "Bio", key: "bio" },
+          { label: "Role", key: "role", readOnly: true },
+        ].map(({ label, key, readOnly }) => (
           <div key={key}>
-            <label className="font-medium capitalize">{key}</label>
+            <label className="font-medium">{label}</label>
             <input
               type="text"
-              value={(profile as any)[key]}
-              onChange={(e) =>
-                setProfile({ ...profile, [key]: e.target.value })
-              }
+              value={profile[key] || ""}
+              onChange={(e) => handleInputChange(key, e.target.value)}
               className="w-full mt-1 p-2 border rounded-lg"
+              readOnly={readOnly}
             />
           </div>
         ))}
 
+        {/* Date Joined */}
+        <div>
+          <label className="font-medium">Date Joined</label>
+          <input
+            type="date"
+            value={profile.dateJoined ? profile.dateJoined.split("T")[0] : ""}
+            onChange={(e) => handleInputChange("dateJoined", e.target.value)}
+            className="w-full mt-1 p-2 border rounded-lg"
+          />
+        </div>
+
+        {/* Gender */}
         <div>
           <label className="font-medium">Gender</label>
-          <select
-            value={profile.gender}
-            onChange={(e) =>
-              setProfile({ ...profile, gender: e.target.value as 'male' | 'female' | 'others' })
-            }
-            className="w-full mt-1 p-2 border rounded-lg"
-          >
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="others">Others</option>
-          </select>
+          <Select
+            options={genderOptions}
+            value={genderOptions.find((option) => option.value === profile.gender)}
+            onChange={(selected) => handleInputChange("gender", selected?.value)}
+          />
         </div>
 
-        <div>
-          <label className="font-medium">Country</label>
-          <select
-            value={profile.countryId}
-            onChange={(e) =>
-              setProfile({ ...profile, countryId: e.target.value })
-            }
-            className="w-full mt-1 p-2 border rounded-lg"
-          >
-            {countries.map((country) => (
-              <option key={country} value={country}>
-                {country}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="font-medium">State</label>
-          <select
-            value={profile.stateId}
-            onChange={(e) =>
-              setProfile({ ...profile, stateId: e.target.value })
-            }
-            className="w-full mt-1 p-2 border rounded-lg"
-          >
-            {states.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
-        </div>
-
+        {/* Languages */}
         <div>
           <label className="font-medium">Languages</label>
-          <select
-            multiple
-            value={profile.languages}
-            onChange={(e) =>
-              setProfile({
-                ...profile,
-                languages: Array.from(e.target.selectedOptions, (opt) => opt.value),
-              })
-            }
-            className="w-full mt-1 p-2 border rounded-lg"
-          >
-            {languagesList.map((language) => (
-              <option key={language} value={language}>
-                {language}
-              </option>
-            ))}
-          </select>
+          <Select
+          options={languagesList}
+          value={languagesList.filter((option) => profile.languages?.includes(option.value))}
+          isMulti
+          onChange={(selected) => setProfile((prev) => prev ? { ...prev, languages: selected.map((item) => item.value) } : prev)}
+        />
         </div>
 
-       
+        {/* Activities Offered */}
         <div>
-          <label className="font-medium">Services Offered</label>
-          <select
-            multiple
-            value={profile.servicesOffered}
-            onChange={(e) =>
-              setProfile({
-                ...profile,
-                servicesOffered: Array.from(e.target.selectedOptions, (opt) => opt.value),
-              })
-            }
-            className="w-full mt-1 p-2 border rounded-lg"
-          >
-            {services.map((service) => (
-              <option key={service} value={service}>
-                {service}
-              </option>
-            ))}
-          </select>
+          <label className="font-medium">Activities Offered</label>
+          <Select
+  options={activitiesList}
+  value={activitiesList.filter((option) => profile.activities?.includes(option.value))}
+  isMulti
+  onChange={(selected) => handleInputChange("activities", selected.map((item) => item.value))}
+/>
+
+        </div>
+
+        {/* Country */}
+        <div>
+          <label className="font-medium">Country</label>
+          <Select
+            options={countries}
+            value={countries.find((option) => option.value === profile.country)}
+            onChange={(selected) => handleInputChange("country", selected?.value)}
+          />
+        </div>
+
+        {/* State */}
+        <div>
+          <label className="font-medium">State</label>
+          <Select
+            options={states}
+            value={states.find((option) => option.value === profile.state)}
+            onChange={(selected) => handleInputChange("state", selected?.value)}
+          />
         </div>
       </div>
 
-      <button
-        onClick={handleSave}
-        className="mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2"
-      >
-        <Save size={18} /> Save
+      {/* Save Button */}
+      <button onClick={handleSave} disabled={isSaving} className="mt-6 px-4 py-2 bg-button text-white rounded-lg flex items-center gap-2">
+        {isSaving ? "Saving..." : <><Save size={18} /> Save</>}
       </button>
     </div>
   );

@@ -23,12 +23,14 @@ const SignupPage = () => {
   const validateForm = () => {
     let newErrors = { fullName: "", email: "", password: "", confirmPassword: "" };
     let isValid = true;
-
+  
+    // Full Name Validation
     if (!formData.fullName.trim()) {
       newErrors.fullName = "Full name is required.";
       isValid = false;
     }
-
+  
+    // Email Validation
     if (!formData.email.trim()) {
       newErrors.email = "Email is required.";
       isValid = false;
@@ -36,15 +38,23 @@ const SignupPage = () => {
       newErrors.email = "Enter a valid email address.";
       isValid = false;
     }
-
+  
+    // Password Validation (Strong Password)
     if (!formData.password.trim()) {
       newErrors.password = "Password is required.";
       isValid = false;
-    } else if (formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters.";
-      isValid = false;
+    } else {
+      const password = formData.password;
+      const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      
+      if (!strongPasswordRegex.test(password)) {
+        newErrors.password = 
+          "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character (e.g., @$!%*?&).";
+        isValid = false;
+      }
     }
-
+  
+    // Confirm Password Validation
     if (!formData.confirmPassword.trim()) {
       newErrors.confirmPassword = "Please confirm your password.";
       isValid = false;
@@ -52,7 +62,7 @@ const SignupPage = () => {
       newErrors.confirmPassword = "Passwords do not match.";
       isValid = false;
     }
-
+  
     setErrors(newErrors);
     return isValid;
   };
@@ -75,7 +85,7 @@ const SignupPage = () => {
 
   return (
     <div className="min-h-screen bg-primary flex justify-center items-center">
-      <div className="max-w-screen-xl bg-white shadow-lg rounded-lg flex w-full overflow-hidden">
+      <div className="max-w-screen-xl bg-white justify-evenly  shadow-lg rounded-lg flex w-full overflow-hidden">
         {/* Left Section - Sign Up Form */}
         <div className="w-full lg:w-1/2 p-8 lg:p-12">
           <div className="text-center">
