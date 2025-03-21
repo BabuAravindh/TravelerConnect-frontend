@@ -10,8 +10,10 @@ import { Footer } from "@/components/Footer";
 import ChatMessageArea from "@/components/ChatMessageArea";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
-
+import ReviewForm from "@/components/ReviewForm";
+import ReviewList from "@/components/ReviewList"
 interface Guide {
+
   _id?: string;
   firstName: string;
   lastName: string;
@@ -153,7 +155,7 @@ const GuideProfile = () => {
 
               <button
                 onClick={handleRequest}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition"
+                className="bg-primary bg-opacity-90 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition"
               >
                 💬 Request Chat with Guide
               </button>
@@ -166,7 +168,8 @@ const GuideProfile = () => {
           <ChatMessageArea guideId={guideId} />
         </div>
       </div>
-
+        <ReviewForm/>
+        <ReviewList guideId={guideId}/>
       <Footer />
     </>
   );

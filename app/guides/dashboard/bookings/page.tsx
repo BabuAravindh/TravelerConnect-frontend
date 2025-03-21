@@ -21,7 +21,9 @@ interface Booking {
   duration: string | number;
   budget: number;
   paymentStatus: string;
+  status: string; // ✅ Added status field
 }
+
 
 const BookingsPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -68,23 +70,23 @@ const BookingsPage = () => {
         setError("⚠ No token found. Please login.");
         return;
       }
-
+  
       const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/details`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: "finalized" }),
+        body: JSON.stringify({ status: "completed" }), // 🔹 Ensure status is being updated
       });
-
+  
       if (!res.ok) throw new Error("Failed to update booking status");
-
+  
       setBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, paymentStatus: "finalized" } : b))
+        prev.map((b) => (b.id === bookingId ? { ...b, status: "completed" } : b)) // 🔹 Update status, not paymentStatus
       );
     } catch (error) {
       setError("Error updating booking status.");
     }
   };
-
+  
   if (loading) return <p className="text-center text-gray-600">Loading bookings...</p>;
 
   return (
@@ -127,16 +129,18 @@ const BookingsPage = () => {
               }`}
             >
               <CheckCircle size={16} className="mr-1" />
-              {booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)}
+              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+
             </p>
 
-            {booking.paymentStatus !== "finalized" && (
+            {booking.status !== "completed" && (
+
               <button
                 className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center"
                 onClick={() => updateBookingStatus(booking.id)}
               >
                 <Check size={16} className="mr-1" />
-                Finalize Booking
+                 complete the Trip
               </button>
             )}
           </div>
