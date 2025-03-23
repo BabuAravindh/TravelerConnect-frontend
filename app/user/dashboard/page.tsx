@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Pencil, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useAuth } from "@/context/AuthContext";
 
 interface Profile {
   _id?: string;
@@ -33,11 +34,13 @@ interface State {
 }
 
 export default function ProfilePage() {
+  const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [countries, setCountries] = useState<Country[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [isEditing, setIsEditing] = useState(false);
-  const userId = "6602e6b1c7e0a5b5a8a7b7c5"; // Replace with actual logged-in user ID
+  const [errors, setErrors] = useState<any>({});
+  const userId = user?.id;
 
   useEffect(() => {
     async function fetchProfile() {
@@ -74,144 +77,437 @@ export default function ProfilePage() {
 
     fetchProfile();
     fetchDropdownData();
-  }, []);
+  }, [userId]);
 
   const handleEdit = () => setIsEditing(true);
   const handleCancel = () => setIsEditing(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    if (!profile) return;
     const { name, value } = e.target;
 
-    setProfile((prev) => {
-      if (!prev) return prev;
-
-      if (name === "countryId") {
-        return {
-          ...prev,
-          address: {
-            ...prev.address,
-            countryId: value,
+    if (name.startsWith("address.")) {
+      const field = name.split(".")[1];
+      setProfile((prev) => ({
+        ...(prev || {
+          userId,
+          firstName: "",
+          lastName: "",
+          profilePic: "",
+          phoneNumber: "",
+          dateOfBirth: "",
+          address: { countryId: "", stateId: "", countryName: "", stateName: "" },
+          gender: "",
+        }),
+        address: {
+          ...(prev?.address || { countryId: "", stateId: "", countryName: "", stateName: "" }),
+          [field]: value,
+          ...(field === "countryId" && {
             countryName: countries.find((c) => c._id === value)?.countryName || "",
-          },
-        };
-      }
-
-      if (name === "stateId") {
-        return {
-          ...prev,
-          address: {
-            ...prev.address,
-            stateId: value,
+          }),
+          ...(field === "stateId" && {
             stateName: states.find((s) => s._id === value)?.stateName || "",
-          },
-        };
-      }
+          }),
+        },
+      }));
+    } else {
+      setProfile((prev) => ({
+        ...(prev || {
+          userId,
+          firstName: "",
+          lastName: "",
+          profilePic: "",
+          phoneNumber: "",
+          dateOfBirth: "",
+          address: { countryId: "", stateId: "", countryName: "", stateName: "" },
+          gender: "",
+        }),
+        [name]: value,
+      }));
+    }
+    setErrors((prev: any) => ({ ...prev, [name]: "" }));
+  };
 
-      return { ...prev, [name]: value };
-    });
+  const validateForm = () => {
+    const validationErrors: any = {};
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    const nameRegex = /^[A-Za-z\s]{2,50}$/;
+
+    if (!profile?.firstName) validationErrors.firstName = "First name is required.";
+    else if (!nameRegex.test(profile.firstName))
+      validationErrors.firstName = "First name must be 2-50 letters only.";
+
+    if (!profile?.lastName) validationErrors.lastName = "Last name is required.";
+    else if (!nameRegex.test(profile.lastName))
+      validationErrors.lastName = "Last name must be 2-50 letters only.";
+
+    if (!profile?.phoneNumber) validationErrors.phoneNumber = "Phone number is required.";
+    else if (!phoneRegex.test(profile.phoneNumber))
+      validationErrors.phoneNumber = "Invalid phone number format (e.g., +1234567890).";
+
+    if (!profile?.dateOfBirth) validationErrors.dateOfBirth = "Date of birth is required.";
+    else {
+      const dob = new Date(profile.dateOfBirth);
+      const today = new Date();
+      const minDate = new Date("1900-01-01");
+      if (dob >= today) validationErrors.dateOfBirth = "Date of birth must be in the past.";
+      else if (dob < minDate) validationErrors.dateOfBirth = "Date of birth is too far in the past.";
+    }
+
+    if (!profile?.address?.countryId) validationErrors.countryId = "Country is required.";
+    else if (!countries.some((c) => c._id === profile.address.countryId))
+      validationErrors.countryId = "Invalid country selection.";
+
+    if (!profile?.address?.stateId) validationErrors.stateId = "State is required.";
+    else if (!states.some((s) => s._id === profile.address.stateId))
+      validationErrors.stateId = "Invalid state selection.";
+
+    if (!profile?.gender) validationErrors.gender = "Gender is required.";
+    else if (!["male", "female", "others"].includes(profile.gender.toLowerCase()))
+      validationErrors.gender = "Invalid gender selection.";
+
+    setErrors(validationErrors);
+    return Object.keys(validationErrors).length === 0;
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
+    if (!validateForm()) return;
+
+    if (!profile || !userId) return;
+
+    const requestBody = {
+      userId: profile.userId || userId,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      gender: profile.gender,
+      phoneNumber: profile.phoneNumber,
+      dateOfBirth: profile.dateOfBirth,
+      profilePic: profile.profilePic || "https://picsum.photos/200",
+      countryName: profile.address?.countryName,
+      stateName: profile.address?.stateName,
+    };
 
     try {
-      const res = await fetch(`http://localhost:5000/api/profile/${userId}`, {
+      const url = profile._id
+        ? `http://localhost:5000/api/profile/${userId}`
+        : `http://localhost:5000/api/profile`;
+
+      const res = await fetch(url, {
         method: profile._id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        body: JSON.stringify(requestBody),
       });
 
-      if (!res.ok) throw new Error("Failed to save profile");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to save profile");
+      }
 
+      const data = await res.json();
+      setProfile(data);
       toast.success("Profile saved successfully!");
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating profile:", error);
-      toast.error("Failed to save profile");
+      toast.error(error.message || "Failed to save profile");
     }
   };
 
-  if (profile === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-white text-xl">No profile found. Please create one.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-[#6999aa] to-[#527a8c]">
-      <div className="flex-grow flex justify-center items-center px-6 py-10">
-        <div className="w-full max-w-4xl flex flex-col md:flex-row gap-8">
-          <div className="bg-white/20 p-6 rounded-xl w-full md:w-1/3 flex flex-col items-center">
-            <h2 className="text-xl font-bold text-white mb-4">Profile Picture</h2>
-            <div className="relative w-28 h-28">
-              <Image src={profile.profilePic || "https://via.placeholder.com/144"} alt="Profile" width={144} height={144} className="rounded-full" />
-            </div>
+    <div className="min-h-screen flex items-center justify-center bg-[#6999aa] p-4">
+      <div className="w-full max-w-5xl flex flex-col md:flex-row gap-6">
+        {/* Profile Picture Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 w-full md:w-1/3 flex flex-col items-center">
+          <h2 className="text-xl font-semibold text-[#1b374c] mb-4">Profile Picture</h2>
+          <div className="relative w-32 h-32">
+            <Image
+              src={profile?.profilePic || "https://via.placeholder.com/144"}
+              alt="Profile"
+              width={128}
+              height={128}
+              className="rounded-full object-cover border-4 border-[#6999aa]"
+            />
           </div>
+        </div>
 
-          <div className="bg-white/20 p-6 rounded-xl w-full md:w-2/3">
-            <h2 className="text-xl font-bold text-white text-center">Profile Details</h2>
-            {!isEditing ? (
-              <div className="mt-6 space-y-4 text-white">
-                <p><strong>Name:</strong> {profile.firstName} {profile.lastName}</p>
-                <p><strong>Phone:</strong> {profile.phoneNumber}</p>
-                <p><strong>Date of Birth:</strong> {profile.dateOfBirth}</p>
-                <p><strong>Country:</strong> {profile.address.countryName || "N/A"}</p>
-                <p><strong>State:</strong> {profile.address.stateName || "N/A"}</p>
-                <p><strong>Gender:</strong> {profile.gender}</p>
-                <button onClick={handleEdit} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md flex items-center gap-2">
-                  <Pencil size={16} /> Edit Profile
+        {/* Profile Details Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 w-full md:w-2/3">
+          <h2 className="text-2xl font-semibold text-[#1b374c] text-center mb-6">
+            {profile ? "Profile Details" : "Create Your Profile"}
+          </h2>
+
+          {!profile ? (
+            // Create Profile Form
+            <form className="space-y-4" onSubmit={handleSave}>
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">First Name</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={profile?.firstName || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                  placeholder="Enter first name"
+                />
+                {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">Last Name</label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={profile?.lastName || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                  placeholder="Enter last name"
+                />
+                {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">Phone Number</label>
+                <input
+                  type="text"
+                  name="phoneNumber"
+                  value={profile?.phoneNumber || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                  placeholder="e.g., +1234567890"
+                />
+                {errors.phoneNumber && (
+                  <p className="text-xs text-red-500 mt-1">{errors.phoneNumber}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">Date of Birth</label>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={profile?.dateOfBirth || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                />
+                {errors.dateOfBirth && (
+                  <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">Gender</label>
+                <select
+                  name="gender"
+                  value={profile?.gender || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="others">Others</option>
+                </select>
+                {errors.gender && <p className="text-xs text-red-500 mt-1">{errors.gender}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">Country</label>
+                <select
+                  name="address.countryId"
+                  value={profile?.address?.countryId || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                >
+                  <option value="">Select Country</option>
+                  {countries.map((country) => (
+                    <option key={country._id} value={country._id}>
+                      {country.countryName}
+                    </option>
+                  ))}
+                </select>
+                {errors.countryId && <p className="text-xs text-red-500 mt-1">{errors.countryId}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">State</label>
+                <select
+                  name="address.stateId"
+                  value={profile?.address?.stateId || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                >
+                  <option value="">Select State</option>
+                  {states.map((state) => (
+                    <option key={state._id} value={state._id}>
+                      {state.stateName}
+                    </option>
+                  ))}
+                </select>
+                {errors.stateId && <p className="text-xs text-red-500 mt-1">{errors.stateId}</p>}
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2 bg-[#1b374c] text-white rounded-lg hover:bg-[#2a4a6a] transition-colors"
+              >
+                Create Profile
+              </button>
+            </form>
+          ) : !isEditing ? (
+            // Display Profile Details
+            <div className="space-y-4 text-[#1b374c]">
+              <p>
+                <strong>Name:</strong> {profile.firstName} {profile.lastName}
+              </p>
+              <p>
+                <strong>Phone:</strong> {profile.phoneNumber}
+              </p>
+              <p>
+                <strong>Date of Birth:</strong> {new Date(profile.dateOfBirth).toLocaleDateString()}
+              </p>
+              <p>
+                <strong>Country:</strong> {profile.address.countryName || "N/A"}
+              </p>
+              <p>
+                <strong>State:</strong> {profile.address.stateName || "N/A"}
+              </p>
+              <p>
+                <strong>Gender:</strong> {profile.gender}
+              </p>
+              <button
+                onClick={handleEdit}
+                className="mt-4 w-full py-2 bg-[#1b374c] text-white rounded-lg flex items-center justify-center gap-2 hover:bg-[#2a4a6a] transition-colors"
+              >
+                <Pencil size={16} /> Edit Profile
+              </button>
+            </div>
+          ) : (
+            // Edit Profile Form
+            <form className="space-y-4" onSubmit={handleSave}>
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">First Name</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={profile?.firstName || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                  placeholder="Enter first name"
+                />
+                {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">Last Name</label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={profile?.lastName || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                  placeholder="Enter last name"
+                />
+                {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">Phone Number</label>
+                <input
+                  type="text"
+                  name="phoneNumber"
+                  value={profile?.phoneNumber || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                  placeholder="e.g., +1234567890"
+                />
+                {errors.phoneNumber && (
+                  <p className="text-xs text-red-500 mt-1">{errors.phoneNumber}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">Date of Birth</label>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={profile?.dateOfBirth || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                />
+                {errors.dateOfBirth && (
+                  <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">Gender</label>
+                <select
+                  name="gender"
+                  value={profile?.gender || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="others">Others</option>
+                </select>
+                {errors.gender && <p className="text-xs text-red-500 mt-1">{errors.gender}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">Country</label>
+                <select
+                  name="address.countryId"
+                  value={profile?.address?.countryId || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                >
+                  <option value="">Select Country</option>
+                  {countries.map((country) => (
+                    <option key={country._id} value={country._id}>
+                      {country.countryName}
+                    </option>
+                  ))}
+                </select>
+                {errors.countryId && <p className="text-xs text-red-500 mt-1">{errors.countryId}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#1b374c]">State</label>
+                <select
+                  name="address.stateId"
+                  value={profile?.address?.stateId || ""}
+                  onChange={handleChange}
+                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
+                >
+                  <option value="">Select State</option>
+                  {states.map((state) => (
+                    <option key={state._id} value={state._id}>
+                      {state.stateName}
+                    </option>
+                  ))}
+                </select>
+                {errors.stateId && <p className="text-xs text-red-500 mt-1">{errors.stateId}</p>}
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-[#1b374c] text-white rounded-lg flex items-center justify-center gap-2 hover:bg-[#2a4a6a] transition-colors"
+                >
+                  <Save size={16} /> Save
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="flex-1 py-2 bg-[#1b374c] text-white rounded-lg flex items-center justify-center gap-2 hover:bg-[#2a4a6a] transition-colors"
+                >
+                  <X size={16} /> Cancel
                 </button>
               </div>
-            ) : (
-              <form className="mt-6 space-y-4" onSubmit={handleSave}>
-                {['firstName', 'lastName', 'phoneNumber'].map(field => (
-                  <div key={field}>
-                    <label className="block text-sm font-medium text-gray-200">{field.replace(/([A-Z])/g, ' $1')}</label>
-                    <input
-                      type="text"
-                      name={field}
-                      value={profile[field as keyof Profile] || ""}
-                      onChange={handleChange}
-                      className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white"
-                      required
-                    />
-                  </div>
-                ))}
-                <label className="block text-sm font-medium text-gray-200">Date of Birth</label>
-<input
-  type="date"
-  name="dateOfBirth"
-  value={profile.dateOfBirth ? new Date(profile.dateOfBirth).toISOString().split("T")[0] : ""}
-  onChange={handleChange}
-  className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white"
-/>
-
-
-                <label className="block text-sm font-medium text-gray-200">Country</label>
-                <select name="countryId" value={profile.address.countryId} onChange={handleChange} className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white" required>
-                  <option value="">Select Country</option>
-                  {countries.map(country => (
-                    <option key={country._id} value={country._id} className="text-black">{country.countryName}</option>
-                  ))}
-                </select>
-
-                <label className="block text-sm font-medium text-gray-200">State</label>
-                <select name="stateId" value={profile.address.stateId} onChange={handleChange} className="mt-1 w-full p-2 border rounded-lg bg-white/30 text-white" required>
-                  <option value="">Select State</option>
-                  {states.map(state => (
-                    <option key={state._id} value={state._id} className="text-black">{state.stateName}</option>
-                  ))}
-                </select>
-
-                <button type="submit" className="px-6 py-2 bg-green-600 text-white rounded-lg">Save</button>
-                <button onClick={handleCancel} className="ml-4 px-6 py-2 bg-red-600 text-white rounded-lg">Cancel</button>
-              </form>
-            )}
-          </div>
+            </form>
+          )}
         </div>
       </div>
     </div>
