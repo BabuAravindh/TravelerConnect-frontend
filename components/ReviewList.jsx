@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const REVIEWS_PER_PAGE = 1; // Set 1 for testing pagination
+const REVIEWS_PER_PAGE = 3; // Set 1 for testing pagination
 
 const ReviewList = ({ guideId }) => {
   const [reviews, setReviews] = useState([]);

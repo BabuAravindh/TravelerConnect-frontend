@@ -1,77 +1,67 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import useAuth from "@/hooks/useAuth";
 import useChat from "@/hooks/useChat";
-import { io, Socket } from "socket.io-client";
+import Pusher from "pusher-js";
+import fetchWithAuth from "@/utils/fetchWithAuth";
 
 interface Message {
   _id: string;
-  senderId: string;
-  receiverId: string;
+  senderId: {
+    _id: string;
+    name: string;
+  };
+  receiverId: {
+    _id: string;
+    name: string;
+  };
   message: string;
   timestamp: string;
 }
 
-const SOCKET_SERVER_URL = "http://localhost:5000"; // Backend WebSocket server URL
+
+const API_BASE_URL = "http://localhost:5000"; // Backend URL
 
 const ChatMessageArea = ({ guideId }: { guideId: string }) => {
   const { userId } = useAuth();
   const { fetchOrCreateConversation } = useChat();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [guestId, setGuestId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
 
-  // ✅ Fetch or create conversation on mount
-  useEffect(() => {
-    const getConversation = async () => {
-      if (!userId || !guideId) return;
-      const conversation = await fetchOrCreateConversation(guideId);
-      if (conversation) {
-        console.log("✅ Conversation ID:", conversation._id);
-        setConversationId(conversation._id);
+  // ✅ Fetch or create conversation
+  const getConversation = useCallback(async () => {
+    if (!userId || !guideId) return;
+
+    try {
+      const res = await fetchWithAuth(
+        `${API_BASE_URL}/api/chats/conversation/${userId}/${guideId}`
+      );
+      const data = await res.json();
+
+      if (data.success && data.conversationId) {
+        setConversationId(data.conversationId);
       }
-    };
-    getConversation();
+    } catch (error) {
+      console.error("❌ Error fetching conversation:", error);
+    }
   }, [userId, guideId]);
 
-  // ✅ Initialize socket connection after conversationId is set
   useEffect(() => {
-    if (!userId || !guideId || !conversationId) return;
+    getConversation();
+  }, [getConversation]);
 
-    const newSocket = io(SOCKET_SERVER_URL, {
-      query: { userId, guideId, conversationId },
-    });
-
-    newSocket.on("connect", () => {
-      console.log("✅ Connected to Socket.io server");
-    });
-
-    newSocket.on("new-message", (message: Message) => {
-      console.log("📩 New message received:", message);
-      setMessages((prev) => [...prev, message]);
-    });
-
-    setSocket(newSocket);
-
-    return () => {
-      newSocket.disconnect();
-    };
-  }, [userId, guideId, conversationId]);
-
-  // ✅ Fetch messages after getting conversationId
+  // ✅ Fetch messages when conversationId is available
   useEffect(() => {
+    if (!conversationId) return;
+
     const fetchMessages = async () => {
-      if (!conversationId) return;
-
       try {
-        const res = await fetch(`http://localhost:5000/api/chats/${conversationId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-
+        const res = await fetchWithAuth(`${API_BASE_URL}/api/chats/${conversationId}`);
         const data = await res.json();
-        console.log("📜 Fetched messages:", data);
+        console.log("messages:",data)
         setMessages(data);
       } catch (error) {
         console.error("❌ Error fetching messages:", error);
@@ -80,86 +70,106 @@ const ChatMessageArea = ({ guideId }: { guideId: string }) => {
 
     fetchMessages();
   }, [conversationId]);
+  useEffect(() => {
+    if (!userId) {
+      let storedGuestId = localStorage.getItem("guestId");
+      if (!storedGuestId) {
+        storedGuestId = `guest-${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem("guestId", storedGuestId);
+      }
+      setGuestId(storedGuestId);
+    }
+  }, [userId]);
+  
+  const senderId = userId || guestId;
+
+  // ✅ Setup Pusher for real-time updates
+  useEffect(() => {
+    if (!conversationId) return;
+  
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+    });
+  
+    const channel = pusher.subscribe(`chat-${conversationId}`);
+    
+    channel.bind("new-message", (newMessage: Message) => {
+      setMessages((prev) => {
+        // ✅ Check if message already exists before adding
+        if (!prev.some((msg) => msg._id === newMessage._id)) {
+          return [...prev, newMessage];
+        }
+        return prev;
+      });
+    });
+  
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+    };
+  }, [conversationId]);
+  
 
   // ✅ Send message function
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !userId || !conversationId) return;
-  
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("❌ No token found.");
-      return;
-    }
-  
-    console.log("⚠️ Sending message with conversation ID:", conversationId);
+    if (!newMessage.trim() || !senderId || !guideId) return;
   
     try {
-      const res = await fetch(`http://localhost:5000/api/chats/send/${conversationId}`, {
+      const sendMessageAPI = `${API_BASE_URL}/api/chats/send/${guideId}`;
+      const res = await fetchWithAuth(sendMessageAPI, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          senderId: userId,
+          senderId,
           message: newMessage,
+          isGuest: !userId, // Mark as guest if not logged in
         }),
       });
   
       const response = await res.json();
-  
       if (!res.ok) {
         console.error("❌ Message sending failed:", response);
         return;
       }
   
-      console.log("✅ Message sent:", response);
-  
-      // Optimistically update UI
-      const newMsg: Message = {
-        _id: response.messageId,
-        senderId: userId,
-        receiverId: guideId,
-        message: newMessage,
-        timestamp: new Date().toISOString(),
-      };
-  
-      setMessages((prev) => [...prev, newMsg]);
+      setMessages((prev) => [...prev, response.message]);
       setNewMessage("");
-  
-      // Emit the message via WebSocket
-      if (socket) {
-        console.log("📡 Emitting message via WebSocket:", newMsg);
-        socket.emit("send-message", newMsg);
-      } else {
-        console.error("❌ Socket is not connected.");
-      }
     } catch (error) {
       console.error("❌ Error sending message:", error);
     }
   };
+  
+  
 
   return (
     <div className="bg-[#6999aa] shadow-lg rounded-lg p-4 max-w-6xl mx-auto">
       <h2 className="text-xl font-semibold text-white mb-2">Chat</h2>
-      <div className="h-60 overflow-y-auto border border-[#1b374c] p-2 rounded-lg bg-white mb-2">
-        {messages.length ? (
-          messages.map((msg) => (
-            <div
-              key={msg._id}
-              className={`p-2 my-1 rounded-lg w-96 ${
-                msg.senderId === userId
-                  ? "bg-primary text-white ml-auto"
-                  : "bg-gray-200 text-black mr-auto"
-              }`}
-            >
-              {msg.message}
-            </div>
-          ))
-        ) : (
-          <p className="text-gray-500 text-center">No messages yet</p>
-        )}
-      </div>
+      <div className="h-60 overflow-y-auto border border-[#1b374c] p-2 rounded-lg bg-white mb-2 flex flex-col gap-1">
+  {messages.length ? (
+    messages.map((message, index) => (
+      <div
+  key={message._id || index}
+  className={`p-2 my-1 rounded-lg max-w-[75%] ${
+    (typeof message.senderId === "object"
+      ? message.senderId?._id?.toString()
+      : message.senderId?.toString()) === userId?.toString()
+      ? "bg-primary text-white self-end ml-auto text-right"
+      : "bg-gray-200 text-black self-start mr-auto text-left"
+  }`}
+>
+  {message.message}
+</div>
+
+    
+
+    ))
+  ) : (
+    <p className="text-gray-500 text-center w-full">No messages yet</p>
+  )}
+</div>
+
+
+
       <div className="flex gap-2">
         <input
           type="text"

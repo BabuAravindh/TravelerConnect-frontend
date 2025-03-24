@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Menu, X, Home, Calendar, MessageSquare, User } from "lucide-react";
+import { LogOut, Menu, X, Home, Calendar, MessageSquare, User, ArrowLeft } from "lucide-react";
 import { roleBasedNavItems } from "@/data/data";
-import useAuth from "@/hooks/useAuth";
+import { useAuth } from "@/context/AuthContext";
 
 // Icon mapping
 const iconMap: Record<string, React.ElementType> = {
@@ -19,14 +19,14 @@ const UserSidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { userName, userRole } = useAuth();
+  const { user, logout } = useAuth(); // Using AuthContext for authentication
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    router.push("/login"); // Redirect to login page
-  };
+  const navItems = user?.role ? roleBasedNavItems[user.role] || [] : [];
 
-  const navItems = userRole ? roleBasedNavItems[userRole] : [];
+  // Close sidebar when route changes (for better mobile UX)
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
 
   return (
     <>
@@ -40,15 +40,24 @@ const UserSidebar = () => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-screen w-64 bg-button text-white shadow-lg transform transition-transform duration-300 ease-in-out md:translate-x-0 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        } md:relative`}
-      >
+  className={`fixed top-0 left-0 h-screen w-64 bg-button text-white shadow-lg transform transition-transform duration-300 ease-in-out md:translate-x-0 ${
+    isOpen ? "translate-x-0" : "-translate-x-full"
+  } md:relative z-50`} // Add z-50 here
+>
         {/* Header */}
         <div className="flex flex-col items-center justify-center p-5 border-b border-gray-700">
           <h1 className="text-lg font-bold text-gray-200 text-center">TravelerConnect</h1>
-          {userName && <p className="text-sm text-gray-300">Welcome, {userName} 👋</p>}
+          {user?.name && <p className="text-sm text-gray-300">Welcome, {user.name} 👋</p>}
         </div>
+
+        {/* Home Button */}
+        <Link
+          href="/"
+          className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 text-white bg-primary mt-4 mx-4"
+        >
+          <ArrowLeft size={18} />
+          <span className="text-sm font-medium">Go Back</span>
+        </Link>
 
         {/* Navigation */}
         <nav className="mt-6 space-y-2 px-4">
@@ -63,7 +72,6 @@ const UserSidebar = () => {
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 ${
                   isActive ? "bg-gray-700 text-white" : "text-gray-300 hover:bg-gray-700 hover:text-white"
                 }`}
-                onClick={() => setIsOpen(false)} // Close sidebar on mobile
               >
                 <IconComponent size={20} className={isActive ? "text-white" : "text-gray-400"} />
                 <span className="text-sm font-medium">{label}</span>
@@ -74,7 +82,7 @@ const UserSidebar = () => {
           {/* Logout Button */}
           <button
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 text-red-400 hover:bg-red-600 hover:text-white mt-6"
-            onClick={handleLogout}
+            onClick={() => logout(router)}
           >
             <LogOut size={20} />
             <span className="text-sm font-medium">Logout</span>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import useSignup from "@/hooks/useSignup";
 import Image from "next/image";
+import { Eye, EyeOff } from "lucide-react";
 
 const SignupPage = () => {
   const { handleSignup, loading } = useSignup();
@@ -20,17 +21,18 @@ const SignupPage = () => {
     confirmPassword: "",
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const validateForm = () => {
     let newErrors = { fullName: "", email: "", password: "", confirmPassword: "" };
     let isValid = true;
-  
-    // Full Name Validation
+
     if (!formData.fullName.trim()) {
       newErrors.fullName = "Full name is required.";
       isValid = false;
     }
-  
-    // Email Validation
+
     if (!formData.email.trim()) {
       newErrors.email = "Email is required.";
       isValid = false;
@@ -38,23 +40,22 @@ const SignupPage = () => {
       newErrors.email = "Enter a valid email address.";
       isValid = false;
     }
-  
-    // Password Validation (Strong Password)
+
     if (!formData.password.trim()) {
       newErrors.password = "Password is required.";
       isValid = false;
     } else {
       const password = formData.password;
-      const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-      
+      const strongPasswordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
       if (!strongPasswordRegex.test(password)) {
-        newErrors.password = 
+        newErrors.password =
           "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character (e.g., @$!%*?&).";
         isValid = false;
       }
     }
-  
-    // Confirm Password Validation
+
     if (!formData.confirmPassword.trim()) {
       newErrors.confirmPassword = "Please confirm your password.";
       isValid = false;
@@ -62,7 +63,7 @@ const SignupPage = () => {
       newErrors.confirmPassword = "Passwords do not match.";
       isValid = false;
     }
-  
+
     setErrors(newErrors);
     return isValid;
   };
@@ -80,12 +81,12 @@ const SignupPage = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: "" }); // Clear error on input change
+    setErrors({ ...errors, [e.target.name]: "" });
   };
 
   return (
-    <div className="min-h-screen bg-primary flex justify-center items-center">
-      <div className="max-w-screen-xl bg-white justify-evenly  shadow-lg rounded-lg flex w-full overflow-hidden">
+    <div className="min-h-screen bg-primary flex justify-center items-center ">
+      <div className="max-w-screen-xl bg-white shadow-lg rounded-lg flex w-full overflow-hidden justify-center gap-12">
         {/* Left Section - Sign Up Form */}
         <div className="w-full lg:w-1/2 p-8 lg:p-12">
           <div className="text-center">
@@ -93,9 +94,7 @@ const SignupPage = () => {
             <p className="text-gray-600 mt-2">Create your TravelerConnect account</p>
           </div>
 
-          {/* Sign Up Form */}
           <form className="space-y-4 mt-6" onSubmit={handleSubmit}>
-            {/* Full Name */}
             <div>
               <input
                 type="text"
@@ -110,7 +109,6 @@ const SignupPage = () => {
               {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
             </div>
 
-            {/* Email */}
             <div>
               <input
                 type="email"
@@ -125,10 +123,10 @@ const SignupPage = () => {
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>
 
-            {/* Password */}
-            <div>
+            {/* Password Field with Eye Icon */}
+            <div className="relative">
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 name="password"
                 placeholder="Password"
                 className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
@@ -137,13 +135,20 @@ const SignupPage = () => {
                 value={formData.password}
                 onChange={handleChange}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-3 flex items-center"
+              >
+                {showPassword ? <EyeOff size={20} className="text-gray-500" /> : <Eye size={20} className="text-gray-500" />}
+              </button>
               {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
             </div>
 
-            {/* Confirm Password */}
-            <div>
+            {/* Confirm Password Field with Eye Icon */}
+            <div className="relative">
               <input
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 name="confirmPassword"
                 placeholder="Confirm Password"
                 className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
@@ -152,12 +157,18 @@ const SignupPage = () => {
                 value={formData.confirmPassword}
                 onChange={handleChange}
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute inset-y-0 right-3 flex items-center"
+              >
+                {showConfirmPassword ? <EyeOff size={20} className="text-gray-500" /> : <Eye size={20} className="text-gray-500" />}
+              </button>
               {errors.confirmPassword && (
                 <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
               )}
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}

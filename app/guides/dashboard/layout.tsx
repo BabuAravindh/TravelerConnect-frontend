@@ -31,7 +31,7 @@ const GuideLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#1E293B] text-white">
+      <aside className="  text-white">
         <UserSidebar />
       </aside>
 

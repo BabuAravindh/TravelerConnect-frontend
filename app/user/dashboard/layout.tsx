@@ -9,7 +9,7 @@ import { FiMenu } from "react-icons/fi"; // Import menu icon
 const UserLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, hasRole, loading } = useAuth();
   const router = useRouter();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!loading) {
@@ -55,7 +55,7 @@ const UserLayout = ({ children }: { children: React.ReactNode }) => {
         </header>
 
         {/* ✅ Main Content Wrapper */}
-        <main className="flex-1  bg-gray-50 overflow-y-auto">{children}</main>
+        <main className="flex-1 bg-gray-50 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

@@ -77,7 +77,13 @@ const GuideRequests = () => {
   };
 
   if (loading) return <p>Loading...</p>;
-  if (requests.length === 0) return <p>No requests found.</p>;
+  if (requests.length === 0)
+    return (
+      <p className="bg-gray-100 text-gray-600 py-3 px-4 rounded-md text-center">
+        No requests found.
+      </p>
+    );
+  
 
   return (
     <div className="p-6">

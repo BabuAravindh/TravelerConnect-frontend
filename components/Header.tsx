@@ -5,6 +5,7 @@ import Image from "next/image";
 import { TypeAnimation } from "react-type-animation";
 import Navbar from "./Navbar";
 import { Guide } from "@/types";
+import { Filter } from "lucide-react"; // Import the Filter icon
 
 interface HeroSectionProps {
   searchTerm: string;
@@ -15,8 +16,11 @@ interface HeroSectionProps {
   setLanguage: (lang: string) => void;
   activity: string;
   setActivity: (act: string) => void;
+  gender: string;
+  setGender: (gender: string) => void;
   guides: Guide[];
   loading: boolean;
+  onSearch: () => void; // Add onSearch prop for the search button
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({
@@ -28,14 +32,19 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   setLanguage,
   activity,
   setActivity,
+  gender,
+  setGender,
   guides,
   loading,
+  onSearch, // Pass onSearch function
 }) => {
   const destinations = ["Tamil Nadu", "Gujarat", "Manali", "Bangalore", "Kerala"];
   const languages = ["Hindi", "English", "Tamil", "Marathi", "Bengali"];
   const activities = ["Wildlife Safari", "Trekking", "City Tour", "Water Sports"];
+  const genders = ["Male", "Female", "Other"];
   const images = ["/images/hero-slider-1.jpg", "/images/hero-slider-2.jpg", "/images/hero-slider-3.jpg"];
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false); // State for advanced filters visibility
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -64,7 +73,13 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               </h1>
 
               {/* Search & Filters */}
-              <form className="form bg-white p-5 rounded-lg shadow-lg mb-10 z-20 w-full max-w-lg mx-auto lg:relative lg:left-52 lg:top-40 lg:max-w-6xl">
+              <form
+                className="form bg-white p-5 rounded-lg shadow-lg mb-10 z-20 w-full max-w-lg mx-auto lg:relative lg:left-52 lg:top-40 lg:max-w-6xl"
+                onSubmit={(e) => {
+                  e.preventDefault(); // Prevent form submission
+                  onSearch(); // Trigger search
+                }}
+              >
                 <div className="flex flex-col sm:flex-row gap-4 mb-4">
                   <input
                     type="text"
@@ -73,51 +88,86 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-button hover:bg-opacity-90 text-white font-bold rounded transition"
+                  >
+                    Search
+                  </button>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-4">
-                  {/* Destination Filter */}
-                  <select
-                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
+                {/* Advanced Filters Toggle */}
+                <div className="text-center mb-4">
+                  <button
+                    type="button"
+                    className="flex items-center justify-center gap-2 text-button  transition"
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                   >
-                    <option value="">Select Destination</option>
-                    {destinations.map((dest) => (
-                      <option key={dest} value={dest}>
-                        {dest}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Language Filter */}
-                  <select
-                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                  >
-                    <option value="">Select Language</option>
-                    {languages.map((lang) => (
-                      <option key={lang} value={lang}>
-                        {lang}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* Activity Filter */}
-                  <select
-                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                    value={activity}
-                    onChange={(e) => setActivity(e.target.value)}
-                  >
-                    <option value="">Select Activity</option>
-                    {activities.map((act) => (
-                      <option key={act} value={act}>
-                        {act}
-                      </option>
-                    ))}
-                  </select>
+                    <Filter size={20} /> {/* Filter icon */}
+                    <span>{showAdvancedFilters ? "Hide Filters" : "Show Filters"}</span>
+                  </button>
                 </div>
+
+                {/* Advanced Filters */}
+                {showAdvancedFilters && (
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {/* Destination Filter */}
+                    <select
+                      className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                    >
+                      <option value="">Select Destination</option>
+                      {destinations.map((dest) => (
+                        <option key={dest} value={dest}>
+                          {dest}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Language Filter */}
+                    <select
+                      className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                    >
+                      <option value="">Select Language</option>
+                      {languages.map((lang) => (
+                        <option key={lang} value={lang}>
+                          {lang}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Activity Filter */}
+                    <select
+                      className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
+                      value={activity}
+                      onChange={(e) => setActivity(e.target.value)}
+                    >
+                      <option value="">Select Activity</option>
+                      {activities.map((act) => (
+                        <option key={act} value={act}>
+                          {act}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Gender Filter */}
+                    <select
+                      className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                    >
+                      <option value="">Select Gender</option>
+                      {genders.map((gen) => (
+                        <option key={gen} value={gen}>
+                          {gen}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </form>
             </div>
 

@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import ReviewForm from "@/components/ReviewForm";
 import ReviewList from "@/components/ReviewList"
+import Chatbot from "@/components/ChatBot";
 interface Guide {
 
   _id?: string;
@@ -162,14 +163,17 @@ const GuideProfile = () => {
             </div>
           </div>
         </div>
-
+        <Chatbot/>
         {/* Chat System */}
-        <div className="max-w-5xl w-full mx-auto mt-10">
+        <div className=" mx-auto max-w-5xl w-full  mt-10 ">
           <ChatMessageArea guideId={guideId} />
         </div>
-      </div>
-        <ReviewForm/>
+        <div className="mx-auto max-w-5xl w-full mt-20">
+        <ReviewForm guideId={guideId}/>
         <ReviewList guideId={guideId}/>
+        </div>
+      </div>
+      
       <Footer />
     </>
   );
