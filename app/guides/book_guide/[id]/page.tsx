@@ -6,12 +6,15 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { Footer } from "@/components/Footer";
-import Razorpay from "razorpay"
+import Razorpay from "razorpay";
+
 const BookingForm = () => {
   const router = useRouter();
   const params = useParams();
   const { user } = useAuth();
   const [token, setToken] = useState<string | null>(null);
+  const [paymentMode, setPaymentMode] = useState<"online" | "cash">("online");
+
   const [conversationError, setConversationError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
@@ -68,23 +71,65 @@ const BookingForm = () => {
       return null;
     }
   };
+
+  const createBooking = async (paymentType: "online" | "cash") => {
+    if (!user?.id || !guideId) {
+      toast.error("User or Guide ID is missing.");
+      return;
+    }
+  
+    try {
+      const response = await fetch("http://localhost:5000/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          guideId,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          budget: formData.budget,
+          places: ["Goa", "Mumbai"], // Modify as per user input
+          duration: 5, // Modify as needed
+          status: paymentType === "cash" ? "pending" : "confirmed",
+          paymentMode: paymentType, // Store payment mode
+          paymentStatus: paymentType === "cash" ? "pending" : "paid",
+        }),
+      });
+  
+      const data = await response.json();
+  
+      if (data.message === "Booking created successfully!") {
+        toast.success("Booking created successfully!");
+        router.push(`/bookings/${data.booking._id}`);
+      } else {
+        toast.error("Failed to create booking.");
+      }
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      toast.error("Something went wrong. Try again.");
+    }
+  };
+  
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       if (window.Razorpay) {
         resolve(true);
         return;
       }
-  
+
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.async = true;
       script.onload = () => resolve(true);
       script.onerror = () => resolve(false);
-  
+
       document.body.appendChild(script);
     });
   };
-  
+
   useEffect(() => {
     if (user?.id && guideId && token) {
       fetchLastBudget(user.id, guideId, token).then((data) => {
@@ -131,6 +176,12 @@ const BookingForm = () => {
   const handlePayment = async () => {
     if (!validateForm()) return;
   
+    if (paymentMode === "cash") {
+      // If cash is selected, create booking without online payment
+      await createBooking("cash");
+      return;
+    }
+  
     const scriptLoaded = await loadRazorpayScript();
     if (!scriptLoaded) {
       toast.error("Razorpay SDK failed to load. Check your internet connection.");
@@ -152,24 +203,13 @@ const BookingForm = () => {
       }
   
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, // Public key
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: order.currency,
         name: "TravelerConnect",
         description: "Booking Payment",
         order_id: order.id,
         handler: async function (response: any) {
-          console.log("🔹 Razorpay Payment Response:", response);
-          if (!response.razorpay_payment_id || !response.razorpay_order_id || !response.razorpay_signature) {
-            toast.error("Payment verification failed: Missing response parameters.");
-            return;
-          }
-      
-          console.log("🔹 Sending data to backend for verification...");
-          console.log("🔹 Order ID:", response.razorpay_order_id);
-          console.log("🔹 Payment ID:", response.razorpay_payment_id);
-          console.log("🔹 Signature:", response.razorpay_signature);
-      
           const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/verify-payment`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -179,13 +219,11 @@ const BookingForm = () => {
               signature: response.razorpay_signature,
             }),
           });
-      
+  
           const verifyData = await verifyRes.json();
-          console.log("🔹 Payment Verification Response:", verifyData);
-      
           if (verifyData.success) {
             toast.success("Payment successful!");
-            router.push(`/`);
+            await createBooking("online"); // Mark as online payment
           } else {
             toast.error("Payment verification failed.");
           }
@@ -196,10 +234,9 @@ const BookingForm = () => {
         },
         theme: { color: "#1a202c" },
       };
-      
+  
       const razorpay = new (window as any).Razorpay(options);
       razorpay.open();
-      
     } catch (error) {
       console.error("Payment error:", error);
       toast.error("Something went wrong. Try again.");
@@ -231,7 +268,19 @@ const BookingForm = () => {
         <form className="py-4 px-6">
           <input type="date" name="startDate" value={formData.startDate} onChange={handleInputChange} required className="mb-4 w-full px-3 py-2 border rounded" />
           <input type="date" name="endDate" value={formData.endDate} onChange={handleInputChange} required className="mb-4 w-full px-3 py-2 border rounded" />
-          <input type="number" name="budget" value={formData.budget} onChange={handleInputChange} required className="mb-4 w-full px-3 py-2 border rounded" placeholder="Enter Budget" />
+          <input type="number" name="budget" value={formData.budget} onChange={handleInputChange} required className="mb-4 w-full px-3 py-2 border rounded" placeholder="Enter Budget" readOnly/>
+          <div className="mb-4">
+  <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+  <select
+    value={paymentMode}
+    onChange={(e) => setPaymentMode(e.target.value as "online" | "cash")}
+    className="w-full px-3 py-2 border rounded"
+  >
+    <option value="online">Online Payment (Razorpay)</option>
+    <option value="cash">Cash on Hand</option>
+  </select>
+</div>
+
           {conversationError && <p className="text-sm text-red-500 mb-4">{conversationError}</p>}
           <button type="button" className="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 w-full" onClick={handlePayment}>
             Proceed to Payment

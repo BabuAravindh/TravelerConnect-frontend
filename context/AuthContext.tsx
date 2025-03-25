@@ -12,7 +12,7 @@ interface DecodedToken {
 interface AuthContextType {
   user: DecodedToken | null;
   hasRole: (role: string) => boolean;
-  loading: boolean; // ✅ Ensure 'loading' is part of the context
+  loading: boolean; 
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

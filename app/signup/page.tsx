@@ -199,6 +199,7 @@ const SignupPage = () => {
           height={300}
           className="max-w-xs"
         />
+
       </div>
     </div>
   );
