@@ -1,72 +1,28 @@
 "use client";
 
+import AttractionsCarousel from "@/components/Attraction";
+import DestinationRoutes from "@/components/DestinationRoutes";
 import { Footer } from "@/components/Footer";
 import GuideListing from "@/components/GuideListing";
 import HeroSection from "@/components/Header";
 import { useState } from "react";
 
-interface Guide {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
-  verificationToken?: string;
-  isVerified: boolean;
-  __v?: number;
-  address?: {
-    stateId: {
-      _id: string;
-      stateName: string;
-      order: number;
-      createdAt: string;
-      __v: number;
-    };
-    countryId: string;
-  };
-  userId: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  dateOfBirth: string;
-  profilePicture: string;
-  gender: string;
-  dateJoined: string;
-  languages?: Array<{
-    _id: string;
-    languageName: string;
-    languageStatus: string;
-    order: number;
-    createdAt: string;
-    updatedAt: string;
-    __v: number;
-  }>;
-  bio?: string;
-  activities?: Array<{
-    _id: string;
-    activityName: string;
-    order: number;
-    __v: number;
-    createdAt: string;
-    updatedAt: string;
-  }>;
-  aadharCardPhoto?: string;
-  bankAccountNumber?: string;
-}
+// ... Guide interface remains the same ...
+
 const Page: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [destination, setDestination] = useState("");
+  const [city, setCity] = useState("");
   const [language, setLanguage] = useState("");
   const [activity, setActivity] = useState("");
   const [gender, setGender] = useState("");
   const [guides, setGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch guides only when the form is submitted
   const fetchGuides = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (destination) params.append("destination", destination);
+      if (city) params.append("city", city);
       if (language) params.append("language", language);
       if (activity) params.append("activity", activity);
       if (gender) params.append("gender", gender);
@@ -74,28 +30,28 @@ const Page: React.FC = () => {
 
       console.log("Fetching guides with params:", params.toString());
 
-      const response = await fetch(`http://localhost:5000/api/search/guides?${params.toString()}`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/search/guides?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch guides");
 
       const data = await response.json();
       console.log("API response:", data);
 
-      setGuides(Array.isArray(data) ? data : []); // Update guides state with fetched data
+      setGuides(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching guides:", error);
-      setGuides([]); // Clear guides on error
+      setGuides([]);
     } finally {
-      setLoading(false); // Reset loading state
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <HeroSection
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
-        destination={destination}
-        setDestination={setDestination}
+        city={city}
+        setCity={setCity}
         language={language}
         setLanguage={setLanguage}
         activity={activity}
@@ -104,21 +60,42 @@ const Page: React.FC = () => {
         setGender={setGender}
         guides={guides}
         loading={loading}
-        onSearch={fetchGuides} // Pass fetchGuides to be called on form submission
+        onSearch={fetchGuides}
       />
-      <div className="flex flex-row gap-4 p-4 flex-grow">
-        <div className="flex-1 flex justify-center items-center bg-primar">
-          <GuideListing
-            searchTerm={searchTerm}
-            destination={destination}
+
+      <div className="flex flex-col gap-12 px-6 py-12 lg:px-16 flex-grow">
+        <div className="max-w-7xl mx-auto w-full mt-20">
+          <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Popular Attractions</h2>
+          <AttractionsCarousel 
+            city={city}
             language={language}
             activity={activity}
-            gender={gender}
-            guides={guides} // Pass filtered guides
-            loading={loading}
+          />
+        </div>
+
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="p-4">
+            <GuideListing
+              searchTerm={searchTerm}
+              city={city}
+              language={language}
+              activity={activity}
+              gender={gender}
+              guides={guides}
+              loading={loading}
+            />
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto w-full">
+          <DestinationRoutes 
+            city={city}
+            language={language}
+            activity={activity}
           />
         </div>
       </div>
+
       <Footer />
     </div>
   );

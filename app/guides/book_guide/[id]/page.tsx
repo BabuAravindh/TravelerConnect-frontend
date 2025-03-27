@@ -226,38 +226,41 @@ const BookingForm = () => {
     if (!scriptLoaded) {
       return;
     }
-
+  
     try {
+      // First create the booking record
       console.log("Creating booking record for online payment...");
       const newBookingId = await createBooking("online");
       if (!newBookingId) {
         return;
       }
-      setBookingId(newBookingId);
-      console.log("Booking ID stored for payment:", newBookingId);
-
+      console.log("Booking created with ID:", newBookingId);
+  
+      // Then create the payment order with this booking ID
       console.log("Creating payment order for booking:", newBookingId);
       const orderPayload = { 
         amount: formData.budget, 
         currency: "INR",
         bookingId: newBookingId
       };
-      console.log("Order creation payload:", orderPayload);
-
+  
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/create-order`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(orderPayload),
       });
       
       const orderData = await res.json();
       console.log("Order creation response:", orderData);
-
+  
       if (!orderData.order) {
         toast.error("Failed to create Razorpay order");
         return;
       }
-
+  
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: orderData.order.amount,
@@ -275,12 +278,14 @@ const BookingForm = () => {
             signature: response.razorpay_signature,
             bookingId: newBookingId
           };
-          console.log("Payment verification payload:", verificationPayload);
-
+  
           try {
             const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/verify-payment`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { 
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
               body: JSON.stringify(verificationPayload),
             });
         
@@ -288,15 +293,13 @@ const BookingForm = () => {
             console.log("Payment verification response:", verifyData);
         
             if (verifyData.success) {
-              console.log("Payment verified successfully for booking:", newBookingId);
               toast.success("Payment successful!");
               router.push(`/bookings/${newBookingId}`);
             } else {
-              console.error("Payment verification failed for booking:", newBookingId);
               toast.error("Payment verification failed.");
             }
           } catch (error) {
-            console.error("Verification error for booking:", newBookingId, error);
+            console.error("Verification error:", error);
             toast.error("Payment verification failed. Please contact support.");
           }
         },
@@ -307,7 +310,6 @@ const BookingForm = () => {
         theme: { color: "#1a202c" },
       };
       
-      console.log("Opening Razorpay payment dialog with options:", options);
       const razorpay = new (window as any).Razorpay(options);
       razorpay.open();
       

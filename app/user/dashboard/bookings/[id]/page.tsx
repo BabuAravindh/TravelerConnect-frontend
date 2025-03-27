@@ -27,7 +27,7 @@ export default function BookingDetails() {
 
     const fetchBookingDetails = async () => {
       try {
-        const response = await axios.get<Booking>(`http://localhost:5000/api/bookings/${id}`);
+        const response = await axios.get<Booking>(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/${id}`);
         setBooking(response.data);
       } catch (err) {
         const error = err as AxiosError<{ message?: string }>;

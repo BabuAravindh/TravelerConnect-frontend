@@ -44,7 +44,7 @@ const BookingsPage = () => {
           return;
         }
 
-        const res = await fetch(`http://localhost:5000/api/bookings/guide/${user.id}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/guide/${user.id}`, {
           method: "GET",
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -71,7 +71,7 @@ const BookingsPage = () => {
         return;
       }
   
-      const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/details`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/${bookingId}/details`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: "completed" }), // 🔹 Ensure status is being updated

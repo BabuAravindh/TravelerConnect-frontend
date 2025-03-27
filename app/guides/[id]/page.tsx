@@ -42,7 +42,7 @@ const GuideProfile = () => {
   useEffect(() => {
     const fetchGuide = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/guide/profile/${guideId}`);
+        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${guideId}`);
         setGuide(res.data);
       } catch (error) {
         console.error("Error fetching guide:", error);
@@ -70,7 +70,7 @@ const GuideProfile = () => {
     };
 
     try {
-      const response = await axios.post("http://localhost:5000/api/requests", requestData);
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/requests`, requestData);
 
       if (response.data?.message === "You have already sent a request. Try again later.") {
         toast.success(response.data.message);

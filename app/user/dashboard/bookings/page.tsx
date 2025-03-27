@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import axios, { AxiosError } from "axios";
 import Link from "next/link";
 
-import { Calendar, CheckCircle, IndianRupee, User, Mail, Phone, Languages } from "lucide-react";
+import { Calendar, CheckCircle, IndianRupee, User, Mail, Phone, Languages, RotateCcw } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 type Booking = {
@@ -52,8 +52,7 @@ export default function UserBookings() {
           budget: booking.budget,
           status: booking.status,
           duration: `${Math.ceil(
-            (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) /
-              (1000 * 60 * 60 * 24)
+            (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24)
           )} days`,
           guideEmail: booking.guideProfile.guideEmail,
           guidePhoneNumber: booking.guideProfile.guidePhoneNumber,
@@ -88,62 +87,70 @@ export default function UserBookings() {
         {!loading && !error && bookings.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {bookings.map((booking) => (
-              <Link key={booking.id} href={`/user/dashboard/bookings/${booking.id}`}>
-                <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-200">
-                  <div className="p-6">
-                    {/* Booking Dates */}
-                    <div className="flex items-center text-gray-700 mb-4">
-                      <Calendar size={18} className="mr-2 text-gray-500" />
-                      <span className="text-sm">
-                        {booking.startDate} - {booking.endDate}
-                      </span>
-                    </div>
+              <div key={booking.id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-200 p-6">
+                {/* Booking Dates */}
+                <div className="flex items-center text-gray-700 mb-4">
+                  <Calendar size={18} className="mr-2 text-gray-500" />
+                  <span className="text-sm">
+                    {booking.startDate} - {booking.endDate}
+                  </span>
+                </div>
 
-                    {/* Budget */}
-                    <div className="flex items-center text-gray-700 mb-4">
-                      <IndianRupee size={18} className="mr-2 text-gray-500" />
-                      <span className="text-sm font-semibold">₹{booking.budget}</span>
-                    </div>
+                {/* Budget */}
+                <div className="flex items-center text-gray-700 mb-4">
+                  <IndianRupee size={18} className="mr-2 text-gray-500" />
+                  <span className="text-sm font-semibold">₹{booking.budget}</span>
+                </div>
 
-                    {/* Status */}
-                    <div
-                      className={`flex items-center text-sm font-medium px-3 py-1 rounded-full w-fit mb-4 ${
-                        booking.status === "pending"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-green-100 text-green-700"
-                      }`}
-                    >
-                      <CheckCircle size={16} className="mr-2" />
-                      {booking.status}
-                    </div>
+                {/* Status */}
+                <div
+                  className={`flex items-center text-sm font-medium px-3 py-1 rounded-full w-fit mb-4 ${
+                    booking.status === "pending"
+                      ? "bg-yellow-100 text-yellow-700"
+                      : booking.status === "completed"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  <CheckCircle size={16} className="mr-2" />
+                  {booking.status}
+                </div>
 
-                    {/* Guide Information */}
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Guide Details</h3>
+                {/* Guide Information */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Guide Details</h3>
 
-                      <div className="flex items-center text-gray-700">
-                        <User size={18} className="mr-2 text-gray-500" />
-                        <span className="text-sm">{booking.guideName}</span>
-                      </div>
+                  <div className="flex items-center text-gray-700">
+                    <User size={18} className="mr-2 text-gray-500" />
+                    <span className="text-sm">{booking.guideName}</span>
+                  </div>
 
-                      <div className="flex items-center text-gray-700">
-                        <Mail size={18} className="mr-2 text-gray-500" />
-                        <span className="text-sm">{booking.guideEmail}</span>
-                      </div>
+                  <div className="flex items-center text-gray-700">
+                    <Mail size={18} className="mr-2 text-gray-500" />
+                    <span className="text-sm">{booking.guideEmail}</span>
+                  </div>
 
-                      <div className="flex items-center text-gray-700">
-                        <Phone size={18} className="mr-2 text-gray-500" />
-                        <span className="text-sm">{booking.guidePhoneNumber}</span>
-                      </div>
+                  <div className="flex items-center text-gray-700">
+                    <Phone size={18} className="mr-2 text-gray-500" />
+                    <span className="text-sm">{booking.guidePhoneNumber}</span>
+                  </div>
 
-                      <div className="flex items-center text-gray-700">
-                        <Languages size={18} className="mr-2 text-gray-500" />
-                        <span className="text-sm">{booking.guideLanguages}</span>
-                      </div>
-                    </div>
+                  <div className="flex items-center text-gray-700">
+                    <Languages size={18} className="mr-2 text-gray-500" />
+                    <span className="text-sm">{booking.guideLanguages}</span>
                   </div>
                 </div>
-              </Link>
+
+                {/* Refund Button (Only for Completed Bookings) */}
+                {booking.status === "completed" && (
+                  <Link href={`/user/dashboard/refund/${booking.id}`}>
+                    <button className="mt-4 w-full bg-red-500 text-white py-2 px-4 rounded-lg flex items-center justify-center hover:bg-red-600 transition duration-300">
+                      <RotateCcw size={18} className="mr-2" />
+                      Request Refund
+                    </button>
+                  </Link>
+                )}
+              </div>
             ))}
           </div>
         )}

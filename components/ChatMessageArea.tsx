@@ -21,7 +21,7 @@ interface Message {
 }
 
 
-const API_BASE_URL = "http://localhost:5000"; // Backend URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL; // Backend URL
 
 const ChatMessageArea = ({ guideId }: { guideId: string }) => {
   const { userId } = useAuth();

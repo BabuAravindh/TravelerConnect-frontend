@@ -32,7 +32,7 @@ const GuideRequests = () => {
 
     const fetchRequests = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/requests/${user.id}`);
+        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/requests/${user.id}`);
         setRequests(res.data);
       } catch (error) {
         console.error("Error fetching requests:", error);
@@ -46,7 +46,7 @@ const GuideRequests = () => {
 
   const handleAccept = async (requestId: string) => {
     try {
-      await axios.put(`http://localhost:5000/api/requests/${requestId}/status`, { status: "accepted" });
+      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/requests/${requestId}/status`, { status: "accepted" });
 
       setRequests((prev) =>
         prev.map((req) =>
@@ -63,7 +63,7 @@ const GuideRequests = () => {
 
   const handleReject = async (requestId: string) => {
     try {
-      await axios.put(`http://localhost:5000/api/requests/${requestId}/status`, { status: "rejected" });
+      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/requests/${requestId}/status`, { status: "rejected" });
       setRequests((prev) =>
         prev.map((req) =>
           req._id === requestId ? { ...req, status: "rejected" } : req

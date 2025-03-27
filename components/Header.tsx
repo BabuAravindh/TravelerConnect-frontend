@@ -4,47 +4,45 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { TypeAnimation } from "react-type-animation";
 import Navbar from "./Navbar";
-import { Guide } from "@/types";
-import { Filter } from "lucide-react"; // Import the Filter icon
+import { Filter } from "lucide-react";
 
 interface HeroSectionProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  destination: string;
-  setDestination: (dest: string) => void;
+  city: string;
+  setCity: (city: string) => void;
   language: string;
   setLanguage: (lang: string) => void;
   activity: string;
   setActivity: (act: string) => void;
   gender: string;
   setGender: (gender: string) => void;
-  guides: Guide[];
   loading: boolean;
-  onSearch: () => void; // Add onSearch prop for the search button
+  onSearch: () => void;
+  guides: any[]; // Simplified for brevity
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({
   searchTerm,
   setSearchTerm,
-  destination,
-  setDestination,
+  city,
+  setCity,
   language,
   setLanguage,
   activity,
   setActivity,
   gender,
   setGender,
-  guides,
   loading,
-  onSearch, // Pass onSearch function
+  onSearch,
 }) => {
-  const destinations = ["Tamil Nadu", "Gujarat", "Manali", "Bangalore", "Kerala"];
+  const cities = ["Chennai", "Ahmedabad", "Manali", "Bangalore", "Kochi"];
   const languages = ["Hindi", "English", "Tamil", "Marathi", "Bengali"];
   const activities = ["Wildlife Safari", "Trekking", "City Tour", "Water Sports"];
   const genders = ["Male", "Female", "Other"];
   const images = ["/images/hero-slider-1.jpg", "/images/hero-slider-2.jpg", "/images/hero-slider-3.jpg"];
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false); // State for advanced filters visibility
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -64,7 +62,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                 Let’s Enjoy Your <br /> Trip In{" "}
                 <span className="text-white underline">
                   <TypeAnimation
-                    sequence={destinations.flatMap((dest) => [dest, 2000])}
+                    sequence={cities.flatMap((city) => [city, 2000])}
                     wrapper="span"
                     speed={50}
                     repeat={Infinity}
@@ -72,12 +70,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                 </span>
               </h1>
 
-              {/* Search & Filters */}
               <form
                 className="form bg-white p-5 rounded-lg shadow-lg mb-10 z-20 w-full max-w-lg mx-auto lg:relative lg:left-52 lg:top-40 lg:max-w-6xl"
                 onSubmit={(e) => {
-                  e.preventDefault(); // Prevent form submission
-                  onSearch(); // Trigger search
+                  e.preventDefault();
+                  onSearch();
                 }}
               >
                 <div className="flex flex-col sm:flex-row gap-4 mb-4">
@@ -91,41 +88,38 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                   <button
                     type="submit"
                     className="px-6 py-2 bg-button hover:bg-opacity-90 text-white font-bold rounded transition"
+                    disabled={loading}
                   >
-                    Search
+                    {loading ? "Searching..." : "Search"}
                   </button>
                 </div>
 
-                {/* Advanced Filters Toggle */}
                 <div className="text-center mb-4">
                   <button
                     type="button"
-                    className="flex items-center justify-center gap-2 text-button  transition"
+                    className="flex items-center justify-center gap-2 text-button transition"
                     onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                   >
-                    <Filter size={20} /> {/* Filter icon */}
+                    <Filter size={20} />
                     <span>{showAdvancedFilters ? "Hide Filters" : "Show Filters"}</span>
                   </button>
                 </div>
 
-                {/* Advanced Filters */}
                 {showAdvancedFilters && (
                   <div className="flex flex-col sm:flex-row gap-4">
-                    {/* Destination Filter */}
                     <select
                       className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                      value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
                     >
-                      <option value="">Select Destination</option>
-                      {destinations.map((dest) => (
-                        <option key={dest} value={dest}>
-                          {dest}
+                      <option value="">Select City</option>
+                      {cities.map((cityOption) => (
+                        <option key={cityOption} value={cityOption}>
+                          {cityOption}
                         </option>
                       ))}
                     </select>
 
-                    {/* Language Filter */}
                     <select
                       className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
                       value={language}
@@ -139,7 +133,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                       ))}
                     </select>
 
-                    {/* Activity Filter */}
                     <select
                       className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
                       value={activity}
@@ -153,7 +146,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                       ))}
                     </select>
 
-                    {/* Gender Filter */}
                     <select
                       className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
                       value={gender}
@@ -171,7 +163,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               </form>
             </div>
 
-            {/* Image Slider */}
             <div className="lg:w-5/12 flex justify-center mt-10 lg:mt-0">
               <div className="relative w-[250px] sm:w-[300px] md:w-[350px] lg:w-[400px] h-[250px] sm:h-[300px] md:h-[350px] lg:h-96 lg:top-20 flex justify-center items-center">
                 {images.map((img, index) => (
@@ -181,9 +172,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     alt={`Travel destination ${index + 1}`}
                     width={600}
                     height={600}
-                    className={`rounded-full object-cover absolute transition-all duration-1000 ease-in-out ${
-                      currentImageIndex === index ? "opacity-100 scale-100" : "opacity-0 scale-95"
-                    }`}
+                    className={`rounded-full object-cover absolute transition-all duration-1000 ease-in-out ${currentImageIndex === index ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
                   />
                 ))}
               </div>

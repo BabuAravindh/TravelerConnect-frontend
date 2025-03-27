@@ -45,7 +45,7 @@ export default function ProfilePage() {
   useEffect(() => {
     async function fetchProfile() {
       try {
-        const res = await fetch(`http://localhost:5000/api/profile/${userId}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`);
         if (!res.ok) throw new Error("Profile not found");
         const data = await res.json();
         setProfile(data);
@@ -58,8 +58,8 @@ export default function ProfilePage() {
     async function fetchDropdownData() {
       try {
         const [countriesRes, statesRes] = await Promise.all([
-          fetch("http://localhost:5000/api/predefine/countries"),
-          fetch("http://localhost:5000/api/predefine/states"),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/countries`),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/states`),
         ]);
 
         if (!countriesRes.ok || !statesRes.ok) throw new Error("Failed to fetch data");
@@ -189,8 +189,8 @@ export default function ProfilePage() {
 
     try {
       const url = profile._id
-        ? `http://localhost:5000/api/profile/${userId}`
-        : `http://localhost:5000/api/profile`;
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/profile`;
 
       const res = await fetch(url, {
         method: profile._id ? "PUT" : "POST",

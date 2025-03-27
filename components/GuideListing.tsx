@@ -7,17 +7,18 @@ import { Star } from "lucide-react";
 
 interface GuideListingProps {
   searchTerm: string;
-  destination: string;
+  city: string;
   language: string;
   activity: string;
   gender: string;
   guides?: Guide[];
   loading: boolean;
+
 }
 
 interface Guide {
   _id: string;
-  name: string;
+  name?: string; // Optional since we construct it from firstName and lastName
   email: string;
   role: string;
   verificationToken?: string;
@@ -37,35 +38,21 @@ interface Guide {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  dateOfBirth: string;
-  profilePicture: string;
+  dateOfBirth?: string; // Optional since not always present
+  profilePicture?: string; // Renamed to profilePic for consistency
   gender: string;
   dateJoined: string;
-  languages?: Array<{
-    _id: string;
-    languageName: string;
-    languageStatus: string;
-    order: number;
-    createdAt: string;
-    updatedAt: string;
-    __v: number;
-  }>;
+  languages?: string[]; // Simplified to string array from getAllGuides
   bio?: string;
-  activities?: Array<{
-    _id: string;
-    activityName: string;
-    order: number;
-    __v: number;
-    createdAt: string;
-    updatedAt: string;
-  }>;
+  activities?: string[]; // Simplified to string array from getAllGuides
   aadharCardPhoto?: string;
   bankAccountNumber?: string;
+  serviceLocations?: string[]; // Added serviceLocations as string array
+  state?: string; // Added for simplified state from getAllGuides
 }
-
 const GuideListing: React.FC<GuideListingProps> = ({
   searchTerm,
-  destination,
+  city,
   language,
   activity,
   gender,
@@ -74,67 +61,13 @@ const GuideListing: React.FC<GuideListingProps> = ({
 }) => {
   const [guides, setGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(propLoading);
+ 
 
-  // Dummy data for testing
-  const dummyGuides: Guide[] = [
-    {
-      _id: "1",
-      name: "John Doe",
-      email: "john.doe@example.com",
-      role: "guide",
-      isVerified: true,
-      address: {
-        stateId: {
-          _id: "1",
-          stateName: "California",
-          order: 1,
-          createdAt: "2023-01-01",
-          __v: 0,
-        },
-        countryId: "US",
-      },
-      userId: "1",
-      firstName: "John",
-      lastName: "Doe",
-      phoneNumber: "1234567890",
-      dateOfBirth: "1990-01-01",
-      profilePicture: "https://picsum.photos/100",
-      gender: "male",
-      dateJoined: "2023-01-01",
-      languages: [
-        {
-          _id: "1",
-          languageName: "English",
-          languageStatus: "active",
-          order: 1,
-          createdAt: "2023-01-01",
-          updatedAt: "2023-01-01",
-          __v: 0,
-        },
-      ],
-      bio: "Experienced guide with a passion for adventure.",
-      activities: [
-        {
-          _id: "1",
-          activityName: "Hiking",
-          order: 1,
-          __v: 0,
-          createdAt: "2023-01-01",
-          updatedAt: "2023-01-01",
-        },
-      ],
-      aadharCardPhoto: "https://picsum.photos/300",
-      bankAccountNumber: "12345678901234",
-    },
-    // Add more dummy guides...
-  ];
-
-  // Fetch all guides when the component mounts
   useEffect(() => {
     const fetchGuides = async () => {
       setLoading(true);
       try {
-        const response = await fetch("http://localhost:5000/api/guide/profile");
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile`);
         if (!response.ok) throw new Error("Failed to fetch guides");
 
         const data = await response.json();
@@ -150,19 +83,19 @@ const GuideListing: React.FC<GuideListingProps> = ({
     fetchGuides();
   }, []);
 
-  // Filter guides based on search term, destination, language, activity, and gender
   const filteredGuides = guides.filter((guide) => {
-    const matchesSearchTerm = !searchTerm || guide.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDestination = !destination || guide.address?.stateId?.stateName?.toLowerCase().includes(destination.toLowerCase());
-    const matchesLanguage = !language || guide.languages?.some((lang) => lang.languageName.toLowerCase().includes(language.toLowerCase()));
-    const matchesActivity = !activity || guide.activities?.some((act) => act.activityName.toLowerCase().includes(activity.toLowerCase()));
+    const fullName = `${guide.firstName} ${guide.lastName}`.toLowerCase();
+    const matchesSearchTerm = !searchTerm || fullName.includes(searchTerm.toLowerCase());
+    const matchesCity = !city || guide.serviceLocations?.some(loc => loc.toLowerCase().includes(city.toLowerCase())); // Changed to check serviceLocations
+    const matchesLanguage = !language || guide.languages?.some((lang) => lang.toLowerCase().includes(language.toLowerCase()));
+    const matchesActivity = !activity || guide.activities?.some((act) => act.toLowerCase().includes(activity.toLowerCase()));
     const matchesGender = !gender || guide.gender?.toLowerCase() === gender.toLowerCase();
 
-    return matchesSearchTerm && matchesDestination && matchesLanguage && matchesActivity && matchesGender;
+    return matchesSearchTerm && matchesCity && matchesLanguage && matchesActivity && matchesGender;
   });
 
   return (
-    <div className="container max-w-7xl mx-auto px-6 py-12 mt-32  ">
+    <div className="container max-w-7xl mx-auto px-6 py-12 mt-32">
       <h2 className="text-4xl font-bold text-center mb-10 text-gray-900">🌍 Find Your Local Guide</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -178,7 +111,7 @@ const GuideListing: React.FC<GuideListingProps> = ({
               <div className="relative w-full h-52">
                 <Image
                   src={guide.profilePicture || "https://picsum.photos/800/300"}
-                  alt={`${guide.name}'s guide banner`}
+                  alt={`${guide.firstName} ${guide.lastName}'s guide banner`}
                   layout="fill"
                   objectFit="cover"
                   className="rounded-t-xl"
@@ -190,7 +123,7 @@ const GuideListing: React.FC<GuideListingProps> = ({
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-lg">
                   <Image
                     src={guide.profilePicture || "https://picsum.photos/100"}
-                    alt={`Profile picture of ${guide.name}`}
+                    alt={`Profile picture of ${guide.firstName} ${guide.lastName}`}
                     width={100}
                     height={100}
                     className="object-cover"
@@ -200,47 +133,63 @@ const GuideListing: React.FC<GuideListingProps> = ({
 
               {/* Guide Details */}
               <div className="text-center p-6">
-              {/* Guide Name */}
-<h3 className="text-2xl font-bold text-gray-900 tracking-wide">{guide.name}</h3>
+                {/* Guide Name */}
+                <h3 className="text-2xl font-bold text-gray-900 tracking-wide">
+                  {guide.firstName} {guide.lastName}
+                </h3>
 
-{/* State Name with Location Icon */}
-<p className="text-gray-600 mt-2 flex items-center justify-center gap-2 text-lg font-medium">
-  📍 <span className="text-gray-700">{guide.address?.stateId?.stateName || "Unknown Location"}</span>
-</p>
+                {/* State Name with Location Icon */}
+                <p className="text-gray-600 mt-2 flex items-center justify-center gap-2 text-lg font-medium">
+                  📍 <span className="text-gray-700">{guide.state || "Unknown Location"}</span>
+                </p>
 
-
-                {/* Languages */}
                 {/* Languages Section */}
-<div className="mt-4">
-  <p className="text-gray-600 font-semibold">Languages:</p>
-  <div className="flex flex-wrap gap-2 mt-1 justify-center">
-    {guide.languages?.length ? (
-      guide.languages.map((lang) => (
-        <span key={lang._id} className="bg-blue-100 text-blue-700 px-3 py-1 text-sm rounded-full">
-          {lang.languageName}
-        </span>
-      ))
-    ) : (
-      <span className="text-gray-500 text-sm">N/A</span>
-    )}
-  </div>
-</div>
+                <div className="mt-4">
+                  <p className="text-gray-600 font-semibold">Languages:</p>
+                  <div className="flex flex-wrap gap-2 mt-1 justify-center">
+                    {guide.languages?.length ? (
+                      guide.languages.map((lang, index) => (
+                        <span key={index} className="bg-blue-100 text-blue-700 px-3 py-1 text-sm rounded-full">
+                          {lang}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-500 text-sm">N/A</span>
+                    )}
+                  </div>
+                </div>
 
-{/* Activities Section */}
-<div className="mt-4">
-  <p className="text-gray-600 font-semibold">Activities:</p>
-  <div className="flex flex-wrap gap-2 mt-1 justify-center">
-    {guide.activities?.length ? (
-      guide.activities.map((act) => (
-        <span key={act._id} className="bg-green-100 text-green-700 px-3 py-1 text-sm rounded-full">
-          {act.activityName}
-        </span>
-      ))
-    ) : (
-      <span className="text-gray-500 text-sm">N/A</span>
-    )}
-  </div>
-</div>
+                {/* Activities Section */}
+                <div className="mt-4">
+                  <p className="text-gray-600 font-semibold">Activities:</p>
+                  <div className="flex flex-wrap gap-2 mt-1 justify-center">
+                    {guide.activities?.length ? (
+                      guide.activities.map((act, index) => (
+                        <span key={index} className="bg-green-100 text-green-700 px-3 py-1 text-sm rounded-full">
+                          {act}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-500 text-sm">N/A</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Service Locations (Cities) Section */}
+                <div className="mt-4">
+                  <p className="text-gray-600 font-semibold">Service Locations:</p>
+                  <div className="flex flex-wrap gap-2 mt-1 justify-center">
+                    {guide.serviceLocations?.length ? (
+                      guide.serviceLocations.map((city, index) => (
+                        <span key={index} className="bg-purple-100 text-purple-700 px-3 py-1 text-sm rounded-full">
+                          {city}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-500 text-sm">N/A</span>
+                    )}
+                  </div>
+                </div>
 
                 {/* View Profile Button */}
                 <Link

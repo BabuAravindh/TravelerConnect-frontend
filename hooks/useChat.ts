@@ -6,6 +6,8 @@ import useAuth from "@/hooks/useAuth";
 interface User {
   _id: string;
   name: string;
+  role?:string;
+  status?:string
 }
 
 interface Message {
@@ -21,7 +23,7 @@ interface Conversation {
 }
 
 // API Base URL (update if needed)
-const API_BASE_URL = "http://localhost:5000/api/chats";
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/chats`;
 
 // Fetch function with headers and error handling
 const fetchData = async <T>(url: string, token: string | null, options: RequestInit = {}): Promise<T | null> => {
@@ -73,9 +75,20 @@ const useChat = () => {
       fetchData<Conversation[]>(`${API_BASE_URL}/user/${userId}`, token),
     ]).then(([usersData, conversationsData]) => {
       if (usersData) setUsers(usersData.filter((user) => user._id !== userId));
-      if (conversationsData) setConversations(conversationsData);
+      if (conversationsData) {
+        const updatedConversations = conversationsData.map((conversation) => ({
+          ...conversation,
+          participants: conversation.participants.map((participant) => ({
+            ...participant,
+            role: participant.role || "User",
+            status: participant.status || "Active",
+          })),
+        }));
+        setConversations(updatedConversations);
+      }
     });
   }, [userId, token]);
+  
   
 
   // Subscribe to Pusher for real-time messages
