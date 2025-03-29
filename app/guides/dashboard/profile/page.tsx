@@ -15,7 +15,8 @@ const genderOptions = [
 
 const EditProfilePage = () => {
   const [profile, setProfile] = useState<any | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
+  const [aadharCardFile, setAadharCardFile] = useState<File | null>(null);
   const [countries, setCountries] = useState<any[]>([]);
   const [states, setStates] = useState<any[]>([]);
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
@@ -32,7 +33,7 @@ const EditProfilePage = () => {
         const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/cities`);
         const cityOptions = response.data.data.map((city: any) => ({
           label: city.cityName,
-          value: city.cityName
+          value: city.cityName,
         }));
         setCities(cityOptions);
       } catch (error) {
@@ -49,7 +50,7 @@ const EditProfilePage = () => {
     if (profile?.serviceLocations && cities.length > 0) {
       const locations = profile.serviceLocations
         .map((loc: string) => {
-          const found = cities.find(city => city.value === loc);
+          const found = cities.find((city) => city.value === loc);
           return found ? { label: loc, value: loc } : null;
         })
         .filter(Boolean);
@@ -57,14 +58,14 @@ const EditProfilePage = () => {
     }
   }, [profile?.serviceLocations, cities]);
 
+  // Fetch Profile
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const response = await axios.get(
           `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${user.id}`
         );
-  
-        // If the profile exists, set it
+
         if (response.data) {
           setProfile({
             firstName: response.data.firstName || "",
@@ -78,19 +79,16 @@ const EditProfilePage = () => {
             state: response.data.state || "",
             country: response.data.country || "",
             bio: response.data.bio || "",
-            activities: Array.isArray(response.data.activities)
-              ? response.data.activities
-              : [],
-            languages: Array.isArray(response.data.languages)
-              ? response.data.languages
-              : [],
+            activities: Array.isArray(response.data.activities) ? response.data.activities : [],
+            languages: Array.isArray(response.data.languages) ? response.data.languages : [],
             bankAccountNumber: response.data.bankAccountNumber || "",
             aadharCardPhoto: response.data.aadharCardPhoto || "https://picsum.photos/300/300?grayscale",
             profilePic: response.data.profilePic || "https://picsum.photos/300/300?grayscale",
             serviceLocations: response.data.serviceLocations || [],
           });
-        } else {
-          // If no profile exists, initialize a default profile
+        }
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
           setProfile({
             firstName: "",
             lastName: "",
@@ -110,78 +108,48 @@ const EditProfilePage = () => {
             profilePic: "https://picsum.photos/300/300?grayscale",
             serviceLocations: [],
           });
-        }
-      } catch (error) {
-        if (axios.isAxiosError(error)) {  // Fixed syntax here
-          if (error.response?.status === 404) {
-            // If the profile is not found, initialize a default profile
-            setProfile({
-              firstName: "",
-              lastName: "",
-              email: user.email || "",
-              role: "guide",
-              isVerified: false,
-              phoneNumber: "",
-              gender: "",
-              dateJoined: new Date().toISOString(),
-              state: "",
-              country: "",
-              bio: "",
-              activities: [],
-              languages: [],
-              bankAccountNumber: "",
-              aadharCardPhoto: "https://picsum.photos/300/300?grayscale",
-              profilePic: "https://picsum.photos/300/300?grayscale",
-              serviceLocations: [],
-            });
-          } else {
-            console.error("Error fetching profile:", error);
-            toast.error("Failed to fetch profile.");
-          }
         } else {
           console.error("Error fetching profile:", error);
           toast.error("Failed to fetch profile.");
         }
       }
     };
-  
+
     if (user?.id) fetchProfile();
   }, [user?.id]);
 
+  // Fetch additional data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [countriesRes, statesRes, activitiesRes, languagesRes] =
-          await Promise.all([
-            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/countries`),
-            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/states`),
-            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/activities`),
-            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/languages`),
-          ]);
-  
-        // Set countries (map directly over data since it's an array)
+        const [countriesRes, statesRes, activitiesRes, languagesRes] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/countries`),
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/states`),
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/activities`),
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/languages`),
+        ]);
+
         setCountries(
           countriesRes.data?.map((c: { countryName: string }) => ({
             label: c.countryName,
             value: c.countryName,
           })) || []
         );
-  
-        // Assuming other endpoints might have similar flat array structures, adjust them too
+
         setStates(
           statesRes.data?.map((s: { stateName: string }) => ({
             label: s.stateName,
             value: s.stateName,
           })) || []
         );
-  
+
         setActivitiesList(
           activitiesRes.data?.map((activity: any) => ({
             label: activity.activityName,
             value: activity.activityName,
           })) || []
         );
-  
+
         setLanguagesList(
           languagesRes.data?.map((lang: any) => ({
             label: lang.languageName,
@@ -193,31 +161,35 @@ const EditProfilePage = () => {
         toast.error("Failed to fetch required data.");
       }
     };
-  
+
     fetchData();
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
-      setProfile((prev) =>
-        prev ? { ...prev, profilePic: URL.createObjectURL(file) } : prev
-      );
+      setProfilePicFile(file);
+      setProfile((prev) => (prev ? { ...prev, profilePic: URL.createObjectURL(file) } : prev));
+    }
+  };
+
+  const handleAadharCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAadharCardFile(file);
+      setProfile((prev) => (prev ? { ...prev, aadharCardPhoto: URL.createObjectURL(file) } : prev));
     }
   };
 
   const handleInputChange = (key: string, value: string | string[] | null) => {
-    setProfile((prev) =>
-      prev ? { ...prev, [key]: Array.isArray(value) ? value : value } : prev
-    );
+    setProfile((prev) => (prev ? { ...prev, [key]: Array.isArray(value) ? value : value } : prev));
   };
 
   const handleServiceLocationsChange = (selectedOptions: any) => {
     setServiceLocations(selectedOptions || []);
     setProfile((prev) => ({
       ...prev,
-      serviceLocations: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : []
+      serviceLocations: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : [],
     }));
   };
 
@@ -249,7 +221,7 @@ const EditProfilePage = () => {
 
   const handleSave = async () => {
     if (!profile) return;
-    
+
     const errors = validateProfile(profile);
     if (Object.keys(errors).length > 0) {
       Object.values(errors).forEach((error) => toast.error(error));
@@ -258,35 +230,45 @@ const EditProfilePage = () => {
 
     setIsSaving(true);
     try {
-      const profilePicBase64 = selectedFile ? await fileToBase64(selectedFile) : null;
+      const formData = new FormData();
+      formData.append("firstName", profile.firstName);
+      formData.append("lastName", profile.lastName);
+      formData.append("email", profile.email);
+      formData.append("phoneNumber", profile.phoneNumber);
+      formData.append("gender", profile.gender);
+      formData.append("dateJoined", profile.dateJoined);
+      formData.append("state", profile.state);
+      formData.append("country", profile.country);
+      formData.append("bio", profile.bio);
+      profile.activities.forEach((activity: string) => formData.append("activities", activity));
+      profile.languages.forEach((language: string) => formData.append("languages", language));
+      formData.append("bankAccountNumber", profile.bankAccountNumber);
+      profile.serviceLocations.forEach((location: string) =>
+        formData.append("serviceLocations", location)
+      );
 
-      const payload = {
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        email: profile.email,
-        phoneNumber: profile.phoneNumber,
-        gender: profile.gender,
-        dateJoined: profile.dateJoined,
-        state: profile.state,
-        country: profile.country,
-        bio: profile.bio,
-        activities: profile.activities,
-        languages: profile.languages,
-        bankAccountNumber: profile.bankAccountNumber,
-        profilePic: profilePicBase64,
-        aadharCardPhoto: profile.aadharCardPhoto,
-        serviceLocations: profile.serviceLocations
-      };
+      if (profilePicFile) {
+        formData.append("profilePic", profilePicFile);
+      }
+      if (aadharCardFile) {
+        formData.append("aadharCardPhoto", aadharCardFile);
+      }
 
-      await axios.put(
+      const response = await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${user.id}`,
-        payload,
+        formData,
         {
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "multipart/form-data",
           },
         }
       );
+
+      setProfile((prev) => ({
+        ...prev,
+        profilePic: response.data.data.guideProfile.profilePic || prev.profilePic,
+        aadharCardPhoto: response.data.data.guideProfile.aadharCardPhoto || prev.aadharCardPhoto,
+      }));
 
       toast.success("Profile updated successfully!");
     } catch (error) {
@@ -295,19 +277,6 @@ const EditProfilePage = () => {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  // Helper function to convert file to Base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(",")[1]);
-      };
-      reader.onerror = (error) => reject(error);
-    });
   };
 
   if (!profile || countries.length === 0 || states.length === 0 || activitiesList.length === 0) {
@@ -322,7 +291,6 @@ const EditProfilePage = () => {
     <div className="max-w-3xl mx-auto p-4 sm:p-6">
       <h2 className="text-2xl font-bold mb-4">Edit Guide Profile</h2>
 
-      {/* Profile Picture */}
       <div className="flex flex-col items-center">
         <div className="relative">
           <Image
@@ -342,13 +310,12 @@ const EditProfilePage = () => {
             type="file"
             id="profilePicUpload"
             className="hidden"
-            onChange={handleFileChange}
+            onChange={handleProfilePicChange}
             accept="image/*"
           />
         </div>
       </div>
 
-      {/* Form Fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         {[
           { label: "First Name", key: "firstName" },
@@ -367,8 +334,7 @@ const EditProfilePage = () => {
             />
           </div>
         ))}
-        
-        {/* Bio */}
+
         <div className="col-span-1 md:col-span-2">
           <label className="font-medium">Bio</label>
           <textarea
@@ -379,7 +345,6 @@ const EditProfilePage = () => {
           />
         </div>
 
-        {/* Date Joined */}
         <div>
           <label className="font-medium">Date Joined</label>
           <input
@@ -390,7 +355,6 @@ const EditProfilePage = () => {
           />
         </div>
 
-        {/* Bank Account Number */}
         <div>
           <label className="font-medium">Bank Account Number</label>
           <input
@@ -402,20 +366,11 @@ const EditProfilePage = () => {
           />
         </div>
 
-        {/* Aadhar Card Photo */}
         <div className="col-span-1 md:col-span-2">
           <label className="font-medium">Aadhar Card Photo</label>
           <input
             type="file"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                setProfile((prev) => ({
-                  ...prev,
-                  aadharCardPhoto: URL.createObjectURL(file),
-                }));
-              }
-            }}
+            onChange={handleAadharCardChange}
             className="w-full mt-1 p-2 border rounded-lg"
             accept="image/*"
           />
@@ -430,73 +385,52 @@ const EditProfilePage = () => {
           )}
         </div>
 
-        {/* Gender */}
         <div>
           <label className="font-medium">Gender</label>
           <Select
             options={genderOptions}
-            value={genderOptions.find(
-              (option) => option.value === profile.gender
-            )}
-            onChange={(selected) =>
-              handleInputChange("gender", selected?.value)
-            }
+            value={genderOptions.find((option) => option.value === profile.gender)}
+            onChange={(selected) => handleInputChange("gender", selected?.value)}
             className="mt-1"
           />
         </div>
 
-        {/* Languages */}
         <div>
           <label className="font-medium">Languages</label>
           <Select
             options={languagesList}
-            value={languagesList.filter((option) =>
-              profile.languages?.includes(option.value)
-            )}
+            value={languagesList.filter((option) => profile.languages?.includes(option.value))}
             isMulti
             onChange={(selected) =>
-              handleInputChange(
-                "languages",
-                selected?.map((item) => item.value) || []
-              )
+              handleInputChange("languages", selected?.map((item) => item.value) || [])
             }
             className="mt-1"
           />
         </div>
 
-        {/* Activities Offered */}
         <div>
           <label className="font-medium">Activities Offered</label>
           <Select
             options={activitiesList}
-            value={activitiesList.filter((option) =>
-              profile.activities?.includes(option.value)
-            )}
+            value={activitiesList.filter((option) => profile.activities?.includes(option.value))}
             isMulti
             onChange={(selected) =>
-              handleInputChange(
-                "activities",
-                selected?.map((item) => item.value) || []
-              )
+              handleInputChange("activities", selected?.map((item) => item.value) || [])
             }
             className="mt-1"
           />
         </div>
 
-        {/* Country */}
         <div>
           <label className="font-medium">Country</label>
           <Select
             options={countries}
             value={countries.find((option) => option.value === profile.country)}
-            onChange={(selected) =>
-              handleInputChange("country", selected?.value)
-            }
+            onChange={(selected) => handleInputChange("country", selected?.value)}
             className="mt-1"
           />
         </div>
 
-        {/* State */}
         <div>
           <label className="font-medium">State</label>
           <Select
@@ -507,7 +441,6 @@ const EditProfilePage = () => {
           />
         </div>
 
-        {/* Service Locations (Cities) */}
         <div className="col-span-1 md:col-span-2">
           <label className="font-medium">Service Locations (Cities)</label>
           <Select
@@ -522,7 +455,6 @@ const EditProfilePage = () => {
         </div>
       </div>
 
-      {/* Save Button */}
       <button
         onClick={handleSave}
         disabled={isSaving}

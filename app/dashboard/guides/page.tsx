@@ -15,7 +15,7 @@ const GuidesPage = () => {
   return (
     <div className="flex">
       {/* Sidebar */}
-      <UserSidebar />
+    
 
       {/* Main Content */}
       <div className="p-6 flex-1">

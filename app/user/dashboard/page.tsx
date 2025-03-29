@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Pencil, Save, X } from "lucide-react";
+import { Pencil, Save, X, Camera } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -11,7 +11,7 @@ interface Profile {
   userId?: string;
   firstName: string;
   lastName: string;
-  profilePic: string;
+  profilePicture: string;
   phoneNumber: string;
   dateOfBirth: string;
   address: {
@@ -40,6 +40,7 @@ export default function ProfilePage() {
   const [states, setStates] = useState<State[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [errors, setErrors] = useState<any>({});
+  const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
   const userId = user?.id;
 
   useEffect(() => {
@@ -48,9 +49,10 @@ export default function ProfilePage() {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`);
         if (!res.ok) throw new Error("Profile not found");
         const data = await res.json();
+        console.log("Fetched profile:", data); // Log the raw data
         setProfile(data);
       } catch (error) {
-        console.warn("No profile found, user may be new");
+        console.warn("No profile found, user may be new:", error.message);
         setProfile(null);
       }
     }
@@ -80,7 +82,10 @@ export default function ProfilePage() {
   }, [userId]);
 
   const handleEdit = () => setIsEditing(true);
-  const handleCancel = () => setIsEditing(false);
+  const handleCancel = () => {
+    setIsEditing(false);
+    setProfilePicFile(null);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -92,7 +97,7 @@ export default function ProfilePage() {
           userId,
           firstName: "",
           lastName: "",
-          profilePic: "",
+          profilePicture: "",
           phoneNumber: "",
           dateOfBirth: "",
           address: { countryId: "", stateId: "", countryName: "", stateName: "" },
@@ -115,7 +120,7 @@ export default function ProfilePage() {
           userId,
           firstName: "",
           lastName: "",
-          profilePic: "",
+          profilePicture: "",
           phoneNumber: "",
           dateOfBirth: "",
           address: { countryId: "", stateId: "", countryName: "", stateName: "" },
@@ -125,6 +130,27 @@ export default function ProfilePage() {
       }));
     }
     setErrors((prev: any) => ({ ...prev, [name]: "" }));
+  };
+
+  const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfilePicFile(file);
+      setProfile((prev) => ({
+        ...(prev || {
+          userId,
+          firstName: "",
+          lastName: "",
+          profilePicture: "",
+          phoneNumber: "",
+          dateOfBirth: "",
+          address: { countryId: "", stateId: "", countryName: "", stateName: "" },
+          gender: "",
+        }),
+        profilePicture: URL.createObjectURL(file),
+      }));
+      console.log("Profile Pic selected:", file.name);
+    }
   };
 
   const validateForm = () => {
@@ -175,17 +201,19 @@ export default function ProfilePage() {
 
     if (!profile || !userId) return;
 
-    const requestBody = {
-      userId: profile.userId || userId,
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      gender: profile.gender,
-      phoneNumber: profile.phoneNumber,
-      dateOfBirth: profile.dateOfBirth,
-      profilePic: profile.profilePic || "https://picsum.photos/200",
-      countryName: profile.address?.countryName,
-      stateName: profile.address?.stateName,
-    };
+    const formData = new FormData();
+    formData.append("userId", profile.userId || userId);
+    formData.append("firstName", profile.firstName);
+    formData.append("lastName", profile.lastName);
+    formData.append("gender", profile.gender);
+    formData.append("phoneNumber", profile.phoneNumber);
+    formData.append("dateOfBirth", profile.dateOfBirth);
+    if (profilePicFile) {
+      formData.append("profilePic", profilePicFile);
+      console.log("Appending profilePic:", profilePicFile.name);
+    }
+    formData.append("countryName", profile.address?.countryName || "");
+    formData.append("stateName", profile.address?.stateName || "");
 
     try {
       const url = profile._id
@@ -194,8 +222,7 @@ export default function ProfilePage() {
 
       const res = await fetch(url, {
         method: profile._id ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -204,7 +231,9 @@ export default function ProfilePage() {
       }
 
       const data = await res.json();
+      console.log("Saved profile:", data); // Log the saved data
       setProfile(data);
+      setProfilePicFile(null);
       toast.success("Profile saved successfully!");
       setIsEditing(false);
     } catch (error: any) {
@@ -221,12 +250,23 @@ export default function ProfilePage() {
           <h2 className="text-xl font-semibold text-[#1b374c] mb-4">Profile Picture</h2>
           <div className="relative w-32 h-32">
             <Image
-              src={profile?.profilePic || "https://via.placeholder.com/144"}
+              src={profile?.profilePicture || "https://via.placeholder.com/144"}
               alt="Profile"
               width={128}
               height={128}
               className="rounded-full object-cover border-4 border-[#6999aa]"
             />
+            {isEditing && (
+              <label className="absolute bottom-0 right-0 bg-[#1b374c] p-2 rounded-full cursor-pointer">
+                <Camera size={16} className="text-white" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePicChange}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
         </div>
 

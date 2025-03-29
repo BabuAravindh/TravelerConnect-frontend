@@ -19,7 +19,25 @@ interface HeroSectionProps {
   setGender: (gender: string) => void;
   loading: boolean;
   onSearch: () => void;
-  guides: any[]; // Simplified for brevity
+  guides: any[];
+}
+
+interface CityWithGuides {
+  cityName: string;
+  guideCount: number;
+}
+
+interface Language {
+  _id: string;
+  languageName: string;
+  languageStatus: string;
+  order: number;
+}
+
+interface Activity {
+  _id: string;
+  activityName: string;
+  order: number;
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({
@@ -36,20 +54,56 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   loading,
   onSearch,
 }) => {
-  const cities = ["Chennai", "Ahmedabad", "Manali", "Bangalore", "Kochi"];
-  const languages = ["Hindi", "English", "Tamil", "Marathi", "Bengali"];
-  const activities = ["Wildlife Safari", "Trekking", "City Tour", "Water Sports"];
+  const [citiesWithGuides, setCitiesWithGuides] = useState<CityWithGuides[]>([]);
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const genders = ["Male", "Female", "Other"];
   const images = ["/images/hero-slider-1.jpg", "/images/hero-slider-2.jpg", "/images/hero-slider-3.jpg"];
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
+  // Fetch cities with guides, languages, and activities
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoadingData(true);
+      try {
+        // Fetch cities with guides
+        const citiesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/cities_with_guides`);
+        const citiesData = await citiesRes.json();
+        setCitiesWithGuides(citiesData);
+
+        // Fetch languages
+        const languagesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/languages`);
+        const languagesData = await languagesRes.json();
+        setLanguages(languagesData.filter((lang: Language) => lang.languageStatus === "active"));
+
+        // Fetch activities
+        const activitiesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/activities`);
+        const activitiesData = await activitiesRes.json();
+        setActivities(activitiesData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Rotate images
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  // Get city names for the TypeAnimation (only cities with guides)
+  const citiesWithGuidesNames = citiesWithGuides
+    .filter(city => city.guideCount > 0)
+    .map(city => city.cityName);
 
   return (
     <>
@@ -59,14 +113,18 @@ const HeroSection: React.FC<HeroSectionProps> = ({
           <div className="flex flex-col-reverse lg:flex-row items-center justify-between">
             <div className="lg:w-7/12 mt-28 text-center lg:text-left">
               <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-5 lg:relative lg:top-40 lg:left-64">
-                Let’s Enjoy Your <br /> Trip In{" "}
+                Let's Enjoy Your <br /> Trip In{" "}
                 <span className="text-white underline">
-                  <TypeAnimation
-                    sequence={cities.flatMap((city) => [city, 2000])}
-                    wrapper="span"
-                    speed={50}
-                    repeat={Infinity}
-                  />
+                  {citiesWithGuidesNames.length > 0 ? (
+                    <TypeAnimation
+                      sequence={citiesWithGuidesNames.flatMap((city) => [city, 2000])}
+                      wrapper="span"
+                      speed={50}
+                      repeat={Infinity}
+                    />
+                  ) : (
+                    "India"
+                  )}
                 </span>
               </h1>
 
@@ -88,7 +146,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                   <button
                     type="submit"
                     className="px-6 py-2 bg-button hover:bg-opacity-90 text-white font-bold rounded transition"
-                    disabled={loading}
+                    disabled={loading || isLoadingData}
                   >
                     {loading ? "Searching..." : "Search"}
                   </button>
@@ -99,6 +157,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     type="button"
                     className="flex items-center justify-center gap-2 text-button transition"
                     onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    disabled={isLoadingData}
                   >
                     <Filter size={20} />
                     <span>{showAdvancedFilters ? "Hide Filters" : "Show Filters"}</span>
@@ -107,28 +166,30 @@ const HeroSection: React.FC<HeroSectionProps> = ({
 
                 {showAdvancedFilters && (
                   <div className="flex flex-col sm:flex-row gap-4">
-                    <select
-                      className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                    >
-                      <option value="">Select City</option>
-                      {cities.map((cityOption) => (
-                        <option key={cityOption} value={cityOption}>
-                          {cityOption}
-                        </option>
-                      ))}
-                    </select>
+ <select
+  className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
+  value={city}
+  onChange={(e) => setCity(e.target.value)}
+  disabled={isLoadingData}
+>
+  <option value="">Select City</option>
+  {citiesWithGuides.map((cityOption) => (
+    <option key={cityOption.cityName} value={cityOption.cityName}>
+      {cityOption.cityName} {cityOption.guideCount > 0 && `(${cityOption.guideCount})`}
+    </option>
+  ))}
+</select>
 
                     <select
                       className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
                       value={language}
                       onChange={(e) => setLanguage(e.target.value)}
+                      disabled={isLoadingData}
                     >
                       <option value="">Select Language</option>
                       {languages.map((lang) => (
-                        <option key={lang} value={lang}>
-                          {lang}
+                        <option key={lang._id} value={lang.languageName}>
+                          {lang.languageName}
                         </option>
                       ))}
                     </select>
@@ -137,11 +198,12 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                       className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
                       value={activity}
                       onChange={(e) => setActivity(e.target.value)}
+                      disabled={isLoadingData}
                     >
                       <option value="">Select Activity</option>
                       {activities.map((act) => (
-                        <option key={act} value={act}>
-                          {act}
+                        <option key={act._id} value={act.activityName}>
+                          {act.activityName}
                         </option>
                       ))}
                     </select>

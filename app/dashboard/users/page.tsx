@@ -38,7 +38,7 @@ const UsersPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <UserSidebar />
+
 
       <div className="p-6 w-full">
         <div className="flex items-center justify-between mb-6">

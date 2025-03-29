@@ -1,206 +1,207 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation, Pagination } from "swiper/modules";
+import { Navigation, Pagination, Autoplay } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
+import "swiper/css/effect-fade";
 import Image from "next/image";
-import { List, GripHorizontal } from "lucide-react";
+import Link from "next/link";
+import { Star, MapPin, Clock } from "lucide-react";
 
 interface Attraction {
-  id: number;
+  _id: string;
   name: string;
-  image: string;
-  rating: number;
-  reviews: number;
-  category: string;
+  description: string;
   city: string;
-  activities: string[]; // Added for activity filtering
+  images: string[];
+  category: string;
+  price: number;
+  rating: number;
+  duration: string;
+  createdAt: string;
 }
 
 interface AttractionsCarouselProps {
-  city: string;
-  language: string;
-  activity: string;
+  selectedCity: string;
 }
 
-const attractions: Attraction[] = [
-  {
-    id: 1,
-    name: "Madurai Meenakshi Amman Temple",
-    image: "/images/meenakshi-temple.jpg",
-    rating: 4.7,
-    reviews: 4306,
-    category: "Religious Sites",
-    city: "Madurai",
-    activities: ["City Tour"],
-  },
-  {
-    id: 2,
-    name: "Aayiram Kaal Mandapam",
-    image: "/images/aayiram-kaal-mandapam.jpg",
-    rating: 4.6,
-    reviews: 281,
-    category: "Religious Sites",
-    city: "Madurai",
-    activities: ["City Tour"],
-  },
-  {
-    id: 3,
-    name: "Chennai Marina Beach",
-    image: "/images/marina-beach.jpg",
-    rating: 4.3,
-    reviews: 5281,
-    category: "Beaches",
-    city: "Chennai",
-    activities: ["Water Sports", "City Tour"],
-  },
-  {
-    id: 4,
-    name: "Mumbai Gateway of India",
-    image: "/images/gateway-of-india.jpg",
-    rating: 4.6,
-    reviews: 6391,
-    category: "Historical Sites",
-    city: "Mumbai",
-    activities: ["City Tour"],
-  },
-  {
-    id: 5,
-    name: "Bangalore Lalbagh Botanical Garden",
-    image: "/images/lalbagh.jpg",
-    rating: 4.4,
-    reviews: 2956,
-    category: "Gardens",
-    city: "Bangalore",
-    activities: ["City Tour"],
-  },
-  {
-    id: 6,
-    name: "Kochi Fort Kochi",
-    image: "/images/fort-kochi.jpg",
-    rating: 4.5,
-    reviews: 3206,
-    category: "Historical Sites",
-    city: "Kochi",
-    activities: ["Water Sports", "City Tour"],
-  },
-  {
-    id: 7,
-    name: "Manali Rohtang Pass",
-    image: "/images/rohtang-pass.jpg",
-    rating: 4.8,
-    reviews: 1875,
-    category: "Nature",
-    city: "Manali",
-    activities: ["Trekking", "Wildlife Safari"],
-  },
-];
+export default function AttractionsCarousel({ selectedCity }: AttractionsCarouselProps) {
+  const [attractions, setAttractions] = useState<Attraction[]>([]);
+  const [filteredAttractions, setFilteredAttractions] = useState<Attraction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default function AttractionsCarousel({ city, language, activity }: AttractionsCarouselProps) {
-  const [viewMode, setViewMode] = useState<"carousel" | "list">("carousel");
-  const [searchTerm, setSearchTerm] = useState("");
+  useEffect(() => {
+    const fetchAttractions = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/attractions`);
+        
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid data format received');
+        }
 
-  const filteredAttractions = attractions.filter((attraction) => {
-    const matchesCity = !city || attraction.city.toLowerCase() === city.toLowerCase();
-    const matchesSearch = !searchTerm || attraction.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesActivity = !activity || attraction.activities.some(act => act.toLowerCase() === activity.toLowerCase());
-    return matchesCity && matchesSearch && matchesActivity;
-  });
+        setAttractions(data);
+      } catch (error) {
+        console.error('Fetch error:', error);
+        setError(error instanceof Error ? error.message : 'Unknown error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAttractions();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCity) {
+      setFilteredAttractions(
+        attractions.filter(attraction => 
+          attraction.city.toLowerCase() === selectedCity.toLowerCase()
+        )
+      );
+    } else {
+      setFilteredAttractions(attractions);
+    }
+  }, [selectedCity, attractions]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg max-w-4xl mx-auto">
+        <p className="text-red-700 font-medium">{error}</p>
+      </div>
+    );
+  }
+
+  const displayAttractions = filteredAttractions.length > 0 || selectedCity ? filteredAttractions : attractions;
+
+  if (displayAttractions.length === 0) {
+    return (
+      <div className="text-center py-12 bg-gray-50 rounded-xl max-w-4xl mx-auto">
+        <p className="text-gray-500 text-lg">
+          {selectedCity ? `No attractions found in ${selectedCity}` : "No attractions available"}
+        </p>
+        <p className="text-gray-400 mt-2">Check back later or explore other cities</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">
-          Things to do in {city || "All Cities"} {activity && `for ${activity}`}
+    <section className="container mx-auto px-4 py-12">
+      <div className="text-center mb-12">
+        <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+          {selectedCity ? `Explore ${selectedCity}` : "Discover Amazing Attractions"}
         </h2>
-        <div className="flex gap-2">
-          <button
-            className={`p-2 rounded ${viewMode === "carousel" ? "bg-button text-white" : "bg-gray-200"}`}
-            onClick={() => setViewMode("carousel")}
-          >
-            <GripHorizontal size={20} />
-          </button>
-          <button
-            className={`p-2 rounded ${viewMode === "list" ? "bg-button text-white" : "bg-gray-200"}`}
-            onClick={() => setViewMode("list")}
-          >
-            <List size={20} />
-          </button>
-        </div>
+        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          {selectedCity ? `Top-rated experiences in ${selectedCity}` : "Popular destinations across the world"}
+        </p>
       </div>
-
-   
-
-      {filteredAttractions.length > 0 ? (
-        viewMode === "carousel" ? (
-          <Swiper
-            modules={[Navigation, Pagination]}
-            spaceBetween={20}
-            slidesPerView={1}
-            navigation
-            pagination={{ clickable: true }}
-            breakpoints={{
-              640: { slidesPerView: 2 },
-              1024: { slidesPerView: 3 },
-            }}
-          >
-            {filteredAttractions.map((attraction) => (
-              <SwiperSlide key={attraction.id} className="bg-white shadow-lg rounded-lg overflow-hidden">
-                <div className="relative">
+      
+      <Swiper
+        modules={[Navigation, Pagination, Autoplay]}
+        spaceBetween={30}
+        slidesPerView={1}
+        navigation={{
+          nextEl: '.swiper-button-next',
+          prevEl: '.swiper-button-prev',
+        }}
+        pagination={{ 
+          clickable: true,
+          dynamicBullets: true
+        }}
+        autoplay={{
+          delay: 5000,
+          disableOnInteraction: false,
+        }}
+        loop={true}
+        breakpoints={{
+          640: { slidesPerView: 2 },
+          1024: { slidesPerView: 3 },
+          1280: { slidesPerView: 4 },
+        }}
+        className="relative group"
+      >
+        {displayAttractions.map((attraction) => (
+          <SwiperSlide key={attraction._id}>
+            <Link href={`/guides/attraction/${attraction._id}`}>
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full flex flex-col">
+                <div className="relative h-60 overflow-hidden">
                   <Image
-                    src={attraction.image}
+                    src={attraction.images[0] || '/images/default-attraction.jpg'}
                     alt={attraction.name}
-                    width={400}
-                    height={250}
-                    className="w-full h-48 object-cover"
+                    fill
+                    className="object-cover transition-transform duration-500 hover:scale-105"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
-                  <button className="absolute top-3 right-3 bg-white p-1 rounded-full shadow-md">❤️</button>
-                </div>
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold">{attraction.name}</h3>
-                  <div className="flex items-center mt-1">
-                    <span className="text-green-600 font-bold">{attraction.rating}</span>
-                    <span className="text-gray-500 ml-2">({attraction.reviews})</span>
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded">
+                        {attraction.category}
+                      </span>
+                      <div className="flex items-center bg-black/60 text-white px-2 py-1 rounded">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
+                        <span className="text-sm font-medium">{attraction.rating.toFixed(1)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-gray-500 text-sm">{attraction.category}</p>
                 </div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAttractions.map((attraction) => (
-              <div key={attraction.id} className="bg-white shadow-lg rounded-lg overflow-hidden">
-                <div className="relative">
-                  <Image
-                    src={attraction.image}
-                    alt={attraction.name}
-                    width={400}
-                    height={250}
-                    className="w-full h-48 object-cover"
-                  />
-                  <button className="absolute top-3 right-3 bg-white p-1 rounded-full shadow-md">❤️</button>
-                </div>
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold">{attraction.name}</h3>
-                  <div className="flex items-center mt-1">
-                    <span className="text-green-600 font-bold">{attraction.rating}</span>
-                    <span className="text-gray-500 ml-2">({attraction.reviews})</span>
+                
+                <div className="p-5 flex-grow">
+                  <h3 className="text-xl font-bold text-gray-800 mb-2 line-clamp-2">
+                    {attraction.name}
+                  </h3>
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                    {attraction.description}
+                  </p>
+                  
+                  <div className="flex items-center text-gray-500 text-sm mb-3">
+                    <MapPin className="h-4 w-4 mr-1" />
+                    <span>{attraction.city}</span>
                   </div>
-                  <p className="text-gray-500 text-sm">{attraction.category}</p>
+                  
+                  <div className="flex items-center text-gray-500 text-sm mb-4">
+                    <Clock className="h-4 w-4 mr-1" />
+                    <span>{attraction.duration || 'Flexible duration'}</span>
+                  </div>
+                  
+                  
                 </div>
               </div>
-            ))}
-          </div>
-        )
-      ) : (
-        <p className="text-center text-gray-500">
-          No attractions found for {city || "this search"}{activity && ` with ${activity}`}.
-        </p>
-      )}
-    </div>
+            </Link>
+          </SwiperSlide>
+        ))}
+
+        {/* Custom navigation buttons */}
+        <div className="swiper-button-prev hidden md:flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-lg hover:bg-gray-100 absolute left-4 top-1/2 -translate-y-1/2 z-10 cursor-pointer transition-colors">
+          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </div>
+        <div className="swiper-button-next hidden md:flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-lg hover:bg-gray-100 absolute right-4 top-1/2 -translate-y-1/2 z-10 cursor-pointer transition-colors">
+          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </Swiper>
+    </section>
   );
 }

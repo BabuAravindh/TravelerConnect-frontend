@@ -221,6 +221,8 @@ export const roleBasedNavItems: Record<string, { href: string; label: string; ic
   guide: [
     { href: "/guides/dashboard/", label: "Home", icon: Home },
     { href: "/guides/dashboard/bookings", label: "Assigned Bookings", icon: ClipboardList },
+    { href: "/guides/dashboard/attractionListing", label: "attraction Listing", icon: ClipboardList },
+    { href: "/guides/dashboard/destinationRoutes", label: "destination routes", icon: ClipboardList },
     { href: "/guides/dashboard/messages", label: "Messages", icon: MessageSquare },
     { href: "/guides/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/guides/dashboard/rating", label: "Ratings", icon: Star },
