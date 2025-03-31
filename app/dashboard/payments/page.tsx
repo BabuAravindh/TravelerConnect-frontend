@@ -1,10 +1,144 @@
 // dashboard/payments/page.tsx
-const PaymentsPage = () => {
-    return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold">Payments Management</h1>
-        <p className="text-gray-600">This section will display all payments.</p>
-      </div>
-    );
+'use client';
+
+import { useEffect, useState } from 'react';
+import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
+
+interface Payment {
+  id: string;
+  orderNumber: number;
+  amount: number;
+  status: string;
+  paymentMethod: string;
+  paymentId: string;
+  completedAt: string;
+  refundedAt: string | null;
+  booking: {
+    user?: {
+      name: string;
+      email: string;
+    };
+    guide?: {
+      name: string;
+      email: string;
+    };
   };
-  export default PaymentsPage;
+}
+
+const PaymentsPage = () => {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const router = useRouter();
+
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payments/admin`);
+      if (!response.ok) throw new Error('Failed to fetch payments');
+      const data = await response.json();
+      setPayments(data.payments);
+    } catch (err) {
+      setError(err.message);
+      toast.error('Failed to load payments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm('Are you sure you want to delete this payment?')) return;
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/payments/admin/${paymentId}`,
+        {
+          method: 'DELETE',
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete payment');
+      }
+
+      toast.success('Payment deleted successfully');
+      // Refresh the payments list
+      fetchPayments();
+    } catch (err) {
+      toast.error(err.message);
+      console.error('Error deleting payment:', err);
+    }
+  };
+
+  if (loading) return <div className="p-6">Loading payments...</div>;
+  if (error) return <div className="p-6 text-red-500">Error: {error}</div>;
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Payments Management</h1>
+      
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border border-gray-200">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="px-6 py-3 text-left">Order #</th>
+              <th className="px-6 py-3 text-left">Amount</th>
+              <th className="px-6 py-3 text-left">Status</th>
+              <th className="px-6 py-3 text-left">Method</th>
+              <th className="px-6 py-3 text-left">Customer</th>
+              <th className="px-6 py-3 text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payments.map((payment) => (
+              <tr key={payment.id} className="border-t">
+                <td className="px-6 py-4">{payment.orderNumber}</td>
+                <td className="px-6 py-4">₹{payment.amount.toLocaleString('en-IN')}</td>
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    payment.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    payment.status === 'refunded' ? 'bg-blue-100 text-blue-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {payment.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4">{payment.paymentMethod}</td>
+                <td className="px-6 py-4">
+                  {payment.booking?.user ? (
+                    <div>
+                      <p className="font-medium">{payment.booking.user.name}</p>
+                      <p className="text-sm text-gray-500">{payment.booking.user.email}</p>
+                    </div>
+                  ) : 'N/A'}
+                </td>
+                <td className="px-6 py-4">
+                  <button
+                    onClick={() => handleDeletePayment(payment.id)}
+                    disabled={['completed', 'refunded'].includes(payment.status)}
+                    className={`px-3 py-1 text-sm rounded ${
+                      ['completed', 'refunded'].includes(payment.status)
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-red-100 text-red-700 hover:bg-red-200'
+                    }`}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default PaymentsPage;

@@ -10,33 +10,69 @@ const CityInsights = ({ cityName }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
+  const [typing, setTyping] = useState(false);
+  const [currentTypingIndex, setCurrentTypingIndex] = useState(0);
+  const [initialLoad, setInitialLoad] = useState(true); // Added this missing state
   const messagesEndRef = useRef(null);
+  const hasMounted = useRef(false);
 
-  // Trigger API automatically when city changes
+  // Initial setup - runs only once on mount
   useEffect(() => {
-    if (cityName && initialLoad) {
+    if (hasMounted.current) return;
+    hasMounted.current = true;
+
+    // Set welcome message
+    setMessages([{
+      id: 1,
+      text: `Hello! I'm your travel assistant for ${cityName || 'this city'}. Ask me anything!`,
+      sender: 'bot',
+      animated: false
+    }]);
+
+    // Auto-fetch insights if cityName exists
+    if (cityName) {
       setIsOpen(true);
       fetchInsights(`Tell me about ${cityName} including top attractions, local cuisine, and cultural tips`);
       setInitialLoad(false);
     }
-  }, [cityName]);
+  }, []);
 
-  // Initialize with welcome message when opened
-  useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      setMessages([{
-        id: 1,
-        text: `Hello! I'm your travel assistant for ${cityName || 'this city'}. Ask me anything!`,
-        sender: 'bot'
-      }]);
-    }
-  }, [isOpen, cityName]);
-
+  // Rest of your component remains the same...
   // Auto-scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, typing]);
+
+  // Typewriter effect for bot responses
+  useEffect(() => {
+    if (typing) {
+      const lastMessage = messages[messages.length - 1];
+      if (currentTypingIndex < lastMessage.fullText.length) {
+        const timer = setTimeout(() => {
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              ...newMessages[newMessages.length - 1],
+              text: lastMessage.fullText.substring(0, currentTypingIndex + 1)
+            };
+            return newMessages;
+          });
+          setCurrentTypingIndex(currentTypingIndex + 1);
+        }, 20);
+        return () => clearTimeout(timer);
+      } else {
+        setTyping(false);
+        setMessages(prev => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = {
+            ...newMessages[newMessages.length - 1],
+            animated: false
+          };
+          return newMessages;
+        });
+      }
+    }
+  }, [typing, currentTypingIndex, messages]);
 
   const fetchInsights = async (userQuery = '') => {
     if (!user?.id) {
@@ -51,12 +87,12 @@ const CityInsights = ({ cityName }) => {
 
     setLoading(true);
     
-    // Add user message to chat if it's a user query
     if (userQuery) {
       setMessages(prev => [...prev, {
         id: Date.now(),
         text: userQuery,
-        sender: 'user'
+        sender: 'user',
+        animated: false
       }]);
     }
 
@@ -84,14 +120,18 @@ const CityInsights = ({ cityName }) => {
         return;
       }
 
-      // Add bot response to chat
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
-        text: data.insights,
+        text: '',
+        fullText: data.insights,
         sender: 'bot',
         creditsUsed: 1,
-        remainingCredits: data.remainingCredits
+        remainingCredits: data.remainingCredits,
+        animated: true
       }]);
+
+      setTyping(true);
+      setCurrentTypingIndex(0);
 
     } catch (error) {
       console.error('Error:', error);
@@ -111,10 +151,16 @@ const CityInsights = ({ cityName }) => {
 
   return (
     <>
-      {/* Chat Toggle Button */}
+      {/* Chat Toggle Button with pulse animation when new content available */}
       <button
-        className="fixed bottom-4 right-4 inline-flex items-center justify-center text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border rounded-full w-16 h-16 bg-primary hover:bg-gray-700 m-0 cursor-pointer border-gray-200 p-0 normal-case leading-5 hover:text-gray-900"
-        onClick={() => setIsOpen(!isOpen)}
+        className={`fixed bottom-4 right-4 inline-flex items-center justify-center text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border rounded-full w-16 h-16 bg-primary hover:bg-gray-700 m-0 cursor-pointer border-gray-200 p-0 normal-case leading-5 hover:text-gray-900 ${initialLoad ? '' : 'animate-pulse'}`}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (!isOpen && initialLoad && cityName) {
+            fetchInsights(`Tell me about ${cityName} including top attractions, local cuisine, and cultural tips`);
+            setInitialLoad(false);
+          }
+        }}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
@@ -125,9 +171,9 @@ const CityInsights = ({ cityName }) => {
         </svg>
       </button>
 
-      {/* Chat Window */}
+      {/* Chat Window with slide-in animation */}
       {isOpen && (
-        <div className="fixed bottom-[calc(4rem+1.5rem)] right-0 mr-4 bg-white p-6 rounded-lg border border-[#e5e7eb] w-[440px] h-[634px] shadow-lg">
+        <div className="fixed bottom-[calc(4rem+1.5rem)] right-0 mr-4 bg-white p-6 rounded-lg border border-[#e5e7eb] w-[440px] h-[634px] shadow-lg animate-slide-up">
           {/* Header */}
           <div className="flex flex-col space-y-1.5 pb-6">
             <h2 className="font-semibold text-lg tracking-tight">Travel Assistant</h2>
@@ -137,7 +183,10 @@ const CityInsights = ({ cityName }) => {
           {/* Chat Messages */}
           <div className="pr-4 h-[474px] overflow-y-auto">
             {messages.map((message) => (
-              <div key={message.id} className={`flex gap-3 my-4 text-gray-600 text-sm flex-1 ${message.sender === 'user' ? 'justify-end' : ''}`}>
+              <div 
+                key={message.id} 
+                className={`flex gap-3 my-4 text-gray-600 text-sm flex-1 ${message.sender === 'user' ? 'justify-end' : ''} ${message.animated ? 'animate-fade-in' : ''}`}
+              >
                 {message.sender === 'bot' && (
                   <span className="relative flex shrink-0 overflow-hidden rounded-full w-8 h-8">
                     <div className="rounded-full bg-gray-100 border p-1">
@@ -151,19 +200,22 @@ const CityInsights = ({ cityName }) => {
                 )}
                 <div className={`max-w-[80%] rounded-lg p-3 ${message.sender === 'user' 
                   ? 'bg-blue-100 text-blue-900' 
-                  : 'bg-gray-100 text-gray-900'}`}
+                  : 'bg-gray-100 text-gray-900'} ${message.animated ? 'transition-all duration-100' : ''}`}
                 >
                   <ReactMarkdown>{message.text}</ReactMarkdown>
-                  {message.creditsUsed && (
-                    <div className="text-xs text-gray-500 mt-1">
+                  {message.creditsUsed && !message.animated && (
+                    <div className="text-xs text-gray-500 mt-1 animate-fade-in">
                       Used {message.creditsUsed} credit • {message.remainingCredits} remaining
                     </div>
+                  )}
+                  {message.animated && currentTypingIndex < message.fullText.length && (
+                    <span className="inline-block w-2 h-4 bg-gray-400 ml-1 animate-blink"></span>
                   )}
                 </div>
               </div>
             ))}
             {loading && (
-              <div className="flex gap-3 my-4 text-gray-600 text-sm flex-1">
+              <div className="flex gap-3 my-4 text-gray-600 text-sm flex-1 animate-fade-in">
                 <span className="relative flex shrink-0 overflow-hidden rounded-full w-8 h-8">
                   <div className="rounded-full bg-gray-100 border p-1">
                     <svg stroke="none" fill="black" strokeWidth="1.5" viewBox="0 0 24 24" height="20" width="20"
@@ -191,16 +243,16 @@ const CityInsights = ({ cityName }) => {
           <div className="flex items-center pt-0">
             <form onSubmit={handleSubmit} className="flex items-center justify-center w-full space-x-2">
               <input
-                className="flex h-10 w-full rounded-md border border-[#e5e7eb] px-3 py-2 text-sm placeholder-[#6b7280] focus:outline-none focus:ring-2 focus:ring-[#9ca3af] disabled:cursor-not-allowed disabled:opacity-50 text-[#030712] focus-visible:ring-offset-2"
+                className="flex h-10 w-full rounded-md border border-[#e5e7eb] px-3 py-2 text-sm placeholder-[#6b7280] focus:outline-none focus:ring-2 focus:ring-[#9ca3af] disabled:cursor-not-allowed disabled:opacity-50 text-[#030712] focus-visible:ring-offset-2 transition-all duration-200 focus:border-blue-300"
                 placeholder={`Ask about ${cityName || 'this city'}...`}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                disabled={loading}
+                disabled={loading || typing}
               />
               <button
                 type="submit"
-                disabled={loading || !input.trim()}
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium text-[#f9fafb] disabled:pointer-events-none disabled:opacity-50 bg-primary hover:bg-[#111827E6] h-10 px-4 py-2"
+                disabled={loading || typing || !input.trim()}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium text-[#f9fafb] disabled:pointer-events-none disabled:opacity-50 bg-primary hover:bg-[#111827E6] h-10 px-4 py-2 transition-all duration-200 hover:scale-105 disabled:hover:scale-100"
               >
                 Send
               </button>
@@ -208,6 +260,56 @@ const CityInsights = ({ cityName }) => {
           </div>
         </div>
       )}
+
+      {/* Add these styles to your global CSS */}
+      <style jsx global>{`
+        @keyframes slide-up {
+          from {
+            transform: translateY(20px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes blink {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0;
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out forwards;
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out forwards;
+        }
+        .animate-blink {
+          animation: blink 1s step-end infinite;
+        }
+        .animate-pulse {
+          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+      `}</style>
     </>
   );
 };
