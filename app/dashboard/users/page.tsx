@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Edit, Trash, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
+import { Search, Edit, Trash, ChevronUp, ChevronDown, Loader2, Banknote } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface User {
@@ -10,6 +10,7 @@ interface User {
   email: string;
   role: 'user' | 'guide' | 'admin';
   phoneNumber?: string;
+  bankAccountNumber?: string; // Added for guides
 }
 
 export default function AdminUsersPage() {
@@ -76,27 +77,19 @@ export default function AdminUsersPage() {
         user.name.toLowerCase().includes(searchLower) ||
         user.email.toLowerCase().includes(searchLower) ||
         user.role.toLowerCase().includes(searchLower) ||
-        (user.phoneNumber && user.phoneNumber.toLowerCase().includes(searchLower))
+        (user.phoneNumber && user.phoneNumber.toLowerCase().includes(searchLower)) ||
+        (user.bankAccountNumber && user.bankAccountNumber.toLowerCase().includes(searchLower))
       );
     })
     .sort((a, b) => {
-      // Handle undefined phone numbers
-      if (sortConfig.key === 'phoneNumber') {
-        const aValue = a.phoneNumber || '';
-        const bValue = b.phoneNumber || '';
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      }
+      // Handle undefined fields
+      const aValue = a[sortConfig.key] || '';
+      const bValue = b[sortConfig.key] || '';
       
-      if (a[sortConfig.key] < b[sortConfig.key]) {
+      if (aValue < bValue) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
+      if (aValue > bValue) {
         return sortConfig.direction === 'asc' ? 1 : -1;
       }
       return 0;
@@ -110,10 +103,14 @@ export default function AdminUsersPage() {
     });
   };
 
-  // Handle update role
-  const handleUpdateRole = async (userId: string) => {
+  // Handle update
+  const handleUpdate = async (userId: string) => {
     try {
       setUpdatingId(userId);
+      
+      // Prepare update data - only role
+      const updateData = { role: editForm.role };
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}/role`,
         {
@@ -122,7 +119,7 @@ export default function AdminUsersPage() {
             'Content-Type': 'application/json',
           },
           credentials: 'include',
-          body: JSON.stringify({ role: editForm.role }),
+          body: JSON.stringify(updateData),
         }
       );
 
@@ -136,7 +133,7 @@ export default function AdminUsersPage() {
         user._id === updatedUser._id ? updatedUser : user
       ));
       
-      toast.success('User role updated successfully');
+      toast.success('User updated successfully');
       setEditingUserId(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Update failed');
@@ -183,7 +180,7 @@ export default function AdminUsersPage() {
           <Search className="text-gray-400 mr-2" size={20} />
           <input
             type="text"
-            placeholder="Search users by name, email, phone or role..."
+            placeholder="Search users by name, email, phone, bank account or role..."
             className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -245,6 +242,11 @@ export default function AdminUsersPage() {
                     )}
                   </div>
                 </th>
+                <th
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Bank Account
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -270,7 +272,13 @@ export default function AdminUsersPage() {
                         <select
                           className="border rounded p-1 text-sm"
                           value={editForm.role}
-                          onChange={(e) => setEditForm({ ...editForm, role: e.target.value as any })}
+                          onChange={(e) => {
+                            const newRole = e.target.value as 'user' | 'guide' | 'admin';
+                            setEditForm({ 
+                              ...editForm, 
+                              role: newRole
+                            });
+                          }}
                           disabled={updatingId === user._id}
                         >
                           <option value="user">User</option>
@@ -287,11 +295,19 @@ export default function AdminUsersPage() {
                         </span>
                       )}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <Banknote className="text-gray-400 mr-2" size={16} />
+                        <span className="text-sm text-gray-500">
+                          {user.role === 'guide' ? (user.bankAccountNumber || 'Not set') : 'N/A'}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       {editingUserId === user._id ? (
                         <div className="flex space-x-2">
                           <button
-                            onClick={() => handleUpdateRole(user._id)}
+                            onClick={() => handleUpdate(user._id)}
                             className="text-green-600 hover:text-green-900 flex items-center"
                             disabled={updatingId === user._id}
                           >
@@ -334,7 +350,7 @@ export default function AdminUsersPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
                     No users found
                   </td>
                 </tr>

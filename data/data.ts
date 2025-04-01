@@ -1,4 +1,4 @@
-import { Home, Calendar, MessageSquare, CreditCard, Users, ClipboardList, Star, User, Book } from "lucide-react";
+import { Home, Calendar, MessageSquare, CreditCard, Users, ClipboardList, Star, User, Book, Info } from "lucide-react";
 
 
 
@@ -236,7 +236,8 @@ export const roleBasedNavItems: Record<string, { href: string; label: string; ic
     { href: "/dashboard/messages", label: "Manage Messages", icon: Users },
     { href: "/dashboard/bookings", label: "All Bookings", icon: Calendar },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
-    { href: "/dashboard/booking", label: "booking", icon: Book },
+    { href: "/dashboard/information", label: " Website Content", icon: Info },
+    
     { href: "/dashboard/ratings", label: "Ratings", icon: Star },
   ],
 };
