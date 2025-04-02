@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
+import Navbar from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 const Select = dynamic(() => import("react-select"), { ssr: false });
 
@@ -154,6 +156,8 @@ const BecomeAGuide = () => {
   };
 
   return (
+    <>
+    <Navbar/>
     <div className="max-w-lg mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg border border-gray-200">
       <h2 className="text-2xl font-bold mb-4 text-center text-button">Become a Guide</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -282,6 +286,8 @@ const BecomeAGuide = () => {
         </button>
       </form>
     </div>
+    <Footer/>
+    </>
   );
 };
 

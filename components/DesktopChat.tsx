@@ -87,7 +87,10 @@ const DesktopChat: FC = () => {
     });
   
     const channel = pusher.subscribe("chat-app");
-  
+    const conversationChannel = selectedConversation
+      ? pusher.subscribe(`chat-${selectedConversation._id}`)
+      : null;
+
     channel.bind("user-active", (data: { userId: string }) => {
       setActiveUsers((prev) => [...new Set([...prev, data.userId])]);
     });
@@ -105,17 +108,39 @@ const DesktopChat: FC = () => {
         });
       }
     });
-  
+
+    if (conversationChannel) {
+      conversationChannel.bind("new-message", (data: any) => {
+        // Assuming useChat updates messages automatically via handleSendMessage or similar
+        // No additional action needed here since messages update will trigger re-render
+        console.log("New message received:", data);
+      });
+
+      conversationChannel.bind("typing-indicator", (data: { senderId: string; isTyping: boolean }) => {
+        if (data.senderId !== userId && data.isTyping) {
+          toast(`${selectedUserInfo?.name || "User"} is typing...`, {
+            id: "typing-toast",
+            duration: 3000,
+            position: "bottom-right",
+          });
+        }
+      });
+    }
+
     return () => {
       channel.unbind_all();
       channel.unsubscribe();
+      conversationChannel?.unbind_all();
+      conversationChannel?.unsubscribe();
       pusher.disconnect();
     };
-  }, [userId]);
+  }, [userId, selectedConversation]);
 
   // Handle typing indicator
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleTyping = () => {
+    if (!selectedConversation) return;
+
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
@@ -123,12 +148,37 @@ const DesktopChat: FC = () => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/typing`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ senderId: userId, senderName: user?.name }),
+      body: JSON.stringify({
+        conversationId: selectedConversation._id,
+        senderId: userId,
+        isTyping: true,
+      }),
     }).catch((err) => console.error("Typing event failed:", err));
   
     typingTimeoutRef.current = setTimeout(() => {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/typing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: selectedConversation._id,
+          senderId: userId,
+          isTyping: false,
+        }),
+      }).catch((err) => console.error("Typing event failed:", err));
       typingTimeoutRef.current = null;
     }, 3000);
+  };
+
+  // Helper function to format timestamp to exact time
+  const formatExactTime = (timestamp: string | Date | undefined) => {
+    if (!timestamp) return "Unknown time";
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "Invalid time";
+    return date.toLocaleTimeString([], { 
+      hour: "2-digit", 
+      minute: "2-digit", 
+      hour12: true 
+    });
   };
 
   if (loading) {
@@ -212,7 +262,6 @@ const DesktopChat: FC = () => {
                       <p className="text-sm text-gray-400">Bio</p>
                       <p>{selectedUserInfo.bio || "No bio available"}</p>
                     </div>
-                   
                   </div>
                 </div>
               )}
@@ -258,11 +307,7 @@ const DesktopChat: FC = () => {
                         )}
                       </div>
                       <p className={`text-xs text-gray-400 mt-1 ${isSender ? "text-right" : "text-left"}`}>
-                        {new Date(msg.timestamp).toLocaleTimeString([], { 
-                          hour: "2-digit", 
-                          minute: "2-digit", 
-                          hour12: true 
-                        })}
+                        {formatExactTime(msg.timestamp)}
                       </p>
                     </div>
                   </div>

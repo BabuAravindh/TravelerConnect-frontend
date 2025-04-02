@@ -82,7 +82,10 @@ const UserSidebar = () => {
           {/* Logout Button */}
           <button
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 text-red-400 hover:bg-red-600 hover:text-white mt-6"
-            onClick={() => logout(router)}
+            onClick={() => {
+              localStorage.removeItem('token')
+              router.push('/login')
+            }}
           >
             <LogOut size={20} />
             <span className="text-sm font-medium">Logout</span>

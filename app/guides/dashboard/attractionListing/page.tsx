@@ -13,7 +13,6 @@ const GuideAttractionsPage = () => {
     description: "",
     cityName: "",
     category: "",
-   
   });
   const [files, setFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
@@ -21,10 +20,11 @@ const GuideAttractionsPage = () => {
   const [loading, setLoading] = useState(false);
   const [cities, setCities] = useState([]);
   const [attractions, setAttractions] = useState([]);
+  const [feedback, setFeedback] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [editingId, setEditingId] = useState(null); // Track which attraction is being edited
-
+  const [editingId, setEditingId] = useState(null);
+  const token = localStorage.getItem('token')
   useEffect(() => {
     setIsMounted(true);
     return () => setIsMounted(false);
@@ -36,9 +36,14 @@ const GuideAttractionsPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [citiesResponse, attractionsResponse] = await Promise.all([
+        const [citiesResponse, attractionsResponse, feedbackResponse] = await Promise.all([
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/cities`),
           user?.id && fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/attractions/guide/${user.id}`),
+          user?.id && fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/attractions/feedback/guide`, {
+            headers: {
+              Authorization: `Bearer ${token}` // Adjust based on your auth setup
+            }
+          })
         ]);
 
         if (!citiesResponse.ok) throw new Error("Failed to fetch cities");
@@ -50,6 +55,12 @@ const GuideAttractionsPage = () => {
           const attractionsData = await attractionsResponse.json();
           setAttractions(Array.isArray(attractionsData) ? attractionsData : []);
         }
+
+        if (feedbackResponse) {
+          if (!feedbackResponse.ok) throw new Error("Failed to fetch feedback");
+          const feedbackData = await feedbackResponse.json();
+          setFeedback(feedbackData.feedback || []);
+        }
       } catch (error) {
         console.error("Fetch error:", error);
         toast.error(error.message);
@@ -59,10 +70,9 @@ const GuideAttractionsPage = () => {
     };
 
     fetchData();
-  }, [user?.id, isMounted]);
+  }, [user?.id, user?.token, isMounted]);
 
   const handleFileChange = (e) => {
-    // Clean up previous preview URLs
     previewUrls.forEach(url => URL.revokeObjectURL(url));
     
     if (e.target.files && e.target.files.length > 0) {
@@ -83,7 +93,6 @@ const GuideAttractionsPage = () => {
       description: attraction.description,
       cityName: attraction.cityName,
       category: attraction.category,
-   
     });
     setExistingImages(attraction.images || []);
     setFiles([]);
@@ -98,7 +107,6 @@ const GuideAttractionsPage = () => {
       description: "",
       cityName: "",
       category: "",
-      
     });
     setExistingImages([]);
     setFiles([]);
@@ -119,22 +127,18 @@ const GuideAttractionsPage = () => {
     try {
       const formDataToSend = new FormData();
       
-      // Append all form fields
       Object.entries(formData).forEach(([key, value]) => {
         formDataToSend.append(key, value);
       });
       
       if (editingId) {
-        // For edit, append existing images that weren't removed
         existingImages.forEach(image => {
           formDataToSend.append("existingImages", image);
         });
       } else {
-        // For create, just append guideId
         formDataToSend.append("guideId", user.id);
       }
       
-      // Append new files
       files.forEach(file => {
         formDataToSend.append("images", file);
       });
@@ -158,10 +162,8 @@ const GuideAttractionsPage = () => {
 
       toast.success(`Attraction ${editingId ? 'updated' : 'created'} successfully!`);
       
-      // Reset form
       handleCancelEdit();
 
-      // Refresh attractions list
       const attractionsRes = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/attractions/guide/${user.id}`
       );
@@ -197,7 +199,6 @@ const GuideAttractionsPage = () => {
     }
   };
 
-  // Clean up preview URLs when component unmounts
   useEffect(() => {
     return () => {
       previewUrls.forEach(url => URL.revokeObjectURL(url));
@@ -229,7 +230,6 @@ const GuideAttractionsPage = () => {
             {editingId ? "Edit Attraction" : "Create New Attraction"}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Form fields remain the same as before */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Attraction Name *
@@ -305,9 +305,6 @@ const GuideAttractionsPage = () => {
               </select>
             </div>
 
-           
-
-            {/* Show existing images when editing */}
             {editingId && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -392,45 +389,68 @@ const GuideAttractionsPage = () => {
           <p className="text-gray-500">No attractions created yet</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {attractions.map((attraction) => (
-            <div key={attraction._id} className="border rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-              <div className="relative h-48 w-full">
-                <Image
-                  src={attraction.images[0] || "/placeholder.jpg"}
-                  alt={attraction.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                />
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {attractions.map((attraction) => (
+              <div key={attraction._id} className="border rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                <div className="relative h-48 w-full">
+                  <Image
+                    src={attraction.images[0] || "/placeholder.jpg"}
+                    alt={attraction.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="font-bold text-lg mb-1">{attraction.name}</h3>
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">{attraction.description}</p>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                      {attraction.category}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <button
+                      onClick={() => handleEdit(attraction)}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(attraction._id)}
+                      className="text-sm text-red-600 hover:text-red-800 font-medium"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="p-4">
-                <h3 className="font-bold text-lg mb-1">{attraction.name}</h3>
-                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{attraction.description}</p>
-                <div className="flex justify-between items-center mb-3">
-              
-                  <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-                    {attraction.category}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <button
-                    onClick={() => handleEdit(attraction)}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(attraction._id)}
-                    className="text-sm text-red-600 hover:text-red-800 font-medium"
-                  >
-                    Delete
-                  </button>
-                </div>
+            ))}
+          </div>
+
+          {feedback.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-xl font-bold mb-4">Feedback for Your Attractions</h2>
+              <div className="space-y-4">
+                {feedback.map((fb) => (
+                  <div key={fb._id} className="p-4 bg-white rounded-lg shadow-md">
+                    <p className="font-semibold">
+                      Attraction: {fb.attractionId?.name || "Unknown Attraction"}
+                    </p>
+                    <p className="text-gray-600">{fb.comments || "No comment provided"}</p>
+                    <p className="text-sm text-gray-500">
+                      Rating: {fb.rating || "Not rated"}/5
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Date: {new Date(fb.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -9,27 +9,35 @@ import { useEffect, useState } from "react";
 interface Payment {
   _id: string;
   amount: number;
-  paymentStatus: 'completed' | 'pending' | 'failed' | 'refunded';
+  paymentStatus: "completed" | "pending" | "failed" | "refunded";
   bookingId: string;
   updatedAt: string;
   completedAt?: string;
   refundedAt?: string;
   payId?: string;
-  // Add other payment fields as needed
 }
 
-const statusColors = {
-  completed: "bg-green-50 text-green-700 border-green-300",
-  pending: "bg-yellow-50 text-yellow-700 border-yellow-300",
-  failed: "bg-red-50 text-red-700 border-red-300",
-  refunded: "bg-blue-50 text-blue-700 border-blue-300"
-};
-
-const statusIcons = {
-  completed: <CheckCircle className="text-green-700" />,
-  pending: <Clock className="text-yellow-700" />,
-  failed: <XCircle className="text-red-700" />,
-  refunded: <RotateCcw className="text-blue-700" />
+const statusConfig = {
+  completed: {
+    color: "bg-green-50 text-green-700 border-green-300",
+    icon: <CheckCircle className="text-green-700" />,
+    label: "Completed",
+  },
+  pending: {
+    color: "bg-blue-500 text-yellow-700 border-yellow-300",
+    icon: <Clock className="text-yellow-700" />,
+    label: "Pending",
+  },
+  failed: {
+    color: "bg-red-50 text-red-700 border-red-300",
+    icon: <XCircle className="text-red-700" />,
+    label: "Failed",
+  },
+  refunded: {
+    color: "bg-blue-50 text-blue-700 border-blue-300",
+    icon: <RotateCcw className="text-blue-700" />,
+    label: "Refunded",
+  },
 };
 
 const PaymentsPage = () => {
@@ -38,182 +46,183 @@ const PaymentsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchPayments = async () => {
-      if (!user?.id) return;
-      
-      try {
-        setLoading(true);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/${user?.id}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch payments');
-        }
-        
-        const { success, payments, message } = await response.json();
-         
-        if (!success) {
-          throw new Error(message || 'No payment data available');
-        }
-        console.log(payments)
-        setPayments(payments || []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchPayments = async () => {
+    if (!user?.id) return;
 
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/${user.id}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const { success, payments, message } = await response.json();
+
+      if (!success) {
+        throw new Error(message || "Failed to load payment data");
+      }
+
+      setPayments(payments || []);
+    } catch (err) {
+      console.error("Payment fetch error:", err);
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchPayments();
-  }, [user?._id]);
+  }, [user?.id]);
 
   // Calculate summary statistics
-  const totalPaid = payments
-    .filter(p => p.paymentStatus === 'completed')
-    .reduce((sum, p) => sum + p.amount, 0);
-
-  const totalTransactions = payments.length;
-  const pendingPayments = payments.filter(p => p.paymentStatus === 'pending').length;
-  const refundedPayments = payments.filter(p => p.paymentStatus === 'refunded').length;
-
-  const lastPaymentDate = payments
-    .filter(p => p.paymentStatus === 'completed')
-    .sort((a, b) => new Date(b.completedAt || b.updatedAt).getTime() - new Date(a.completedAt || a.updatedAt).getTime())[0]?.completedAt;
+  const stats = {
+    totalPaid: payments
+      .filter((p) => p.paymentStatus === "completed")
+      .reduce((sum, p) => sum + p.amount, 0),
+    totalTransactions: payments.length,
+    pendingPayments: payments.filter((p) => p.paymentStatus === "pending").length,
+    refundedPayments: payments.filter((p) => p.paymentStatus === "refunded").length,
+    lastPaymentDate: payments
+      .filter((p) => p.paymentStatus === "completed")
+      .sort((a, b) => new Date(b.completedAt || b.updatedAt).getTime() - new Date(a.completedAt || a.updatedAt).getTime())[0]?.completedAt,
+  };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingView />;
   }
 
   if (error) {
-    return <ErrorDisplay message={error} onRetry={() => window.location.reload()} />;
+    return <ErrorView message={error} onRetry={fetchPayments} />;
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <div className="flex-1 flex flex-col">
-        <Header />
-        
-        <main className="flex-1 p-6 md:p-10">
-          <PaymentSummary 
-            totalPaid={totalPaid}
-            totalTransactions={totalTransactions}
-            pendingPayments={pendingPayments}
-            refundedPayments={refundedPayments}
-            lastPaymentDate={lastPaymentDate}
-          />
+    <div className="min-h-screen bg-gray-50">
+      
 
-          <PaymentHistory payments={payments} />
-        </main>
+      <main className="container mx-auto py-8 px-4">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Payment History</h1>
 
-        <Footer />
-      </div>
+        <PaymentSummary stats={stats} />
+
+        <PaymentList payments={payments} />
+      </main>
+
+     
     </div>
   );
 };
 
-// Sub-components for better organization
-const LoadingSpinner = () => (
-  <div className="flex min-h-screen bg-gray-100 items-center justify-center">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-  </div>
-);
-
-const ErrorDisplay = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
-  <div className="flex min-h-screen bg-gray-100 items-center justify-center">
-    <div className="bg-white p-6 rounded-lg shadow-md text-center">
-      <XCircle className="mx-auto text-red-500 size-12 mb-4" />
-      <h2 className="text-xl font-semibold mb-2">Error loading payments</h2>
-      <p className="text-gray-600 mb-4">{message}</p>
-      <button 
-        onClick={onRetry}
-        className="px-4 py-2 bg-primary text-white rounded hover:bg-opacity-90"
-      >
-        Try Again
-      </button>
+// Sub-components
+const LoadingView = () => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="space-y-4 w-full max-w-4xl">
+      <div className="h-12 w-full bg-gray-200 animate-pulse rounded"></div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-32 bg-gray-200 animate-pulse rounded-lg"></div>
+        ))}
+      </div>
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="h-20 w-full bg-gray-200 animate-pulse rounded-lg"></div>
+      ))}
     </div>
   </div>
 );
 
-const Header = () => (
-  <header className="bg-primary text-white py-6 px-10 flex flex-col md:flex-row justify-between items-center shadow-lg">
-    <h1 className="text-3xl font-bold">My Payments</h1>
-    <div className="flex gap-6 mt-4 md:mt-0">
-      <Link href="/support" className="text-white font-medium underline hover:text-gray-300">Support</Link>
-      <Link href="/user/dashboard" className="text-white font-medium underline hover:text-gray-300">My Profile</Link>
+const ErrorView = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+  <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+    <div className="w-full max-w-md bg-white shadow-lg rounded-lg p-6">
+      <h2 className="text-center text-red-600 text-xl font-semibold mb-4">Payment Error</h2>
+      <div className="flex justify-center mb-4">
+        <XCircle className="h-12 w-12 text-red-500" />
+      </div>
+      <p className="text-center text-gray-700 mb-4">{message}</p>
+      <div className="flex justify-center">
+        <button
+          onClick={onRetry}
+          className="flex items-center bg-transparent border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100 transition"
+        >
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Try Again
+        </button>
+      </div>
     </div>
-  </header>
+  </div>
 );
 
-const PaymentSummary = ({ 
-  totalPaid,
-  totalTransactions,
-  pendingPayments,
-  refundedPayments,
-  lastPaymentDate
-}: {
-  totalPaid: number;
-  totalTransactions: number;
-  pendingPayments: number;
-  refundedPayments: number;
-  lastPaymentDate?: string;
-}) => (
+
+
+const PaymentSummary = ({ stats }: { stats: any }) => (
   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
     {[
-      {icon: DollarSign, label: "Total Paid", value: `₹${totalPaid.toLocaleString()}`, color: "text-blue-600"},
-      {icon: CreditCard, label: "Total Transactions", value: totalTransactions, color: "text-green-600"},
-      {icon: RefreshCw, label: "Pending Payments", value: pendingPayments, color: "text-yellow-600"},
-      {icon: RotateCcw, label: "Refunded Payments", value: refundedPayments, color: "text-blue-600"},
-      {icon: Calendar, label: "Last Payment Date", 
-       value: lastPaymentDate ? new Date(lastPaymentDate).toLocaleDateString() : 'N/A', 
-       color: "text-red-600"}
+      { icon: DollarSign, label: "Total Paid", value: `₹${stats.totalPaid.toLocaleString()}` },
+      { icon: CreditCard, label: "Transactions", value: stats.totalTransactions },
+      { icon: Clock, label: "Pending", value: stats.pendingPayments },
+      { icon: RotateCcw, label: "Refunded", value: stats.refundedPayments },
     ].map((item, index) => (
-      <div key={index} className="bg-white p-6 rounded-lg shadow-md flex items-center gap-4 border border-gray-200">
-        <item.icon className={item.color} size={40} />
+      <div key={index} className="bg-white shadow-md rounded-lg p-6 flex items-center">
+        <div className="mr-4 p-3 rounded-full bg-gray-100">
+          <item.icon className="text-primary" size={24} />
+        </div>
         <div>
-          <p className="text-lg font-semibold text-gray-800">{item.label}</p>
-          <p className="text-gray-600">{item.value}</p>
+          <p className="text-sm font-medium text-gray-500">{item.label}</p>
+          <p className="text-xl font-semibold text-gray-900">{item.value}</p>
         </div>
       </div>
     ))}
   </div>
 );
 
-const PaymentHistory = ({ payments }: { payments: Payment[] }) => (
-  <div className="bg-white p-6 md:p-8 rounded-lg shadow-lg border border-gray-200">
-    <h2 className="text-2xl font-semibold text-gray-800 mb-4">Payment History</h2>
-    
+const PaymentList = ({ payments }: { payments: Payment[] }) => (
+  <div className="bg-white shadow-md rounded-lg">
     {payments.length === 0 ? (
-      <div className="text-center py-10">
+      <div className="p-8 text-center">
         <p className="text-gray-500">No payment history found</p>
+        <Link href="/">
+          <button className="mt-4 bg-transparent border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100 transition">
+            Make a Booking
+          </button>
+        </Link>
       </div>
     ) : (
-      <div className="border-t border-gray-300 pt-4 space-y-4">
+      <div className="divide-y divide-gray-200">
         {payments.map((payment) => {
-          const paymentStatusClass = statusColors[payment.paymentStatus] || "bg-gray-50 text-gray-700 border-gray-300";
-          const statusDate = payment.paymentStatus === 'refunded' ? payment.refundedAt : 
-                           payment.paymentStatus === 'completed' ? payment.completedAt : 
-                           payment.updatedAt;
+          const status = statusConfig[payment.paymentStatus];
+          const statusDate =
+            payment.paymentStatus === "refunded"
+              ? payment.refundedAt
+              : payment.paymentStatus === "completed"
+              ? payment.completedAt
+              : payment.updatedAt;
 
           return (
-            <motion.div 
-              key={payment._id} 
-              initial={{ opacity: 0, y: 10 }} 
-              animate={{ opacity: 1, y: 0 }} 
+            <motion.div
+              key={payment._id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
               <Link href={`/user/dashboard/payments/${payment._id}`}>
-                <div className={`p-6 rounded-lg shadow-sm flex justify-between items-center cursor-pointer border ${paymentStatusClass} hover:shadow-md transition-shadow`}>
+                <div
+                  className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer flex justify-between items-center ${status.color} border-l-4`}
+                >
                   <div>
-                    <p className="text-lg font-semibold text-gray-900">₹{payment.amount.toLocaleString()}</p>
-                    
-                  </div>
-                  <div className="text-right flex items-center gap-2">
-                    {statusIcons[payment.paymentStatus as keyof typeof statusIcons]}
-                    <p className={`text-sm font-bold ${paymentStatusClass}`}>
-                      {payment.paymentStatus.charAt(0).toUpperCase() + payment.paymentStatus.slice(1)}
-                    </p>
+                    <p className="font-semibold">₹{payment.amount.toLocaleString()}</p>
                     <p className="text-sm text-gray-500">
-                      {statusDate ? new Date(statusDate).toLocaleString() : 'N/A'}
+                      {payment.payId ? `Payment ID: ${payment.payId}` : "No transaction ID"}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      {status.icon}
+                      <span className="font-medium">{status.label}</span>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {statusDate ? new Date(statusDate).toLocaleDateString() : "N/A"}
                     </p>
                   </div>
                 </div>
@@ -226,10 +235,6 @@ const PaymentHistory = ({ payments }: { payments: Payment[] }) => (
   </div>
 );
 
-const Footer = () => (
-  <footer className="bg-primary text-white py-6 text-center shadow-lg">
-    <p className="text-sm">&copy; 2025 TravelerConnect. All rights reserved.</p>
-  </footer>
-);
+
 
 export default PaymentsPage;

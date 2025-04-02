@@ -169,8 +169,8 @@ const GuideProfile = () => {
           <ChatMessageArea guideId={guideId} />
         </div>
         <div className="mx-auto max-w-5xl w-full mt-20">
-        <ReviewForm guideId={guideId}/>
-        <ReviewList guideId={guideId}/>
+        <ReviewForm entityId={guideId} entityType="guide" />
+        <ReviewList guideId={guideId }  entityType="guide" />
         </div>
       </div>
       

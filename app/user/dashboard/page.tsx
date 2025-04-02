@@ -14,11 +14,11 @@ interface Profile {
   profilePicture: string;
   phoneNumber: string;
   dateOfBirth: string;
-  address: {
-    countryId: string;
-    stateId: string;
-    countryName: string;
-    stateName: string;
+  address?: {
+    countryId?: string;
+    stateId?: string;
+    countryName?: string;
+    stateName?: string;
   };
   gender: string;
 }
@@ -39,19 +39,33 @@ export default function ProfilePage() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [errors, setErrors] = useState<any>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const userId = user?.id;
 
   useEffect(() => {
+    async function fetchData() {
+      try {
+        setIsLoading(true);
+        await Promise.all([fetchProfile(), fetchDropdownData()]);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
     async function fetchProfile() {
       try {
+        if (!userId) return;
+        
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`);
         if (!res.ok) throw new Error("Profile not found");
         const data = await res.json();
-        console.log("Fetched profile:", data); // Log the raw data
         setProfile(data);
-      } catch (error) {
+      } catch (error: any) {
         console.warn("No profile found, user may be new:", error.message);
         setProfile(null);
       }
@@ -71,20 +85,20 @@ export default function ProfilePage() {
 
         setCountries(countriesData);
         setStates(statesData);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching dropdown data:", error);
         toast.error("Failed to load country and state data");
       }
     }
 
-    fetchProfile();
-    fetchDropdownData();
+    fetchData();
   }, [userId]);
 
   const handleEdit = () => setIsEditing(true);
   const handleCancel = () => {
     setIsEditing(false);
     setProfilePicFile(null);
+    setErrors({});
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -94,7 +108,7 @@ export default function ProfilePage() {
       const field = name.split(".")[1];
       setProfile((prev) => ({
         ...(prev || {
-          userId,
+          userId: userId || "",
           firstName: "",
           lastName: "",
           profilePicture: "",
@@ -117,7 +131,7 @@ export default function ProfilePage() {
     } else {
       setProfile((prev) => ({
         ...(prev || {
-          userId,
+          userId: userId || "",
           firstName: "",
           lastName: "",
           profilePicture: "",
@@ -129,7 +143,7 @@ export default function ProfilePage() {
         [name]: value,
       }));
     }
-    setErrors((prev: any) => ({ ...prev, [name]: "" }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,7 +152,7 @@ export default function ProfilePage() {
       setProfilePicFile(file);
       setProfile((prev) => ({
         ...(prev || {
-          userId,
+          userId: userId || "",
           firstName: "",
           lastName: "",
           profilePicture: "",
@@ -149,24 +163,23 @@ export default function ProfilePage() {
         }),
         profilePicture: URL.createObjectURL(file),
       }));
-      console.log("Profile Pic selected:", file.name);
     }
   };
 
   const validateForm = () => {
-    const validationErrors: any = {};
+    const validationErrors: Record<string, string> = {};
     const phoneRegex = /^\+?[1-9]\d{1,14}$/;
     const nameRegex = /^[A-Za-z\s]{2,50}$/;
 
-    if (!profile?.firstName) validationErrors.firstName = "First name is required.";
+    if (!profile?.firstName?.trim()) validationErrors.firstName = "First name is required.";
     else if (!nameRegex.test(profile.firstName))
       validationErrors.firstName = "First name must be 2-50 letters only.";
 
-    if (!profile?.lastName) validationErrors.lastName = "Last name is required.";
+    if (!profile?.lastName?.trim()) validationErrors.lastName = "Last name is required.";
     else if (!nameRegex.test(profile.lastName))
       validationErrors.lastName = "Last name must be 2-50 letters only.";
 
-    if (!profile?.phoneNumber) validationErrors.phoneNumber = "Phone number is required.";
+    if (!profile?.phoneNumber?.trim()) validationErrors.phoneNumber = "Phone number is required.";
     else if (!phoneRegex.test(profile.phoneNumber))
       validationErrors.phoneNumber = "Invalid phone number format (e.g., +1234567890).";
 
@@ -179,13 +192,13 @@ export default function ProfilePage() {
       else if (dob < minDate) validationErrors.dateOfBirth = "Date of birth is too far in the past.";
     }
 
-    if (!profile?.address?.countryId) validationErrors.countryId = "Country is required.";
-    else if (!countries.some((c) => c._id === profile.address.countryId))
-      validationErrors.countryId = "Invalid country selection.";
+    if (!profile?.address?.countryId) validationErrors["address.countryId"] = "Country is required.";
+    else if (!countries.some((c) => c._id === profile.address?.countryId))
+      validationErrors["address.countryId"] = "Invalid country selection.";
 
-    if (!profile?.address?.stateId) validationErrors.stateId = "State is required.";
-    else if (!states.some((s) => s._id === profile.address.stateId))
-      validationErrors.stateId = "Invalid state selection.";
+    if (!profile?.address?.stateId) validationErrors["address.stateId"] = "State is required.";
+    else if (!states.some((s) => s._id === profile.address?.stateId))
+      validationErrors["address.stateId"] = "Invalid state selection.";
 
     if (!profile?.gender) validationErrors.gender = "Gender is required.";
     else if (!["male", "female", "others"].includes(profile.gender.toLowerCase()))
@@ -199,21 +212,29 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    if (!profile || !userId) return;
+    if (!profile || !userId) {
+      toast.error("User not authenticated");
+      return;
+    }
+
+    setIsSubmitting(true);
 
     const formData = new FormData();
+    
     formData.append("userId", profile.userId || userId);
     formData.append("firstName", profile.firstName);
     formData.append("lastName", profile.lastName);
     formData.append("gender", profile.gender);
     formData.append("phoneNumber", profile.phoneNumber);
     formData.append("dateOfBirth", profile.dateOfBirth);
-    if (profilePicFile) {
-      formData.append("profilePic", profilePicFile);
-      console.log("Appending profilePic:", profilePicFile.name);
-    }
+    formData.append("countryId", profile.address?.countryId || "");
+    formData.append("stateId", profile.address?.stateId || "");
     formData.append("countryName", profile.address?.countryName || "");
     formData.append("stateName", profile.address?.stateName || "");
+
+    if (profilePicFile) {
+      formData.append("profilePic", profilePicFile);
+    }
 
     try {
       const url = profile._id
@@ -227,11 +248,10 @@ export default function ProfilePage() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to save profile");
+        throw new Error(errorData.message || "Failed to save profile");
       }
 
       const data = await res.json();
-      console.log("Saved profile:", data); // Log the saved data
       setProfile(data);
       setProfilePicFile(null);
       toast.success("Profile saved successfully!");
@@ -239,8 +259,29 @@ export default function ProfilePage() {
     } catch (error: any) {
       console.error("Error updating profile:", error);
       toast.error(error.message || "Failed to save profile");
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  const currentProfile = profile || {
+    userId: userId || "",
+    firstName: "",
+    lastName: "",
+    profilePicture: "",
+    phoneNumber: "",
+    dateOfBirth: "",
+    address: { countryId: "", stateId: "", countryName: "", stateName: "" },
+    gender: "",
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#6999aa]">
+        <div className="text-white text-2xl">Loading profile...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#6999aa] p-4">
@@ -250,11 +291,12 @@ export default function ProfilePage() {
           <h2 className="text-xl font-semibold text-[#1b374c] mb-4">Profile Picture</h2>
           <div className="relative w-32 h-32">
             <Image
-              src={profile?.profilePicture || "https://via.placeholder.com/144"}
+              src={currentProfile.profilePicture || "/default-profile.png"}
               alt="Profile"
               width={128}
               height={128}
               className="rounded-full object-cover border-4 border-[#6999aa]"
+              priority
             />
             {isEditing && (
               <label className="absolute bottom-0 right-0 bg-[#1b374c] p-2 rounded-full cursor-pointer">
@@ -276,125 +318,7 @@ export default function ProfilePage() {
             {profile ? "Profile Details" : "Create Your Profile"}
           </h2>
 
-          {!profile ? (
-            // Create Profile Form
-            <form className="space-y-4" onSubmit={handleSave}>
-              <div>
-                <label className="block text-sm font-medium text-[#1b374c]">First Name</label>
-                <input
-                  type="text"
-                  name="firstName"
-                  value={profile?.firstName || ""}
-                  onChange={handleChange}
-                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-                  placeholder="Enter first name"
-                />
-                {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#1b374c]">Last Name</label>
-                <input
-                  type="text"
-                  name="lastName"
-                  value={profile?.lastName || ""}
-                  onChange={handleChange}
-                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-                  placeholder="Enter last name"
-                />
-                {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#1b374c]">Phone Number</label>
-                <input
-                  type="text"
-                  name="phoneNumber"
-                  value={profile?.phoneNumber || ""}
-                  onChange={handleChange}
-                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-                  placeholder="e.g., +1234567890"
-                />
-                {errors.phoneNumber && (
-                  <p className="text-xs text-red-500 mt-1">{errors.phoneNumber}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#1b374c]">Date of Birth</label>
-                <input
-                  type="date"
-                  name="dateOfBirth"
-                  value={profile?.dateOfBirth || ""}
-                  onChange={handleChange}
-                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-                />
-                {errors.dateOfBirth && (
-                  <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#1b374c]">Gender</label>
-                <select
-                  name="gender"
-                  value={profile?.gender || ""}
-                  onChange={handleChange}
-                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-                >
-                  <option value="">Select Gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="others">Others</option>
-                </select>
-                {errors.gender && <p className="text-xs text-red-500 mt-1">{errors.gender}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#1b374c]">Country</label>
-                <select
-                  name="address.countryId"
-                  value={profile?.address?.countryId || ""}
-                  onChange={handleChange}
-                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-                >
-                  <option value="">Select Country</option>
-                  {countries.map((country) => (
-                    <option key={country._id} value={country._id}>
-                      {country.countryName}
-                    </option>
-                  ))}
-                </select>
-                {errors.countryId && <p className="text-xs text-red-500 mt-1">{errors.countryId}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#1b374c]">State</label>
-                <select
-                  name="address.stateId"
-                  value={profile?.address?.stateId || ""}
-                  onChange={handleChange}
-                  className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-                >
-                  <option value="">Select State</option>
-                  {states.map((state) => (
-                    <option key={state._id} value={state._id}>
-                      {state.stateName}
-                    </option>
-                  ))}
-                </select>
-                {errors.stateId && <p className="text-xs text-red-500 mt-1">{errors.stateId}</p>}
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2 bg-[#1b374c] text-white rounded-lg hover:bg-[#2a4a6a] transition-colors"
-              >
-                Create Profile
-              </button>
-            </form>
-          ) : !isEditing ? (
-            // Display Profile Details
+          {!isEditing && profile ? (
             <div className="space-y-4 text-[#1b374c]">
               <p>
                 <strong>Name:</strong> {profile.firstName} {profile.lastName}
@@ -406,10 +330,10 @@ export default function ProfilePage() {
                 <strong>Date of Birth:</strong> {new Date(profile.dateOfBirth).toLocaleDateString()}
               </p>
               <p>
-                <strong>Country:</strong> {profile.address.countryName || "N/A"}
+                <strong>Country:</strong> {profile.address?.countryName || "N/A"}
               </p>
               <p>
-                <strong>State:</strong> {profile.address.stateName || "N/A"}
+                <strong>State:</strong> {profile.address?.stateName || "N/A"}
               </p>
               <p>
                 <strong>Gender:</strong> {profile.gender}
@@ -422,14 +346,13 @@ export default function ProfilePage() {
               </button>
             </div>
           ) : (
-            // Edit Profile Form
             <form className="space-y-4" onSubmit={handleSave}>
               <div>
                 <label className="block text-sm font-medium text-[#1b374c]">First Name</label>
                 <input
                   type="text"
                   name="firstName"
-                  value={profile?.firstName || ""}
+                  value={currentProfile.firstName}
                   onChange={handleChange}
                   className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
                   placeholder="Enter first name"
@@ -442,7 +365,7 @@ export default function ProfilePage() {
                 <input
                   type="text"
                   name="lastName"
-                  value={profile?.lastName || ""}
+                  value={currentProfile.lastName}
                   onChange={handleChange}
                   className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
                   placeholder="Enter last name"
@@ -455,7 +378,7 @@ export default function ProfilePage() {
                 <input
                   type="text"
                   name="phoneNumber"
-                  value={profile?.phoneNumber || ""}
+                  value={currentProfile.phoneNumber}
                   onChange={handleChange}
                   className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
                   placeholder="e.g., +1234567890"
@@ -470,7 +393,7 @@ export default function ProfilePage() {
                 <input
                   type="date"
                   name="dateOfBirth"
-                  value={profile?.dateOfBirth || ""}
+                  value={currentProfile.dateOfBirth}
                   onChange={handleChange}
                   className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
                 />
@@ -483,7 +406,7 @@ export default function ProfilePage() {
                 <label className="block text-sm font-medium text-[#1b374c]">Gender</label>
                 <select
                   name="gender"
-                  value={profile?.gender || ""}
+                  value={currentProfile.gender}
                   onChange={handleChange}
                   className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
                 >
@@ -499,7 +422,7 @@ export default function ProfilePage() {
                 <label className="block text-sm font-medium text-[#1b374c]">Country</label>
                 <select
                   name="address.countryId"
-                  value={profile?.address?.countryId || ""}
+                  value={currentProfile.address?.countryId || ""}
                   onChange={handleChange}
                   className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
                 >
@@ -510,14 +433,16 @@ export default function ProfilePage() {
                     </option>
                   ))}
                 </select>
-                {errors.countryId && <p className="text-xs text-red-500 mt-1">{errors.countryId}</p>}
+                {errors["address.countryId"] && (
+                  <p className="text-xs text-red-500 mt-1">{errors["address.countryId"]}</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-[#1b374c]">State</label>
                 <select
                   name="address.stateId"
-                  value={profile?.address?.stateId || ""}
+                  value={currentProfile.address?.stateId || ""}
                   onChange={handleChange}
                   className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
                 >
@@ -528,23 +453,35 @@ export default function ProfilePage() {
                     </option>
                   ))}
                 </select>
-                {errors.stateId && <p className="text-xs text-red-500 mt-1">{errors.stateId}</p>}
+                {errors["address.stateId"] && (
+                  <p className="text-xs text-red-500 mt-1">{errors["address.stateId"]}</p>
+                )}
               </div>
 
               <div className="flex gap-4">
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-[#1b374c] text-white rounded-lg flex items-center justify-center gap-2 hover:bg-[#2a4a6a] transition-colors"
+                  disabled={isSubmitting}
+                  className={`flex-1 py-2 bg-[#1b374c] text-white rounded-lg flex items-center justify-center gap-2 hover:bg-[#2a4a6a] transition-colors ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  <Save size={16} /> Save
+                  {isSubmitting ? (
+                    "Saving..."
+                  ) : (
+                    <>
+                      <Save size={16} /> {profile ? "Save" : "Create Profile"}
+                    </>
+                  )}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="flex-1 py-2 bg-[#1b374c] text-white rounded-lg flex items-center justify-center gap-2 hover:bg-[#2a4a6a] transition-colors"
-                >
-                  <X size={16} /> Cancel
-                </button>
+                {profile && (
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    disabled={isSubmitting}
+                    className="flex-1 py-2 bg-gray-500 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-gray-600 transition-colors"
+                  >
+                    <X size={16} /> Cancel
+                  </button>
+                )}
               </div>
             </form>
           )}

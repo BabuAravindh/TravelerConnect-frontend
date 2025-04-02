@@ -10,6 +10,8 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
 import GuideListing from "@/components/GuideListing";
 import DestinationRoutes from "@/components/DestinationRoutes";
+import ReviewForm from "@/components/ReviewForm";
+import ReviewList from "@/components/ReviewList";
 
 interface Attraction {
   _id: string;
@@ -281,8 +283,12 @@ export default function AttractionDetailPage() {
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Available Guides in {attraction.city}</h2>
             <GuideListing city={attraction.city} />
+            <ReviewForm entityId={attraction._id} entityType="attraction"/>
+            <ReviewList entityId={attraction._id} entityType="attraction"/>
           </section>
         </div>
+
+      
       </main>
       
       <Footer />

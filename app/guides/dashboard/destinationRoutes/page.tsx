@@ -20,10 +20,11 @@ export default function GuideRoutesPage() {
   const { user } = useAuth();
   const [routes, setRoutes] = useState([]);
   const [cities, setCities] = useState([]);
+  const [feedback, setFeedback] = useState([]); // New state for feedback
   const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingRouteId, setEditingRouteId] = useState(null);
-  
+  const token = localStorage.getItem('token')
   const [formData, setFormData] = useState({
     from: '',
     to: '',
@@ -63,7 +64,11 @@ export default function GuideRoutesPage() {
     
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/routes/guide/${user.id}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/routes/guide/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       setRoutes(data);
     } catch (error) {
@@ -73,9 +78,31 @@ export default function GuideRoutesPage() {
     }
   };
 
+  // Fetch feedback for routes
+  const fetchFeedback = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/routes/feedback/guide`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFeedback(data.feedback || []);
+      } else {
+        throw new Error(data.error || 'Failed to fetch feedback');
+      }
+    } catch (error) {
+      toast.error('Failed to load feedback');
+    }
+  };
+
   useEffect(() => {
     fetchCities();
     fetchRoutes();
+    fetchFeedback();
   }, [user?.id]);
 
   const handleInputChange = (e, index) => {
@@ -168,6 +195,7 @@ export default function GuideRoutesPage() {
         transports: [{ mode: '', duration: '', details: '' }]
       });
       fetchRoutes();
+      fetchFeedback(); // Refresh feedback after creating a new route
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -190,7 +218,6 @@ export default function GuideRoutesPage() {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-
     
     setLoading(true);
     
@@ -213,6 +240,7 @@ export default function GuideRoutesPage() {
       toast.success('Route updated successfully!');
       setEditingRouteId(null);
       fetchRoutes();
+      fetchFeedback(); // Refresh feedback after updating a route
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -245,6 +273,7 @@ export default function GuideRoutesPage() {
 
       toast.success('Route deleted successfully');
       fetchRoutes();
+      fetchFeedback(); // Refresh feedback after deleting a route
     } catch (error) {
       toast.error(error.message);
     }
@@ -409,192 +438,217 @@ export default function GuideRoutesPage() {
           <p className="text-gray-500">No routes created yet</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {routes.map((route) => (
-            <div key={`route-${route._id}`} className="bg-white rounded-lg shadow overflow-hidden">
-              {editingRouteId === route._id ? (
-                <div className="p-5">
-                  <h2 className="text-xl font-semibold mb-4">Edit Route</h2>
-                  <form onSubmit={handleEditSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">From*</label>
-                        <select
-                          value={editFormData.from}
-                          onChange={(e) => setEditFormData({...editFormData, from: e.target.value})}
-                          className="w-full p-2 border rounded"
-                          required
-                        >
-                          <option value="">Select departure city</option>
-                          {cities.map((city) => (
-                            <option key={`edit-city-from-${city._id}`} value={city.cityName}>
-                              {city.cityName}
-                            </option>
-                          ))}
-                        </select>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {routes.map((route) => (
+              <div key={`route-${route._id}`} className="bg-white rounded-lg shadow overflow-hidden">
+                {editingRouteId === route._id ? (
+                  <div className="p-5">
+                    <h2 className="text-xl font-semibold mb-4">Edit Route</h2>
+                    <form onSubmit={handleEditSubmit} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">From*</label>
+                          <select
+                            value={editFormData.from}
+                            onChange={(e) => setEditFormData({...editFormData, from: e.target.value})}
+                            className="w-full p-2 border rounded"
+                            required
+                          >
+                            <option value="">Select departure city</option>
+                            {cities.map((city) => (
+                              <option key={`edit-city-from-${city._id}`} value={city.cityName}>
+                                {city.cityName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium mb-1">To*</label>
+                          <select
+                            value={editFormData.to}
+                            onChange={(e) => setEditFormData({...editFormData, to: e.target.value})}
+                            className="w-full p-2 border rounded"
+                            required
+                          >
+                            <option value="">Select destination city</option>
+                            {cities.map((city) => (
+                              <option key={`edit-city-to-${city._id}`} value={city.cityName}>
+                                {city.cityName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium mb-1">To*</label>
-                        <select
-                          value={editFormData.to}
-                          onChange={(e) => setEditFormData({...editFormData, to: e.target.value})}
-                          className="w-full p-2 border rounded"
-                          required
+
+                      <div className="space-y-4">
+                        <h2 className="text-lg font-semibold">Transport Options*</h2>
+                        
+                        {editFormData.transports.map((transport, index) => (
+                          <div key={`edit-transport-${route._id}-${index}`} className="border p-4 rounded-lg space-y-3">
+                            <div className="flex justify-between items-center">
+                              <h3 className="font-medium">Option {index + 1}</h3>
+                              {editFormData.transports.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeEditTransportField(index)}
+                                  className="text-red-500 text-sm flex items-center gap-1"
+                                >
+                                  <Trash2 size={16} />
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-sm font-medium mb-1">Mode*</label>
+                                <select
+                                  name="mode"
+                                  value={transport.mode}
+                                  onChange={(e) => handleEditInputChange(e, index)}
+                                  className="w-full p-2 border rounded"
+                                  required
+                                >
+                                  <option value="">Select transport</option>
+                                  {Object.keys(transportIcons).map((mode) => (
+                                    <option key={`edit-mode-${mode}`} value={mode}>
+                                      {mode}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium mb-1">Duration*</label>
+                                <input
+                                  type="text"
+                                  name="duration"
+                                  value={transport.duration}
+                                  onChange={(e) => handleEditInputChange(e, index)}
+                                  placeholder="e.g., 3 hours"
+                                  className="w-full p-2 border rounded"
+                                  required
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium mb-1">Details</label>
+                                <input
+                                  type="text"
+                                  name="details"
+                                  value={transport.details}
+                                  onChange={(e) => handleEditInputChange(e, index)}
+                                  placeholder="Additional information"
+                                  className="w-full p-2 border rounded"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        <button
+                          type="button"
+                          onClick={addEditTransportField}
+                          className="text-blue-500 text-sm flex items-center gap-1"
                         >
-                          <option value="">Select destination city</option>
-                          {cities.map((city) => (
-                            <option key={`edit-city-to-${city._id}`} value={city.cityName}>
-                              {city.cityName}
-                            </option>
-                          ))}
-                        </select>
+                          <Plus size={16} />
+                          Add Another Transport Option
+                        </button>
+                      </div>
+
+                      <div className="flex justify-end space-x-3 pt-4">
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          className="px-4 py-2 border rounded"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className={`px-4 py-2 bg-green-600 text-white rounded ${loading ? 'opacity-70' : ''}`}
+                        >
+                          {loading ? 'Updating...' : 'Update Route'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                ) : (
+                  <div className="p-5">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-lg font-bold">
+                        {route.from} → {route.to}
+                      </h3>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(route)}
+                          className="text-blue-500 hover:text-blue-700"
+                          title="Edit route"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(route._id)}
+                          className="text-red-500 hover:text-red-700"
+                          title="Delete route"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       </div>
                     </div>
-
-                    <div className="space-y-4">
-                      <h2 className="text-lg font-semibold">Transport Options*</h2>
-                      
-                      {editFormData.transports.map((transport, index) => (
-                        <div key={`edit-transport-${route._id}-${index}`} className="border p-4 rounded-lg space-y-3">
-                          <div className="flex justify-between items-center">
-                            <h3 className="font-medium">Option {index + 1}</h3>
-                            {editFormData.transports.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeEditTransportField(index)}
-                                className="text-red-500 text-sm flex items-center gap-1"
-                              >
-                                <Trash2 size={16} />
-                                Remove
-                              </button>
-                            )}
+                    
+                    <div className="mt-4 space-y-3">
+                      {route.transports.map((transport) => (
+                        <div key={`transport-${transport._id}`} className="border-l-4 border-blue-200 pl-3 py-1">
+                          <div className="flex items-center gap-2">
+                            {transportIcons[transport.mode]}
+                            <span className="font-medium">{transport.mode}</span>
                           </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                              <label className="block text-sm font-medium mb-1">Mode*</label>
-                              <select
-                                name="mode"
-                                value={transport.mode}
-                                onChange={(e) => handleEditInputChange(e, index)}
-                                className="w-full p-2 border rounded"
-                                required
-                              >
-                                <option value="">Select transport</option>
-                                {Object.keys(transportIcons).map((mode) => (
-                                  <option key={`edit-mode-${mode}`} value={mode}>
-                                    {mode}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium mb-1">Duration*</label>
-                              <input
-                                type="text"
-                                name="duration"
-                                value={transport.duration}
-                                onChange={(e) => handleEditInputChange(e, index)}
-                                placeholder="e.g., 3 hours"
-                                className="w-full p-2 border rounded"
-                                required
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium mb-1">Details</label>
-                              <input
-                                type="text"
-                                name="details"
-                                value={transport.details}
-                                onChange={(e) => handleEditInputChange(e, index)}
-                                placeholder="Additional information"
-                                className="w-full p-2 border rounded"
-                              />
-                            </div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            <div>Duration: {transport.duration}</div>
+                            {transport.details && (
+                              <div className="mt-1">Details: {transport.details}</div>
+                            )}
                           </div>
                         </div>
                       ))}
-                      
-                      <button
-                        type="button"
-                        onClick={addEditTransportField}
-                        className="text-blue-500 text-sm flex items-center gap-1"
-                      >
-                        <Plus size={16} />
-                        Add Another Transport Option
-                      </button>
                     </div>
+                    
+                    <div className="mt-4 text-xs text-gray-400">
+                      Created: {new Date(route.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
 
-                    <div className="flex justify-end space-x-3 pt-4">
-                      <button
-                        type="button"
-                        onClick={cancelEdit}
-                        className="px-4 py-2 border rounded"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className={`px-4 py-2 bg-green-600 text-white rounded ${loading ? 'opacity-70' : ''}`}
-                      >
-                        {loading ? 'Updating...' : 'Update Route'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              ) : (
-                <div className="p-5">
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-lg font-bold">
-                      {route.from} → {route.to}
-                    </h3>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(route)}
-                        className="text-blue-500 hover:text-blue-700"
-                        title="Edit route"
-                      >
-                        <Edit size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(route._id)}
-                        className="text-red-500 hover:text-red-700"
-                        title="Delete route"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+          {/* Feedback Section */}
+          {feedback.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-xl font-bold mb-4">Feedback for Your Routes</h2>
+              <div className="space-y-4">
+                {feedback.map((fb) => (
+                  <div key={fb._id} className="p-4 bg-white rounded-lg shadow">
+                    <p className="font-semibold">
+                      Route: {fb.routeId?.from} → {fb.routeId?.to || "Unknown Route"}
+                    </p>
+                    <p className="text-gray-600">{fb.comments || "No comment provided"}</p>
+                    <p className="text-sm text-gray-500">
+                      Rating: {fb.rating || "Not rated"}/5
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Date: {new Date(fb.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
-                  
-                  <div className="mt-4 space-y-3">
-                    {route.transports.map((transport) => (
-                      <div key={`transport-${transport._id}`} className="border-l-4 border-blue-200 pl-3 py-1">
-                        <div className="flex items-center gap-2">
-                          {transportIcons[transport.mode]}
-                          <span className="font-medium">{transport.mode}</span>
-                        </div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          <div>Duration: {transport.duration}</div>
-                          {transport.details && (
-                            <div className="mt-1">Details: {transport.details}</div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="mt-4 text-xs text-gray-400">
-                    Created: {new Date(route.createdAt).toLocaleString()}
-                  </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

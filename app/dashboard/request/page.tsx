@@ -6,13 +6,13 @@ import { toast } from "react-hot-toast";
 
 interface User {
   _id: string;
-  email: string;
+  email?: string;
   name?: string;
 }
 
 interface Guide {
   _id: string;
-  userId: User;
+  userId: User | null; // Make userId nullable
   languages: string[];
   activities: string[];
   serviceLocations: string[];
@@ -46,14 +46,18 @@ const GuidesPage = () => {
   useEffect(() => {
     const fetchGuides = async () => {
       try {
+        setLoading(true);
+        setError(null);
+        
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/requests`);
         if (!response.ok) {
           throw new Error('Failed to fetch guides');
         }
         const data = await response.json();
-        setGuides(data.data);
+        setGuides(data.data || []); // Ensure we always have an array
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        toast.error('Failed to load guides');
       } finally {
         setLoading(false);
       }
@@ -165,7 +169,7 @@ const GuidesPage = () => {
                   key={guide._id}
                   className={`${index % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-gray-100 transition`}
                 >
-                  <td className="p-3">{guide.userId.email}</td>
+                  <td className="p-3">     {guide.userId?.email || 'No email'}</td>
                   <td className="p-3">
                     <span className={`px-2 py-1 rounded-full text-xs ${
                       guide.status === 'approved' 
@@ -223,7 +227,7 @@ const GuidesPage = () => {
               <h2 className="text-xl font-semibold mb-4">
                 {action === "approve" ? "Approve" : "Reject"} Guide Request
               </h2>
-              <p className="mb-2">Guide: {selectedGuide.userId.email}</p>
+              <p className="mb-2">Guide:{selectedGuide.userId?.email || 'Not available'}</p>
               
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Review Notes</label>
@@ -272,7 +276,7 @@ const GuidesPage = () => {
                   <h3 className="font-semibold mb-2 flex items-center gap-2">
                     <FaUser /> Basic Information
                   </h3>
-                  <p><span className="font-medium">Email:</span> {selectedGuide.userId.email}</p>
+                  <p><span className="font-medium">Email:</span> {selectedGuide?.userId?.email}</p>
                   <p><span className="font-medium">Status:</span> 
                     <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
                       selectedGuide.status === 'approved' 

@@ -237,7 +237,7 @@ export const roleBasedNavItems: Record<string, { href: string; label: string; ic
     { href: "/dashboard/bookings", label: "All Bookings", icon: Calendar },
     { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/dashboard/information", label: " Website Content", icon: Info },
-    
+    { href: "/dashboard/customerSupport", label: "Customer Report", icon: Info },
     { href: "/dashboard/ratings", label: "Ratings", icon: Star },
   ],
 };

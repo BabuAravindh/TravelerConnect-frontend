@@ -60,7 +60,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   const genders = ["Male", "Female", "Other"];
   const images = ["/images/hero-slider-1.jpg", "/images/hero-slider-2.jpg", "/images/hero-slider-3.jpg"];
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(true); // Set to true by default
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Fetch cities with guides, languages, and activities
@@ -129,13 +129,14 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               </h1>
 
               <form
-                className="form bg-white p-5 rounded-lg shadow-lg mb-10 z-20 w-full max-w-lg mx-auto lg:relative lg:left-52 lg:top-40 lg:max-w-6xl"
+                className="form bg-white p-5 rounded-lg shadow-lg mb-10 z-20 w-full max-w-xl  flex gap-6 mx-auto lg:relative lg:left-52 lg:top-40 lg:max-w-6xl"
                 onSubmit={(e) => {
                   e.preventDefault();
                   onSearch();
                 }}
               >
-                <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                {/* Commented out the search input and button */}
+                {/* <div className="flex flex-col sm:flex-row gap-4 mb-4">
                   <input
                     type="text"
                     className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
@@ -150,9 +151,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                   >
                     {loading ? "Searching..." : "Search"}
                   </button>
-                </div>
+                </div> */}
 
-                <div className="text-center mb-4">
+                {/* Always show the filter button (commented out the toggle since we always show filters) */}
+                {/* <div className="text-center mb-4">
                   <button
                     type="button"
                     className="flex items-center justify-center gap-2 text-button transition"
@@ -162,67 +164,74 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     <Filter size={20} />
                     <span>{showAdvancedFilters ? "Hide Filters" : "Show Filters"}</span>
                   </button>
+                </div> */}
+
+                {/* Always show the advanced filters */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <select
+                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    disabled={isLoadingData}
+                  >
+                    <option value="">Select City</option>
+                    {citiesWithGuides.map((cityOption) => (
+                      <option key={cityOption.cityName} value={cityOption.cityName}>
+                        {cityOption.cityName} {cityOption.guideCount > 0 && `(${cityOption.guideCount})`}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    disabled={isLoadingData}
+                  >
+                    <option value="">Select Language</option>
+                    {languages.map((lang) => (
+                      <option key={lang._id} value={lang.languageName}>
+                        {lang.languageName}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
+                    value={activity}
+                    onChange={(e) => setActivity(e.target.value)}
+                    disabled={isLoadingData}
+                  >
+                    <option value="">Select Activity</option>
+                    {activities.map((act) => (
+                      <option key={act._id} value={act.activityName}>
+                        {act.activityName}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                  >
+                    <option value="">Select Gender</option>
+                    {genders.map((gen) => (
+                      <option key={gen} value={gen}>
+                        {gen}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-
-                {showAdvancedFilters && (
-                  <div className="flex flex-col sm:flex-row gap-4">
- <select
-  className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-  value={city}
-  onChange={(e) => setCity(e.target.value)}
-  disabled={isLoadingData}
->
-  <option value="">Select City</option>
-  {citiesWithGuides.map((cityOption) => (
-    <option key={cityOption.cityName} value={cityOption.cityName}>
-      {cityOption.cityName} {cityOption.guideCount > 0 && `(${cityOption.guideCount})`}
-    </option>
-  ))}
-</select>
-
-                    <select
-                      className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      disabled={isLoadingData}
-                    >
-                      <option value="">Select Language</option>
-                      {languages.map((lang) => (
-                        <option key={lang._id} value={lang.languageName}>
-                          {lang.languageName}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                      value={activity}
-                      onChange={(e) => setActivity(e.target.value)}
-                      disabled={isLoadingData}
-                    >
-                      <option value="">Select Activity</option>
-                      {activities.map((act) => (
-                        <option key={act._id} value={act.activityName}>
-                          {act.activityName}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                      value={gender}
-                      onChange={(e) => setGender(e.target.value)}
-                    >
-                      <option value="">Select Gender</option>
-                      {genders.map((gen) => (
-                        <option key={gen} value={gen}>
-                          {gen}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <button
+                    type="submit"
+                    className="px-6 py-2 bg-button hover:bg-opacity-90 text-white font-bold rounded transition"
+                    disabled={loading || isLoadingData}
+                  >
+                    {loading ? "Searching..." : "Search"}
+                  </button>
               </form>
+                      
             </div>
 
             <div className="lg:w-5/12 flex justify-center mt-10 lg:mt-0">

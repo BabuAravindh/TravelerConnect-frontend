@@ -10,6 +10,8 @@ import { Footer } from '@/components/Footer';
 import GuideListing from '@/components/GuideListing';
 import AttractionDetailPage from '../../attraction/[id]/page';
 import AttractionsCarousel from '@/components/Attraction';
+import ReviewForm from '@/components/ReviewForm';
+import ReviewList from '@/components/ReviewList';
 
 const transportIcons = {
   Bus: <Bus className="w-5 h-5" />,
@@ -195,6 +197,8 @@ export default function RouteDetailsPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Available Guides in {route.from}</h2>
             <GuideListing city={route.from} />
           </section>
+          <ReviewForm entityId={id} entityType="route" />
+          <ReviewList entityId={id} entityType="route" />
         </div>
       </main>
       
