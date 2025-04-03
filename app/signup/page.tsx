@@ -4,6 +4,8 @@ import { useState } from "react";
 import useSignup from "@/hooks/useSignup";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
+import { Footer } from "@/components/Footer";
+import Navbar from "@/components/Navbar";
 
 const SignupPage = () => {
   const { handleSignup, loading } = useSignup();
@@ -85,6 +87,8 @@ const SignupPage = () => {
   };
 
   return (
+    <>
+    <Navbar/>
     <div className="min-h-screen bg-primary flex justify-center items-center ">
       <div className="max-w-screen-xl bg-white shadow-lg rounded-lg flex w-full overflow-hidden justify-center gap-12">
         {/* Left Section - Sign Up Form */}
@@ -202,6 +206,8 @@ const SignupPage = () => {
 
       </div>
     </div>
+    <Footer/>
+    </>
   );
 };
 

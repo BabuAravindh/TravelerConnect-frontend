@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { TypeAnimation } from "react-type-animation";
 import Navbar from "./Navbar";
-import { Filter } from "lucide-react";
+import { Filter, Search } from "lucide-react";
 
 interface HeroSectionProps {
   searchTerm: string;
@@ -60,8 +60,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   const genders = ["Male", "Female", "Other"];
   const images = ["/images/hero-slider-1.jpg", "/images/hero-slider-2.jpg", "/images/hero-slider-3.jpg"];
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(true); // Set to true by default
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [citySearchTerm, setCitySearchTerm] = useState("");
+  const [filteredCities, setFilteredCities] = useState<CityWithGuides[]>([]);
 
   // Fetch cities with guides, languages, and activities
   useEffect(() => {
@@ -72,6 +74,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         const citiesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/cities_with_guides`);
         const citiesData = await citiesRes.json();
         setCitiesWithGuides(citiesData);
+        setFilteredCities(citiesData);
 
         // Fetch languages
         const languagesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/languages`);
@@ -91,6 +94,18 @@ const HeroSection: React.FC<HeroSectionProps> = ({
 
     fetchData();
   }, []);
+
+  // Filter cities based on search term
+  useEffect(() => {
+    if (citySearchTerm.trim() === "") {
+      setFilteredCities(citiesWithGuides);
+    } else {
+      const filtered = citiesWithGuides.filter(city =>
+        city.cityName.toLowerCase().includes(citySearchTerm.toLowerCase())
+      );
+      setFilteredCities(filtered);
+    }
+  }, [citySearchTerm, citiesWithGuides]);
 
   // Rotate images
   useEffect(() => {
@@ -129,44 +144,53 @@ const HeroSection: React.FC<HeroSectionProps> = ({
               </h1>
 
               <form
-                className="form bg-white p-5 rounded-lg shadow-lg mb-10 z-20 w-full max-w-xl  flex gap-6 mx-auto lg:relative lg:left-52 lg:top-40 lg:max-w-6xl"
+                className="form bg-white p-5 rounded-lg shadow-lg mb-10 z-20 w-full max-w-xl flex flex-col gap-6 mx-auto lg:relative lg:left-52 lg:top-40 lg:max-w-6xl"
                 onSubmit={(e) => {
                   e.preventDefault();
                   onSearch();
                 }}
               >
-                {/* Commented out the search input and button */}
-                {/* <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                  <input
-                    type="text"
-                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                    placeholder="Search for a guide..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                  <button
-                    type="submit"
-                    className="px-6 py-2 bg-button hover:bg-opacity-90 text-white font-bold rounded transition"
-                    disabled={loading || isLoadingData}
-                  >
-                    {loading ? "Searching..." : "Search"}
-                  </button>
-                </div> */}
+                {/* City search input */}
+                <div className="relative">
+                  <div className="flex items-center border border-gray-300 rounded">
+                    <input
+                      type="text"
+                      className="form-control flex-1 p-2 text-black rounded"
+                      placeholder="Search for a city..."
+                      value={citySearchTerm}
+                      onChange={(e) => setCitySearchTerm(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="px-4 py-2 bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      onClick={() => setCitySearchTerm("")}
+                    >
+                      <Search size={18} />
+                    </button>
+                  </div>
+                  {citySearchTerm && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto">
+                      {filteredCities.length > 0 ? (
+                        filteredCities.map((cityOption) => (
+                          <div
+                            key={cityOption.cityName}
+                            className="p-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => {
+                              setCity(cityOption.cityName);
+                              setCitySearchTerm(cityOption.cityName);
+                            }}
+                          >
+                            {cityOption.cityName} {cityOption.guideCount > 0 && `(${cityOption.guideCount})`}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-2 text-gray-500">No cities found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-                {/* Always show the filter button (commented out the toggle since we always show filters) */}
-                {/* <div className="text-center mb-4">
-                  <button
-                    type="button"
-                    className="flex items-center justify-center gap-2 text-button transition"
-                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                    disabled={isLoadingData}
-                  >
-                    <Filter size={20} />
-                    <span>{showAdvancedFilters ? "Hide Filters" : "Show Filters"}</span>
-                  </button>
-                </div> */}
-
-                {/* Always show the advanced filters */}
+                {/* Advanced filters */}
                 <div className="flex flex-col sm:flex-row gap-4">
                   <select
                     className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
@@ -175,7 +199,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     disabled={isLoadingData}
                   >
                     <option value="">Select City</option>
-                    {citiesWithGuides.map((cityOption) => (
+                    {filteredCities.map((cityOption) => (
                       <option key={cityOption.cityName} value={cityOption.cityName}>
                         {cityOption.cityName} {cityOption.guideCount > 0 && `(${cityOption.guideCount})`}
                       </option>
@@ -223,15 +247,8 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     ))}
                   </select>
                 </div>
-                <button
-                    type="submit"
-                    className="px-6 py-2 bg-button hover:bg-opacity-90 text-white font-bold rounded transition"
-                    disabled={loading || isLoadingData}
-                  >
-                    {loading ? "Searching..." : "Search"}
-                  </button>
+               
               </form>
-                      
             </div>
 
             <div className="lg:w-5/12 flex justify-center mt-10 lg:mt-0">

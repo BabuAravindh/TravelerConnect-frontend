@@ -127,6 +127,7 @@ const ChatMessageArea = ({ guideId }: { guideId: string }) => {
       });
   
       const response = await res.json();
+      console.log(response)
       if (!res.ok) {
         console.error("❌ Message sending failed:", response);
         return;

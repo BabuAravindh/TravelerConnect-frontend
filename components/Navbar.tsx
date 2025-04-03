@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext"; 
@@ -68,9 +68,25 @@ const Navbar = () => {
             )}
           </div>
         ) : (
-          <Link href="/login" className="py-2 px-4 text-white border rounded-xl hover:bg-opacity-90">
-            Log in
-          </Link>
+          <div className="relative">
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="py-2 px-4 text-white border rounded-xl hover:bg-opacity-90"
+            >
+              Sign In
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white text-gray-700 rounded-lg shadow-lg">
+                <Link href="/login" className="block px-4 py-2 hover:bg-gray-200">
+                  Sign in as User
+                </Link>
+                <Link href="/guides/signin" className="block px-4 py-2 hover:bg-gray-200">
+                  Sign in as Guide
+                </Link>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </nav>

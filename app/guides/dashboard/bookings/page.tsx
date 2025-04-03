@@ -70,7 +70,7 @@ const BookingsPage = () => {
         setError("⚠ No token found. Please login.");
         return;
       }
-  
+  console.log(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/${bookingId}/details`)
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/${bookingId}/details`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

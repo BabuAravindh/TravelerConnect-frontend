@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import useLogin from "@/hooks/useLogin";
 import toast from "react-hot-toast";
+import Navbar from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 const SignInPage = () => {
   const [email, setEmail] = useState("");
@@ -63,6 +65,8 @@ const SignInPage = () => {
   };
 
   return (
+    <>
+    <Navbar/>
     <div className="flex justify-center items-center min-h-screen bg-primary p-6">
       <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-2xl border border-gray-200">
         <h1 className="text-3xl font-bold text-gray-900 text-center mb-6">Sign In</h1>
@@ -147,6 +151,8 @@ const SignInPage = () => {
         </p>
       </div>
     </div>
+    <Footer/>
+    </>
   );
 };
 

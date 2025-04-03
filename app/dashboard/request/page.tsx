@@ -4,18 +4,36 @@ import { useState, useEffect } from "react";
 import { FaEye, FaCheck, FaTimes, FaTrash, FaUser, FaMapMarkerAlt, FaLanguage, FaCertificate, FaMoneyBillWave, FaCalendarAlt, FaIdCard, FaListAlt } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 
+// Define nested interfaces for populated fields
 interface User {
   _id: string;
   email?: string;
   name?: string;
 }
 
+interface Language {
+  _id: string;
+  languageName: string;
+  languageStatus?: string;
+}
+
+interface State {
+  _id: string;
+  stateName: string;
+}
+
+interface City {
+  _id: string;
+  cityName: string;
+}
+
 interface Guide {
   _id: string;
   userId: User | null; // Make userId nullable
-  languages: string[];
+  languages: Language[]; // Updated to Language objects
   activities: string[];
-  serviceLocations: string[];
+  states: State[]; // Updated to State objects (renamed from serviceLocations)
+  cities: City[]; // Updated to City objects
   aadharCardPhoto: string;
   bankAccountNumber: string;
   bio: string;
@@ -51,13 +69,13 @@ const GuidesPage = () => {
         
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/requests`);
         if (!response.ok) {
-          throw new Error('Failed to fetch guides');
+          throw new Error("Failed to fetch guides");
         }
         const data = await response.json();
         setGuides(data.data || []); // Ensure we always have an array
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-        toast.error('Failed to load guides');
+        setError(err instanceof Error ? err.message : "An unknown error occurred");
+        toast.error("Failed to load guides");
       } finally {
         setLoading(false);
       }
@@ -97,27 +115,26 @@ const GuidesPage = () => {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to submit review');
+        throw new Error("Failed to submit review");
       }
 
       const data = await response.json();
       toast.success(data.message);
 
-      // Update the guide in state
-      setGuides(guides.map(guide => 
-        guide._id === selectedGuide._id 
-          ? { 
-              ...guide, 
+      setGuides(guides.map((guide) =>
+        guide._id === selectedGuide._id
+          ? {
+              ...guide,
               status: action === "approve" ? "approved" : "rejected",
               reviewNotes,
-              reviewedAt: new Date().toISOString()
-            } 
+              reviewedAt: new Date().toISOString(),
+            }
           : guide
       ));
 
       setShowReviewModal(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to submit review');
+      toast.error(err instanceof Error ? err.message : "Failed to submit review");
     }
   };
 
@@ -145,8 +162,6 @@ const GuidesPage = () => {
 
   return (
     <div className="flex">
-  
-
       {/* Main Content */}
       <div className="p-6 flex-1">
         <h1 className="text-3xl font-semibold mb-6">Guides Management</h1>
@@ -169,44 +184,49 @@ const GuidesPage = () => {
                   key={guide._id}
                   className={`${index % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-gray-100 transition`}
                 >
-                  <td className="p-3">     {guide.userId?.email || 'No email'}</td>
+                  <td className="p-3">{guide.userId?.email || "No email"}</td>
                   <td className="p-3">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      guide.status === 'approved' 
-                        ? 'bg-green-100 text-green-800' 
-                        : guide.status === 'pending'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        guide.status === "approved"
+                          ? "bg-green-100 text-green-800"
+                          : guide.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
                       {guide.status}
                     </span>
                   </td>
                   <td className="p-3">{new Date(guide.submittedAt).toLocaleDateString()}</td>
-                  <td className="p-3">{guide.bio?.substring(0, 30)}{guide.bio && guide.bio.length > 30 ? '...' : ''}</td>
                   <td className="p-3">
-                    {guide.activities?.slice(0, 2).join(', ')}
-                    {guide.activities && guide.activities.length > 2 ? '...' : ''}
+                    {guide.bio?.substring(0, 30)}
+                    {guide.bio && guide.bio.length > 30 ? "..." : ""}
+                  </td>
+                  <td className="p-3">
+                    {guide.activities?.slice(0, 2).join(", ")}
+                    {guide.activities && guide.activities.length > 2 ? "..." : ""}
                   </td>
                   <td className="p-3 text-center">
                     <div className="flex justify-center gap-3">
-                      <button 
+                      <button
                         className="text-blue-500 hover:text-blue-700"
                         onClick={() => handleViewDetails(guide)}
                         title="View Details"
                       >
                         <FaEye />
                       </button>
-                      <button 
+                      <button
                         className="text-green-500 hover:text-green-700 disabled:text-gray-300"
-                        disabled={guide.status !== 'pending'}
+                        disabled={guide.status !== "pending"}
                         onClick={() => handleReview(guide, "approve")}
                         title="Approve"
                       >
                         <FaCheck />
                       </button>
-                      <button 
+                      <button
                         className="text-red-500 hover:text-red-700 disabled:text-gray-300"
-                        disabled={guide.status !== 'pending'}
+                        disabled={guide.status !== "pending"}
                         onClick={() => handleReview(guide, "reject")}
                         title="Reject"
                       >
@@ -227,8 +247,8 @@ const GuidesPage = () => {
               <h2 className="text-xl font-semibold mb-4">
                 {action === "approve" ? "Approve" : "Reject"} Guide Request
               </h2>
-              <p className="mb-2">Guide:{selectedGuide.userId?.email || 'Not available'}</p>
-              
+              <p className="mb-2">Guide: {selectedGuide.userId?.email || "Not available"}</p>
+
               <div className="mb-4">
                 <label className="block text-gray-700 mb-2">Review Notes</label>
                 <textarea
@@ -249,8 +269,8 @@ const GuidesPage = () => {
                 </button>
                 <button
                   className={`px-4 py-2 rounded text-white ${
-                    action === "approve" 
-                      ? "bg-green-500 hover:bg-green-600" 
+                    action === "approve"
+                      ? "bg-green-500 hover:bg-green-600"
                       : "bg-red-500 hover:bg-red-600"
                   }`}
                   onClick={submitReview}
@@ -269,37 +289,50 @@ const GuidesPage = () => {
               <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
                 <FaUser /> Guide Details
               </h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Basic Info */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h3 className="font-semibold mb-2 flex items-center gap-2">
                     <FaUser /> Basic Information
                   </h3>
-                  <p><span className="font-medium">Email:</span> {selectedGuide?.userId?.email}</p>
-                  <p><span className="font-medium">Status:</span> 
-                    <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                      selectedGuide.status === 'approved' 
-                        ? 'bg-green-100 text-green-800' 
-                        : selectedGuide.status === 'pending'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
+                  <p>
+                    <span className="font-medium">Email:</span> {selectedGuide.userId?.email || "Not provided"}
+                  </p>
+                  <p>
+                    <span className="font-medium">Status:</span>
+                    <span
+                      className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                        selectedGuide.status === "approved"
+                          ? "bg-green-100 text-green-800"
+                          : selectedGuide.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
                       {selectedGuide.status}
                     </span>
                   </p>
-                  <p><span className="font-medium">Submitted At:</span> {new Date(selectedGuide.submittedAt).toLocaleString()}</p>
+                  <p>
+                    <span className="font-medium">Submitted At:</span>{" "}
+                    {new Date(selectedGuide.submittedAt).toLocaleString()}
+                  </p>
                   {selectedGuide.reviewedAt && (
-                    <p><span className="font-medium">Reviewed At:</span> {new Date(selectedGuide.reviewedAt).toLocaleString()}</p>
+                    <p>
+                      <span className="font-medium">Reviewed At:</span>{" "}
+                      {new Date(selectedGuide.reviewedAt).toLocaleString()}
+                    </p>
                   )}
                   {selectedGuide.reviewNotes && (
-                    <p><span className="font-medium">Review Notes:</span> {selectedGuide.reviewNotes}</p>
+                    <p>
+                      <span className="font-medium">Review Notes:</span> {selectedGuide.reviewNotes}
+                    </p>
                   )}
                 </div>
 
                 {/* Bio */}
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <h3 className="font-semibold mb-2 flex items-center gap-2 ">
                     <FaListAlt /> Bio
                   </h3>
                   <p>{selectedGuide.bio || "Not provided"}</p>
@@ -327,21 +360,35 @@ const GuidesPage = () => {
                     </h3>
                     <ul className="list-disc pl-5">
                       {selectedGuide.languages.map((language, i) => (
-                        <li key={i}>{language}</li>
+                        <li key={i}>{language.languageName}</li> // Render languageName instead of the object
                       ))}
                     </ul>
                   </div>
                 )}
 
-                {/* Service Locations */}
-                {selectedGuide.serviceLocations && selectedGuide.serviceLocations.length > 0 && (
+                {/* States (Service Locations) */}
+                {selectedGuide.states && selectedGuide.states.length > 0 && (
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="font-semibold mb-2 flex items-center gap-2">
-                      <FaMapMarkerAlt /> Service Locations
+                      <FaMapMarkerAlt /> States
                     </h3>
                     <ul className="list-disc pl-5">
-                      {selectedGuide.serviceLocations.map((location, i) => (
-                        <li key={i}>{location}</li>
+                      {selectedGuide.states.map((state, i) => (
+                        <li key={i}>{state.stateName}</li> // Render stateName instead of the object
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Cities */}
+                {selectedGuide.cities && selectedGuide.cities.length > 0 && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <FaMapMarkerAlt /> Cities
+                    </h3>
+                    <ul className="list-disc pl-5">
+                      {selectedGuide.cities.map((city, i) => (
+                        <li key={i}>{city.cityName}</li> // Render cityName instead of the object
                       ))}
                     </ul>
                   </div>
@@ -421,7 +468,9 @@ const GuidesPage = () => {
                     <h3 className="font-semibold mb-2 flex items-center gap-2">
                       <FaMoneyBillWave /> Bank Details
                     </h3>
-                    <p><span className="font-medium">Account Number:</span> {selectedGuide.bankAccountNumber}</p>
+                    <p>
+                      <span className="font-medium">Account Number:</span> {selectedGuide.bankAccountNumber}
+                    </p>
                   </div>
                 )}
 
@@ -431,9 +480,9 @@ const GuidesPage = () => {
                     <h3 className="font-semibold mb-2 flex items-center gap-2">
                       <FaIdCard /> Aadhar Card
                     </h3>
-                    <img 
-                      src={selectedGuide.aadharCardPhoto} 
-                      alt="Aadhar Card" 
+                    <img
+                      src={selectedGuide.aadharCardPhoto}
+                      alt="Aadhar Card"
                       className="mt-2 rounded border border-gray-300 max-w-full h-auto"
                     />
                   </div>

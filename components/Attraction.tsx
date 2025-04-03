@@ -143,7 +143,7 @@ export default function AttractionsCarousel({ selectedCity }: AttractionsCarouse
         {displayAttractions.map((attraction) => (
           <SwiperSlide key={attraction._id}>
             <Link href={`/guides/attraction/${attraction._id}`}>
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full flex flex-col">
+              <div className="bg-primary rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full flex flex-col">
                 <div className="relative h-60 overflow-hidden">
                   <Image
                     src={attraction.images[0] || '/images/default-attraction.jpg'}
@@ -166,19 +166,19 @@ export default function AttractionsCarousel({ selectedCity }: AttractionsCarouse
                 </div>
                 
                 <div className="p-5 flex-grow">
-                  <h3 className="text-xl font-bold text-gray-800 mb-2 line-clamp-2">
+                  <h3 className="text-xl font-bold text-white mb-2 line-clamp-2">
                     {attraction.name}
                   </h3>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                  <p className="text-white text-sm mb-4 line-clamp-2">
                     {attraction.description}
                   </p>
                   
-                  <div className="flex items-center text-gray-500 text-sm mb-3">
+                  <div className="flex items-center text-white text-sm mb-3">
                     <MapPin className="h-4 w-4 mr-1" />
                     <span>{attraction.city}</span>
                   </div>
                   
-                  <div className="flex items-center text-gray-500 text-sm mb-4">
+                  <div className="flex items-center text-white text-sm mb-4">
                     <Clock className="h-4 w-4 mr-1" />
                     <span>{attraction.duration || 'Flexible duration'}</span>
                   </div>
