@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Camera, Save } from "lucide-react";
-import toast from "react-hot-toast";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import Select from "react-select";
@@ -16,7 +15,6 @@ const genderOptions = [
 const EditProfilePage = () => {
   const [profile, setProfile] = useState<any | null>(null);
   const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
-  const [aadharCardFile, setAadharCardFile] = useState<File | null>(null);
   const [countries, setCountries] = useState<any[]>([]);
   const [states, setStates] = useState<any[]>([]);
   const [activitiesList, setActivitiesList] = useState<any[]>([]);
@@ -24,6 +22,7 @@ const EditProfilePage = () => {
   const [cities, setCities] = useState<any[]>([]);
   const [serviceLocations, setServiceLocations] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { user } = useAuth();
 
   // Fetch Cities
@@ -38,7 +37,6 @@ const EditProfilePage = () => {
         setCities(cityOptions);
       } catch (error) {
         console.error("Error fetching cities:", error);
-        toast.error("Failed to load cities");
       }
     };
 
@@ -82,7 +80,8 @@ const EditProfilePage = () => {
             activities: Array.isArray(response.data.activities) ? response.data.activities : [],
             languages: Array.isArray(response.data.languages) ? response.data.languages : [],
             bankAccountNumber: response.data.bankAccountNumber || "",
-            aadharCardPhoto: response.data.aadharCardPhoto || "https://picsum.photos/300/300?grayscale",
+            ifscCode: response.data.ifscCode || "",
+            bankName: response.data.bankName || "",
             profilePic: response.data.profilePic || "https://picsum.photos/300/300?grayscale",
             serviceLocations: response.data.serviceLocations || [],
           });
@@ -104,13 +103,13 @@ const EditProfilePage = () => {
             activities: [],
             languages: [],
             bankAccountNumber: "",
-            aadharCardPhoto: "https://picsum.photos/300/300?grayscale",
+            ifscCode: "",
+            bankName: "",
             profilePic: "https://picsum.photos/300/300?grayscale",
             serviceLocations: [],
           });
         } else {
           console.error("Error fetching profile:", error);
-          toast.error("Failed to fetch profile.");
         }
       }
     };
@@ -158,7 +157,6 @@ const EditProfilePage = () => {
         );
       } catch (error) {
         console.error("Error fetching data:", error);
-        toast.error("Failed to fetch required data.");
       }
     };
 
@@ -173,16 +171,12 @@ const EditProfilePage = () => {
     }
   };
 
-  const handleAadharCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAadharCardFile(file);
-      setProfile((prev) => (prev ? { ...prev, aadharCardPhoto: URL.createObjectURL(file) } : prev));
-    }
-  };
-
   const handleInputChange = (key: string, value: string | string[] | null) => {
     setProfile((prev) => (prev ? { ...prev, [key]: Array.isArray(value) ? value : value } : prev));
+    // Clear error when user starts typing
+    if (errors[key]) {
+      setErrors(prev => ({ ...prev, [key]: '' }));
+    }
   };
 
   const handleServiceLocationsChange = (selectedOptions: any) => {
@@ -191,42 +185,45 @@ const EditProfilePage = () => {
       ...prev,
       serviceLocations: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : [],
     }));
+    if (errors.serviceLocations) {
+      setErrors(prev => ({ ...prev, serviceLocations: '' }));
+    }
   };
 
   const validateProfile = (profile: any) => {
-    const errors: { [key: string]: string } = {};
+    const newErrors: { [key: string]: string } = {};
 
-    if (!profile.firstName.trim()) errors.firstName = "First Name is required.";
-    if (!profile.lastName.trim()) errors.lastName = "Last Name is required.";
+    if (!profile.firstName.trim()) newErrors.firstName = "First Name is required";
+    if (!profile.lastName.trim()) newErrors.lastName = "Last Name is required";
     if (!profile.phoneNumber.trim()) {
-      errors.phoneNumber = "Phone Number is required.";
+      newErrors.phoneNumber = "Phone Number is required";
     } else if (!/^\d{10,15}$/.test(profile.phoneNumber)) {
-      errors.phoneNumber = "Phone Number must be 10-15 digits.";
+      newErrors.phoneNumber = "Phone Number must be 10-15 digits";
     }
-    if (!profile.bio.trim()) errors.bio = "Bio is required.";
-    if (!profile.gender) errors.gender = "Gender is required.";
+    if (!profile.bio.trim()) newErrors.bio = "Bio is required";
+    if (!profile.gender) newErrors.gender = "Gender is required";
     if (!profile.languages || profile.languages.length === 0)
-      errors.languages = "At least one language must be selected.";
+      newErrors.languages = "At least one language must be selected";
     if (!profile.activities || profile.activities.length === 0)
-      errors.activities = "At least one activity must be selected.";
-    if (!profile.country) errors.country = "Country is required.";
-    if (!profile.state) errors.state = "State is required.";
+      newErrors.activities = "At least one activity must be selected";
+    if (!profile.country) newErrors.country = "Country is required";
+    if (!profile.state) newErrors.state = "State is required";
     if (!profile.bankAccountNumber.trim())
-      errors.bankAccountNumber = "Bank Account Number is required.";
+      newErrors.bankAccountNumber = "Bank Account Number is required";
+    if (!profile.ifscCode.trim()) newErrors.ifscCode = "IFSC Code is required";
+    if (!profile.bankName.trim()) newErrors.bankName = "Bank Name is required";
     if (!profile.serviceLocations || profile.serviceLocations.length === 0)
-      errors.serviceLocations = "At least one service location must be selected.";
+      newErrors.serviceLocations = "At least one service location must be selected";
 
-    return errors;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
     if (!profile) return;
 
-    const errors = validateProfile(profile);
-    if (Object.keys(errors).length > 0) {
-      Object.values(errors).forEach((error) => toast.error(error));
-      return;
-    }
+    const isValid = validateProfile(profile);
+    if (!isValid) return;
 
     setIsSaving(true);
     try {
@@ -243,15 +240,14 @@ const EditProfilePage = () => {
       profile.activities.forEach((activity: string) => formData.append("activities", activity));
       profile.languages.forEach((language: string) => formData.append("languages", language));
       formData.append("bankAccountNumber", profile.bankAccountNumber);
+      formData.append("ifscCode", profile.ifscCode);
+      formData.append("bankName", profile.bankName);
       profile.serviceLocations.forEach((location: string) =>
         formData.append("serviceLocations", location)
       );
 
       if (profilePicFile) {
         formData.append("profilePic", profilePicFile);
-      }
-      if (aadharCardFile) {
-        formData.append("aadharCardPhoto", aadharCardFile);
       }
 
       const response = await axios.put(
@@ -267,13 +263,9 @@ const EditProfilePage = () => {
       setProfile((prev) => ({
         ...prev,
         profilePic: response.data.data.guideProfile.profilePic || prev.profilePic,
-        aadharCardPhoto: response.data.data.guideProfile.aadharCardPhoto || prev.aadharCardPhoto,
       }));
-
-      toast.success("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error("Failed to update profile.");
     } finally {
       setIsSaving(false);
     }
@@ -329,9 +321,10 @@ const EditProfilePage = () => {
               type="text"
               value={profile[key] || ""}
               onChange={(e) => handleInputChange(key, e.target.value)}
-              className="w-full mt-1 p-2 border rounded-lg"
+              className={`w-full mt-1 p-2 border rounded-lg ${errors[key] ? 'border-red-500' : ''}`}
               readOnly={readOnly}
             />
+            {errors[key] && <p className="text-red-500 text-sm mt-1">{errors[key]}</p>}
           </div>
         ))}
 
@@ -340,9 +333,10 @@ const EditProfilePage = () => {
           <textarea
             value={profile.bio || ""}
             onChange={(e) => handleInputChange("bio", e.target.value)}
-            className="w-full mt-1 p-2 border rounded-lg resize-none h-24"
+            className={`w-full mt-1 p-2 border rounded-lg resize-none h-24 ${errors.bio ? 'border-red-500' : ''}`}
             placeholder="Tell us about yourself and your guiding experience..."
           />
+          {errors.bio && <p className="text-red-500 text-sm mt-1">{errors.bio}</p>}
         </div>
 
         <div>
@@ -361,28 +355,34 @@ const EditProfilePage = () => {
             type="text"
             value={profile.bankAccountNumber || ""}
             onChange={(e) => handleInputChange("bankAccountNumber", e.target.value)}
-            className="w-full mt-1 p-2 border rounded-lg"
-            placeholder="Enter your bank account details"
+            className={`w-full mt-1 p-2 border rounded-lg ${errors.bankAccountNumber ? 'border-red-500' : ''}`}
+            placeholder="Enter your bank account number"
           />
+          {errors.bankAccountNumber && <p className="text-red-500 text-sm mt-1">{errors.bankAccountNumber}</p>}
         </div>
 
-        <div className="col-span-1 md:col-span-2">
-          <label className="font-medium">Aadhar Card Photo</label>
+        <div>
+          <label className="font-medium">IFSC Code</label>
           <input
-            type="file"
-            onChange={handleAadharCardChange}
-            className="w-full mt-1 p-2 border rounded-lg"
-            accept="image/*"
+            type="text"
+            value={profile.ifscCode || ""}
+            onChange={(e) => handleInputChange("ifscCode", e.target.value)}
+            className={`w-full mt-1 p-2 border rounded-lg ${errors.ifscCode ? 'border-red-500' : ''}`}
+            placeholder="Enter your IFSC code"
           />
-          {profile.aadharCardPhoto && (
-            <Image
-              src={profile.aadharCardPhoto}
-              alt="Aadhar Card Photo"
-              width={100}
-              height={100}
-              className="mt-2 rounded-lg"
-            />
-          )}
+          {errors.ifscCode && <p className="text-red-500 text-sm mt-1">{errors.ifscCode}</p>}
+        </div>
+
+        <div>
+          <label className="font-medium">Bank Name</label>
+          <input
+            type="text"
+            value={profile.bankName || ""}
+            onChange={(e) => handleInputChange("bankName", e.target.value)}
+            className={`w-full mt-1 p-2 border rounded-lg ${errors.bankName ? 'border-red-500' : ''}`}
+            placeholder="Enter your bank name"
+          />
+          {errors.bankName && <p className="text-red-500 text-sm mt-1">{errors.bankName}</p>}
         </div>
 
         <div>
@@ -392,7 +392,10 @@ const EditProfilePage = () => {
             value={genderOptions.find((option) => option.value === profile.gender)}
             onChange={(selected) => handleInputChange("gender", selected?.value)}
             className="mt-1"
+            classNamePrefix="select"
+            className={`${errors.gender ? 'border-red-500 rounded-lg' : ''}`}
           />
+          {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender}</p>}
         </div>
 
         <div>
@@ -405,7 +408,10 @@ const EditProfilePage = () => {
               handleInputChange("languages", selected?.map((item) => item.value) || [])
             }
             className="mt-1"
+            classNamePrefix="select"
+            className={`${errors.languages ? 'border-red-500 rounded-lg' : ''}`}
           />
+          {errors.languages && <p className="text-red-500 text-sm mt-1">{errors.languages}</p>}
         </div>
 
         <div>
@@ -418,7 +424,10 @@ const EditProfilePage = () => {
               handleInputChange("activities", selected?.map((item) => item.value) || [])
             }
             className="mt-1"
+            classNamePrefix="select"
+            className={`${errors.activities ? 'border-red-500 rounded-lg' : ''}`}
           />
+          {errors.activities && <p className="text-red-500 text-sm mt-1">{errors.activities}</p>}
         </div>
 
         <div>
@@ -428,7 +437,10 @@ const EditProfilePage = () => {
             value={countries.find((option) => option.value === profile.country)}
             onChange={(selected) => handleInputChange("country", selected?.value)}
             className="mt-1"
+            classNamePrefix="select"
+            className={`${errors.country ? 'border-red-500 rounded-lg' : ''}`}
           />
+          {errors.country && <p className="text-red-500 text-sm mt-1">{errors.country}</p>}
         </div>
 
         <div>
@@ -438,7 +450,10 @@ const EditProfilePage = () => {
             value={states.find((option) => option.value === profile.state)}
             onChange={(selected) => handleInputChange("state", selected?.value)}
             className="mt-1"
+            classNamePrefix="select"
+            className={`${errors.state ? 'border-red-500 rounded-lg' : ''}`}
           />
+          {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
         </div>
 
         <div className="col-span-1 md:col-span-2">
@@ -451,14 +466,17 @@ const EditProfilePage = () => {
             placeholder="Select cities where you offer services"
             isLoading={cities.length === 0}
             className="mt-1"
+            classNamePrefix="select"
+            className={`${errors.serviceLocations ? 'border-red-500 rounded-lg' : ''}`}
           />
+          {errors.serviceLocations && <p className="text-red-500 text-sm mt-1">{errors.serviceLocations}</p>}
         </div>
       </div>
 
       <button
         onClick={handleSave}
         disabled={isSaving}
-        className="mt-6 w-full md:w-auto px-4 py-2 bg-button bg-opacity-90 text-white rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="mt-6 w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
       >
         {isSaving ? (
           "Saving..."

@@ -6,32 +6,78 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { Footer } from "@/components/Footer";
+import Select from "react-select";
+
+interface Activity {
+  label: string;
+  value: string;
+}
 
 const BookingForm = () => {
   const router = useRouter();
   const params = useParams();
   const { user } = useAuth();
   const [token, setToken] = useState<string | null>(null);
-  const [paymentMode, setPaymentMode] = useState<"online" | "cash">("online");
   const [conversationError, setConversationError] = useState<string | null>(null);
-  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [selectedActivities, setSelectedActivities] = useState<Activity[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+  const [bookingConflict, setBookingConflict] = useState<{
+    show: boolean;
+    dates?: { start: string; end: string };
+  }>({ show: false });
 
   const [formData, setFormData] = useState({
     startDate: "",
     endDate: "",
     budget: "",
+    pickupLocation: "",
+    dropoffLocation: "",
+    activities: [] as string[],
   });
 
-  const guideId = params.id;
+  const guideId = Array.isArray(params.id) ? params.id[0] : params.id;
   
   useEffect(() => {
     const token = localStorage.getItem("token");
-    console.log("Token retrieved from localStorage:", token);
     setToken(token);
   }, []);
 
+  // Fetch guide's activities
+  useEffect(() => {
+    const fetchGuideActivities = async () => {
+      try {
+        if (!guideId) return;
+        
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${guideId}`
+        );
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch guide profile");
+        }
+        
+        const guideData = await response.json();
+        const guideActivities = guideData.activities || [];
+        
+        const activityOptions = guideActivities.map((activity: string) => ({
+          label: activity,
+          value: activity
+        }));
+        
+        setActivities(activityOptions);
+      } catch (error) {
+        console.error("Error fetching guide activities:", error);
+        toast.error("Failed to load guide's activities");
+      } finally {
+        setLoadingActivities(false);
+      }
+    };
+
+    fetchGuideActivities();
+  }, [guideId]);
+
   const fetchLastBudget = async (userId: string, guideId: string, token: string): Promise<string | null> => {
-    console.log("Fetching last budget for user:", userId, "guide:", guideId);
     try {
       if (!token) {
         throw new Error("Authentication token is missing");
@@ -44,7 +90,6 @@ const BookingForm = () => {
 
       if (!conversationRes.ok) {
         if (conversationRes.status === 404) {
-          console.log("No conversation found between user and guide");
           setConversationError("No conversation found. Please start a chat with the guide.");
           return null;
         }
@@ -52,7 +97,6 @@ const BookingForm = () => {
       }
 
       const conversationData = await conversationRes.json();
-      console.log("Conversation data:", conversationData);
 
       const budgetRes = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/chats/conversations/${conversationData.conversationId}/lastBudget`,
@@ -61,7 +105,6 @@ const BookingForm = () => {
 
       if (!budgetRes.ok) {
         if (budgetRes.status === 404) {
-          console.log("No budget found in conversation");
           setConversationError("No budget found. Discuss the budget with the guide.");
           return null;
         }
@@ -69,7 +112,6 @@ const BookingForm = () => {
       }
 
       const lastBudgetMessage = await budgetRes.json();
-      console.log("Last budget message:", lastBudgetMessage);
       return lastBudgetMessage.message;
     } catch (error) {
       console.error("Error fetching budget:", error);
@@ -78,10 +120,8 @@ const BookingForm = () => {
     }
   };
 
-  const createBooking = async (paymentType: "online" | "cash"): Promise<string | null> => {
-    console.log("Creating booking with payment type:", paymentType);
+  const createBooking = async () => {
     if (!user?.id || !guideId) {
-      console.error("User or Guide ID is missing");
       toast.error("User or Guide ID is missing.");
       return null;
     }
@@ -92,14 +132,12 @@ const BookingForm = () => {
       startDate: formData.startDate,
       endDate: formData.endDate,
       budget: formData.budget,
-      places: ["Goa", "Mumbai"],
-      duration: 5,
-      status: paymentType === "cash" ? "pending" : "confirmed",
-      paymentMode: paymentType,
-      paymentStatus: paymentType === "cash" ? "pending" : "paid",
+      pickupLocation: formData.pickupLocation,
+      dropoffLocation: formData.dropoffLocation,
+      activities: formData.activities,
+      status: "pending",
+      paymentStatus: "pending",
     };
-
-    console.log("Booking payload:", bookingPayload);
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings`, {
@@ -112,56 +150,34 @@ const BookingForm = () => {
       });
 
       const data = await response.json();
-      console.log("Booking creation response:", data);
 
-      if (data.message === "Booking created successfully!") {
-        console.log("Booking created successfully with ID:", data.booking._id);
-        toast.success("Booking created successfully!");
-        return data.booking._id;
-      } else {
-        console.error("Failed to create booking:", data);
-        toast.error("Failed to create booking.");
-        return null;
+      if (!response.ok) {
+        if (data.message === "Guide is already booked for the selected dates") {
+          setBookingConflict({
+            show: true,
+            dates: data.conflictingDates,
+          });
+          return null;
+        }
+        throw new Error(data.message || "Failed to create booking");
       }
+
+      toast.success("Booking created successfully!");
+      return data.booking._id;
     } catch (error) {
       console.error("Error creating booking:", error);
-      toast.error("Something went wrong. Try again.");
+      if (!(error instanceof Error && error.message.includes("already booked"))) {
+        toast.error("Something went wrong. Try again.");
+      }
       return null;
     }
   };
 
-  const loadRazorpayScript = () => {
-    console.log("Loading Razorpay script...");
-    return new Promise((resolve, reject) => {
-      if (window.Razorpay) {
-        console.log("Razorpay already loaded");
-        return resolve(true);
-      }
-
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      script.onload = () => {
-        console.log("Razorpay script loaded successfully");
-        resolve(true);
-      };
-      script.onerror = () => {
-        console.error("Failed to load Razorpay script");
-        toast.error("Failed to load Razorpay. Check your connection.");
-        reject(false);
-      };
-
-      document.body.appendChild(script);
-    });
-  };
-
   useEffect(() => {
     if (user?.id && guideId && token) {
-      console.log("Fetching last budget for user:", user.id, "guide:", guideId);
       fetchLastBudget(user.id, guideId, token).then((data) => {
         if (data) {
           const extractedBudget = data.replace(/\D/g, "");
-          console.log("Extracted budget:", extractedBudget);
           setFormData((prev) => ({ ...prev, budget: extractedBudget }));
         }
       });
@@ -170,152 +186,57 @@ const BookingForm = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    console.log("Form field changed:", name, value);
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear conflict message when dates change
+    if (name === "startDate" || name === "endDate") {
+      setBookingConflict({ show: false });
+    }
+  };
+
+  const handleActivitiesChange = (selectedOptions: any) => {
+    setSelectedActivities(selectedOptions || []);
+    setFormData(prev => ({
+      ...prev,
+      activities: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : []
+    }));
   };
 
   const validateForm = () => {
-    console.log("Validating form data:", formData);
-    const { startDate, endDate, budget } = formData;
+    const { startDate, endDate, budget, pickupLocation, dropoffLocation } = formData;
     const today = new Date().toISOString().split("T")[0];
 
-    if (!startDate || !endDate || !budget) {
-      console.error("Validation failed: All fields are required");
+    if (!startDate || !endDate || !budget || !pickupLocation || !dropoffLocation) {
       toast.error("All fields are required.");
       return false;
     }
 
     if (startDate < today) {
-      console.error("Validation failed: Start date in past");
       toast.error("Start date cannot be in the past.");
       return false;
     }
 
     if (endDate <= startDate) {
-      console.error("Validation failed: End date before start date");
       toast.error("End date should be after the start date.");
       return false;
     }
 
     if (isNaN(Number(budget)) || Number(budget) <= 0) {
-      console.error("Validation failed: Invalid budget");
       toast.error("Budget must be a valid positive number.");
       return false;
     }
 
-    console.log("Form validation successful");
     return true;
   };
 
-  const handlePayment = async () => {
-    console.log("Payment initiated with mode:", paymentMode);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBookingConflict({ show: false }); // Reset conflict message
+    
     if (!validateForm()) return;
-  
-    if (paymentMode === "cash") {
-      console.log("Processing cash payment...");
-      const bookingId = await createBooking("cash");
-      if (bookingId) {
-        console.log("Cash booking successful. Redirecting to booking:", bookingId);
-        router.push(`/bookings/${bookingId}`);
-      }
-      return;
-    }
-  
-    console.log("Processing online payment...");
-    const scriptLoaded = await loadRazorpayScript();
-    if (!scriptLoaded) {
-      return;
-    }
-  
-    try {
-      // First create the booking record
-      console.log("Creating booking record for online payment...");
-      const newBookingId = await createBooking("online");
-      if (!newBookingId) {
-        return;
-      }
-      console.log("Booking created with ID:", newBookingId);
-  
-      // Then create the payment order with this booking ID
-      console.log("Creating payment order for booking:", newBookingId);
-      const orderPayload = { 
-        amount: formData.budget, 
-        currency: "INR",
-        bookingId: newBookingId
-      };
-  
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/create-order`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(orderPayload),
-      });
-      
-      const orderData = await res.json();
-      console.log("Order creation response:", orderData);
-  
-      if (!orderData.order) {
-        toast.error("Failed to create Razorpay order");
-        return;
-      }
-  
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderData.order.amount,
-        currency: orderData.order.currency,
-        name: "TravelerConnect",
-        description: `Booking Payment (ID: ${newBookingId})`,
-        order_id: orderData.order.id,
-        handler: async function (response: any) {
-          console.log("Razorpay payment response received:", response);
-          console.log("Verifying payment for booking:", newBookingId);
-          
-          const verificationPayload = {
-            orderId: response.razorpay_order_id,
-            paymentId: response.razorpay_payment_id,
-            signature: response.razorpay_signature,
-            bookingId: newBookingId
-          };
-  
-          try {
-            const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/verify-payment`, {
-              method: "POST",
-              headers: { 
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify(verificationPayload),
-            });
-        
-            const verifyData = await verifyRes.json();
-            console.log("Payment verification response:", verifyData);
-        
-            if (verifyData.success) {
-              toast.success("Payment successful!");
-              router.push(`/bookings/${newBookingId}`);
-            } else {
-              toast.error("Payment verification failed.");
-            }
-          } catch (error) {
-            console.error("Verification error:", error);
-            toast.error("Payment verification failed. Please contact support.");
-          }
-        },
-        prefill: {
-          name: user?.name || "Traveler",
-          email: user?.email || "traveler@example.com",
-        },
-        theme: { color: "#1a202c" },
-      };
-      
-      const razorpay = new (window as any).Razorpay(options);
-      razorpay.open();
-      
-    } catch (error) {
-      console.error("Payment processing error:", error);
-      toast.error("Something went wrong. Try again.");
+
+    const bookingId = await createBooking();
+    if (bookingId) {
+      router.push(`/bookings/${bookingId}`);
     }
   };
 
@@ -340,57 +261,114 @@ const BookingForm = () => {
         <div className="text-2xl py-4 px-6 bg-gray-900 text-white text-center font-bold uppercase">
           Booking Form
         </div>
-        <form className="py-4 px-6">
-          <input
-            type="date"
-            name="startDate"
-            value={formData.startDate}
-            onChange={handleInputChange}
-            required
-            className="mb-4 w-full px-3 py-2 border rounded"
-          />
-          <input
-            type="date"
-            name="endDate"
-            value={formData.endDate}
-            onChange={handleInputChange}
-            required
-            className="mb-4 w-full px-3 py-2 border rounded"
-          />
-          <input
-            type="number"
-            name="budget"
-            value={formData.budget}
-            onChange={handleInputChange}
-            required
-            className="mb-4 w-full px-3 py-2 border rounded"
-            placeholder="Enter Budget"
-            readOnly
-          />
+        
+        {/* Booking conflict message */}
+        {bookingConflict.show && (
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mx-6 mt-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-700">
+                  The guide is already booked from {new Date(bookingConflict.dates?.start || '').toLocaleDateString()} to {new Date(bookingConflict.dates?.end || '').toLocaleDateString()}. 
+                  Please choose different dates or contact the guide for availability.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <form className="py-4 px-6" onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-            <select
-              value={paymentMode}
-              onChange={(e) => {
-                console.log("Payment mode changed to:", e.target.value);
-                setPaymentMode(e.target.value as "online" | "cash");
-              }}
+            <label className="block text-gray-700 mb-2">Start Date</label>
+            <input
+              type="date"
+              name="startDate"
+              value={formData.startDate}
+              onChange={handleInputChange}
+              required
               className="w-full px-3 py-2 border rounded"
-            >
-              <option value="online">Online Payment (Razorpay)</option>
-              <option value="cash">Cash on Hand</option>
-            </select>
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2">End Date</label>
+            <input
+              type="date"
+              name="endDate"
+              value={formData.endDate}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 border rounded"
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2">Pickup Location</label>
+            <input
+              type="text"
+              name="pickupLocation"
+              value={formData.pickupLocation}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 border rounded"
+              placeholder="Enter pickup location"
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2">Dropoff Location</label>
+            <input
+              type="text"
+              name="dropoffLocation"
+              value={formData.dropoffLocation}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 border rounded"
+              placeholder="Enter dropoff location"
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2">Budget</label>
+            <input
+              type="number"
+              name="budget"
+              value={formData.budget}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 border rounded"
+              placeholder="Enter budget"
+              readOnly
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2">Select Activities</label>
+            <Select
+              options={activities}
+              value={selectedActivities}
+              onChange={handleActivitiesChange}
+              isMulti
+              isLoading={loadingActivities}
+              placeholder={loadingActivities ? "Loading activities..." : "Select activities..."}
+              className="basic-multi-select"
+              classNamePrefix="select"
+            />
           </div>
 
           {conversationError && (
             <p className="text-sm text-red-500 mb-4">{conversationError}</p>
           )}
+          
           <button
-            type="button"
+            type="submit"
             className="bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 w-full"
-            onClick={handlePayment}
           >
-            Proceed to Payment
+            Create Booking
           </button>
         </form>
       </div>
