@@ -29,7 +29,7 @@ const GuideSignIn = () => {
     if (!password.trim()) {
       newErrors.password = "Password is required.";
       isValid = false;
-    } else if (password.length < 6) {
+    } else if (password.length < 4) {
       newErrors.password = "Password must be at least 6 characters.";
       isValid = false;
     }
@@ -41,25 +41,32 @@ const GuideSignIn = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-
+  
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/guide/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Login failed");
-
+  
+      const data = await res.json(); // parse response
+  
+      if (!res.ok) {
+        const errorMsg = data?.error || data?.message || "Login failed";
+        setError(errorMsg);
+      
+        return;
+      }
+  
       localStorage.setItem("token", data.token);
       toast.success("Login successful!");
-      router.push("/guides/dashboard");
+      router.push("/");
     } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
+      const fallbackMsg = err?.message || "Something went wrong";
+      setError(fallbackMsg);
     }
   };
+  
 
   return (
     <>

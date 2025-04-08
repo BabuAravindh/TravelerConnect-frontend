@@ -2,7 +2,19 @@
 import { useState, useEffect } from "react";
 import axios, { AxiosError } from "axios";
 import Link from "next/link";
-import { Calendar, CheckCircle, User, Mail, Phone, Languages, RotateCcw, CreditCard, Banknote, ChevronDown } from "lucide-react";
+import { 
+  Calendar, 
+  CheckCircle, 
+  User, 
+  Mail, 
+  Phone, 
+  Languages, 
+  RotateCcw, 
+  CreditCard, 
+  Banknote, 
+  ChevronDown, 
+  Activity 
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 declare global {
@@ -28,6 +40,7 @@ type Booking = {
   paymentStatus?: string;
   totalPaid?: number;
   remainingBalance?: number;
+  activities: string[];
 };
 
 type PaymentHistory = {
@@ -39,6 +52,7 @@ type PaymentHistory = {
   date: Date;
   installmentNumber: number;
   receiptId: string;
+  screenshotUrl?: string; // Added to store screenshot URL or failure message
 };
 
 const loadRazorpayScript = () => {
@@ -58,12 +72,15 @@ const loadRazorpayScript = () => {
 
 export default function UserBookings() {
   const { user } = useAuth();
+  
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [paymentHistory, setPaymentHistory] = useState<Record<string, PaymentHistory[]>>({});
   const [paymentAmounts, setPaymentAmounts] = useState<{ [key: string]: number }>({});
   const [paymentMethods, setPaymentMethods] = useState<{ [key: string]: string }>({});
+  const [screenshots, setScreenshots] = useState<{ [key: string]: File | null }>({}); // New state for screenshot files
   const [showManualPayment, setShowManualPayment] = useState<{ [key: string]: boolean }>({});
+  const [showPaymentHistory, setShowPaymentHistory] = useState<{ [key: string]: boolean }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -94,6 +111,7 @@ export default function UserBookings() {
             paymentStatus: booking?.paymentStatus || "pending",
             totalPaid: booking?.totalPaid || 0,
             remainingBalance: booking?.remainingBalance || (booking?.budget || 0),
+            activities: booking?.activities || [],
             duration: booking?.startDate && booking?.endDate 
               ? `${Math.ceil(
                   (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) / (1000 * 60 * 60 * 24)
@@ -110,7 +128,6 @@ export default function UserBookings() {
             const paymentsRes = await axios.get(`${BASE_URL}/api/payment/history/${booking.id}`, {
               headers: { Authorization: `Bearer ${token}` }
             });
-             console.log("Payments response:", paymentsRes.data); 
             paymentMap[booking.id] = paymentsRes.data?.payments?.map((payment: any) => {
               const paymentId = payment?._id || `fallback-payment-${Date.now()}-${Math.random()}`;
               return {
@@ -120,9 +137,9 @@ export default function UserBookings() {
                 status: payment.status || 'unknown',
                 method: payment.method || "unknown",
                 date: payment?.completedAt ? new Date(payment.completedAt) : new Date(),
-                
                 installmentNumber: payment.installmentNumber || 0,
                 receiptId: payment?.payId || '',
+                screenshotUrl: payment?.transactionDetails?.screenshotUrl || undefined, // Include screenshot URL
               };
             }) || [];
           } catch (err) {
@@ -130,13 +147,6 @@ export default function UserBookings() {
             paymentMap[booking.id] = [];
           }
         }));
-
-        // Check for duplicate IDs
-        const bookingIds = mappedBookings.map(b => b.id);
-        const uniqueBookingIds = new Set(bookingIds);
-        if (bookingIds.length !== uniqueBookingIds.size) {
-          console.warn('Duplicate booking IDs found:', bookingIds);
-        }
 
         setBookings(mappedBookings);
         setPaymentHistory(paymentMap);
@@ -150,6 +160,13 @@ export default function UserBookings() {
 
     fetchData();
   }, [user?.id, token]);
+
+  const togglePaymentHistory = (bookingId: string) => {
+    setShowPaymentHistory(prev => ({
+      ...prev,
+      [bookingId]: !prev[bookingId]
+    }));
+  };
 
   const initiatePayment = async (bookingId: string, amount: number, paymentType = "installment") => {
     try {
@@ -190,15 +207,24 @@ export default function UserBookings() {
           prefill: {
             name: user?.name || '',
             email: user?.email || '',
-            contact: user?.phone || '',
+            contact: user?.phone?.toString() || '',
           },
           theme: {
             color: "#4f46e5",
           },
+          modal: {
+            ondismiss: function () {
+              console.log("Checkout form closed");
+            },
+            escape: false,
+          }
         };
+        
+        console.log("➡️ Razorpay prefill:", options.prefill);
 
         new window.Razorpay(options).open();
       }
+      
     } catch (err) {
       const error = err as AxiosError;
       setError((error.response?.data as { message?: string })?.message || error.message || "Payment failed");
@@ -272,40 +298,48 @@ export default function UserBookings() {
     try {
       const amount = paymentAmounts[bookingId] || 0;
       const method = paymentMethods[bookingId] || "cash";
+      const screenshot = screenshots[bookingId];
 
       if (!amount || amount < 1) {
         throw new Error("Invalid amount");
       }
 
+      const formData = new FormData();
+      formData.append("bookingId", bookingId);
+      formData.append("amount", amount.toString());
+      formData.append("paymentMethod", method);
+      formData.append("notes", `${method} payment recorded`);
+      if (method === "bank_transfer") {
+        formData.append("bankName", "Customer Bank");
+        formData.append("accountLast4", "1234");
+      }
+      if (screenshot) {
+        formData.append("screenshot", screenshot);
+      }
+
       const response = await axios.post(
         `${BASE_URL}/api/payment/cash`,
-        {
-          bookingId,
-          amount,
-          paymentMethod: method,
-          notes: `${method} payment recorded`,
-          ...(method === "bank_transfer" && {
-            bankName: "Customer Bank",
-            accountLast4: "1234",
-          }),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+        formData,
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        }
       );
 
       if (response.status === 200) {
-        const { payment, booking } = response.data;
-        
+        const { bookingStatus, message } = response.data;
+        const updatedBooking = {
+          ...bookingStatus,
+          id: bookingId,
+          totalPaid: bookingStatus.totalPaid || 0,
+          remainingBalance: bookingStatus.remainingBalance || 0,
+          paymentStatus: bookingStatus.paymentStatus || 'partial',
+        };
+
         setBookings(prev =>
-          prev.map(b =>
-            b.id === bookingId
-              ? {
-                  ...b,
-                  totalPaid: booking?.totalPaid || 0,
-                  remainingBalance: booking?.remainingBalance || 0,
-                  paymentStatus: booking?.paymentStatus || 'partial',
-                }
-              : b
-          )
+          prev.map(b => b.id === bookingId ? updatedBooking : b)
         );
 
         setPaymentHistory(prev => ({
@@ -313,21 +347,23 @@ export default function UserBookings() {
           [bookingId]: [
             ...(prev[bookingId] || []),
             {
-              id: payment?._id || `manual-payment-${Date.now()}`,
-              amount: payment?.amount || 0,
-              paymentType: payment?.paymentType || 'manual',
-              status: payment?.paymentStatus || 'completed',
-              method: payment?.modeOfPaymentId?.modeOfPayment || method,
-              date: payment?.completedAt ? new Date(payment.completedAt) : new Date(),
-              installmentNumber: payment?.installmentNumber || 0,
-              receiptId: payment?.payId || '',
+              id: `manual-payment-${Date.now()}`,
+              amount: amount,
+              paymentType: bookingStatus.remainingBalance === 0 ? "full" : "installment",
+              status: "pending", // Initial status from backend
+              method: method,
+              date: new Date(),
+              installmentNumber: (prev[bookingId]?.length || 0) + 1,
+              receiptId: `${method}_${Date.now()}`,
+              screenshotUrl: message?.includes("with screenshot") ? "Uploaded successfully" : "Upload failed",
             },
           ],
         }));
 
-        setSuccessMessage(`₹${amount} ${method} payment recorded!`);
+        setSuccessMessage(`${message || `₹${amount} ${method} payment recorded!`}`);
         setTimeout(() => setSuccessMessage(null), 5000);
         setPaymentAmounts(prev => ({ ...prev, [bookingId]: 0 }));
+        setScreenshots(prev => ({ ...prev, [bookingId]: null }));
         setShowManualPayment(prev => ({ ...prev, [bookingId]: false }));
       }
     } catch (err) {
@@ -481,46 +517,66 @@ export default function UserBookings() {
                           <Languages className="h-4 w-4 mr-2 text-gray-500" />
                           <span>{booking.guideLanguages}</span>
                         </div>
+                        <div className="flex items-center">
+                          <Activity className="h-4 w-4 mr-2 text-gray-500" />
+                          <span>{booking.activities.join(", ") || 'N/A'}</span>
+                        </div>
                       </div>
                     </div>
 
                     {paymentHistoryForBooking.length > 0 && (
                       <div className="border-t border-gray-200 pt-4 mb-4">
-                        <h3 className="font-medium text-gray-900 mb-3">Payment History</h3>
-                        <div className="space-y-3">
-                          {paymentHistoryForBooking.map((payment) => (
-                            <div 
-                              key={payment.id} 
-                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
-                            >
-                              <div className="flex items-center gap-3">
-                                {getPaymentMethodIcon(payment.method)}
-                                <div>
-                                  <div className="font-medium text-gray-900">
-                                    ₹{payment.amount} 
-                                    <span className="text-xs text-gray-500 ml-2">
-                                      ({payment.paymentType})
-                                    </span>
+                        <button 
+                          onClick={() => togglePaymentHistory(booking.id)}
+                          className="flex items-center justify-between w-full font-medium text-gray-900 mb-3"
+                        >
+                          <span>Payment History ({paymentHistoryForBooking.length})</span>
+                          <ChevronDown className={`h-5 w-5 transition-transform ${showPaymentHistory[booking.id] ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {showPaymentHistory[booking.id] && (
+                          <div className="max-h-60 overflow-y-auto pr-2">
+                            <div className="space-y-3">
+                              {paymentHistoryForBooking.map((payment) => (
+                                <div 
+                                  key={payment.id} 
+                                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    {getPaymentMethodIcon(payment.method)}
+                                    <div>
+                                      <div className="font-medium text-gray-900">
+                                        ₹{payment.amount} 
+                                        <span className="text-xs text-gray-500 ml-2">
+                                          ({payment.paymentType})
+                                        </span>
+                                      </div>
+                                      <div className="text-xs text-gray-600">
+                                        {payment.method.charAt(0).toUpperCase() + payment.method.slice(1)} • 
+                                        {payment.date.toLocaleDateString()} • 
+                                        Installment #{payment.installmentNumber}
+                                        {payment.screenshotUrl && (
+                                          <span className="block text-xs text-blue-600">
+                                            Screenshot: {payment.screenshotUrl}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-gray-600">
-                                    {payment.method.charAt(0).toUpperCase() + payment.method.slice(1)} • 
-                                    {payment.date.toLocaleDateString()} • 
-                                    Installment #{payment.installmentNumber}
-                                  </div>
+                                  <span 
+                                    className={`text-xs px-2 py-1 rounded-full ${
+                                      payment.status === 'completed' 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-red-100 text-red-800'
+                                    }`}
+                                  >
+                                    {payment.status}
+                                  </span>
                                 </div>
-                              </div>
-                              <span 
-                                className={`text-xs px-2 py-1 rounded-full ${
-                                  payment.status === 'completed' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'
-                                }`}
-                              >
-                                {payment.status}
-                              </span>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -589,6 +645,26 @@ export default function UserBookings() {
                                 <option value="phonepe">PhonePe</option>
                                 <option value="bank_transfer">Bank Transfer</option>
                               </select>
+                            </div>
+
+                            <div className="mb-3">
+                              <label htmlFor={`screenshot-${booking.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+                                Upload Screenshot (Optional, max 5MB)
+                              </label>
+                              <input
+                                id={`screenshot-${booking.id}`}
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file && file.size > 5 * 1024 * 1024) {
+                                    setError("File size exceeds 5MB limit");
+                                    return;
+                                  }
+                                  setScreenshots(prev => ({ ...prev, [booking.id]: file || null }));
+                                }}
+                                className="w-full p-2 border rounded-md"
+                              />
                             </div>
 
                             <button

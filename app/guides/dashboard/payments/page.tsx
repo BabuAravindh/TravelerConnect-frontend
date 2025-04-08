@@ -1,11 +1,11 @@
-"use client"
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import axios from 'axios';
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 import {
   Card,
   CardContent,
-  CardHeader,
   Divider,
   Grid,
   List,
@@ -13,49 +13,108 @@ import {
   ListItemText,
   ListItemIcon,
   Avatar,
-  Badge,
   IconButton,
   Tooltip,
   LinearProgress,
   useTheme,
   Box,
-  Typography
-} from '@mui/material';
+  Typography,
+  Chip,
+  Paper,
+  Collapse,
+  Skeleton,
+  Button,
+} from "@mui/material";
 import {
-  Today as TodayIcon,
-  Person as PersonIcon,
-  Email as EmailIcon,
-  LocationOn as LocationIcon,
-  Event as EventIcon,
-  AttachMoney as MoneyIcon,
-  Payment as PaymentIcon,
-  CheckCircle as CheckIcon,
-  Pending as PendingIcon,
-  Cancel as CancelIcon,
-  ExpandMore as ExpandMoreIcon,
-  ChevronRight as ChevronRightIcon
-} from '@mui/icons-material';
-import { useAuth } from '@/context/AuthContext';
+  Calendar,
+  User,
+  Mail,
+  MapPin,
+  IndianRupee,
+  CreditCard,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Phone,
+  Info,
+  Wallet,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+
+interface Booking {
+  bookingId: string;
+  bookingDate: string;
+  pickupLocation?: string;
+  dropoffLocation?: string;
+  tourDates: { start: string; end: string };
+  budget: number;
+  status: string;
+  paymentStatus: string;
+  totalPaid: number;
+  remainingBalance: number;
+  activities?: string[];
+  customer: { _id: string; name: string; email: string; phone?: string };
+  razorpayOrderId?: string;
+  payments: Payment[];
+}
+
+interface Payment {
+  paymentId: string;
+  amount: number;
+  date: string;
+  status: string;
+  type: string;
+  method: string;
+  proofUrl: string | null;
+  transactionId: string;
+  notes?: string;
+  transactionDetails?: { screenshotUrl?: string };
+}
 
 const GuideBookings = () => {
   const theme = useTheme();
   const router = useRouter();
   const { user } = useAuth();
   const guideId = user?.id;
-  const [bookings, setBookings] = useState([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [expandedBooking, setExpandedBooking] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedBookings, setExpandedBookings] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchGuideBookings = async () => {
       if (!guideId) return;
-      
+
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/payment/guide/${guideId}`);
-        setBookings(response.data.data);
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setError("No authentication token found. Please log in.");
+          return;
+        }
+
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/payment/guide/${guideId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        const data = response.data;
+        setBookings(data.bookings || []);
+        
+        // Initialize all bookings as collapsed by default
+        const initialExpandedState = data.bookings.reduce((acc: Record<string, boolean>, booking: Booking) => {
+          acc[booking.bookingId] = false;
+          return acc;
+        }, {});
+        setExpandedBookings(initialExpandedState);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch bookings');
+        setError(
+          err.response?.data?.message || "Failed to fetch bookings or payments"
+        );
       } finally {
         setLoading(false);
       }
@@ -64,60 +123,119 @@ const GuideBookings = () => {
     fetchGuideBookings();
   }, [guideId]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
     });
   };
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
-  const getStatusIcon = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'completed':
-      case 'paid':
-        return <CheckIcon color="success" />;
-      case 'pending':
-        return <PendingIcon color="warning" />;
-      case 'failed':
-      case 'cancelled':
-        return <CancelIcon color="error" />;
-      default:
-        return <PendingIcon color="info" />;
+  const getStatusChip = (status: string) => {
+    const statusLower = status.toLowerCase();
+    let color: "success" | "warning" | "error" | "default" = "default";
+    let icon = <Info fontSize="small" />;
+
+    if (statusLower.includes("complete") || statusLower.includes("paid")) {
+      color = "success";
+      icon = <CheckCircle fontSize="small" />;
+    } else if (statusLower.includes("pending")) {
+      color = "warning";
+      icon = <Clock fontSize="small" />;
+    } else if (statusLower.includes("fail") || statusLower.includes("cancel")) {
+      color = "error";
+      icon = <XCircle fontSize="small" />;
     }
+
+    return (
+      <Chip
+        icon={icon}
+        label={status}
+        color={color}
+        size="small"
+        variant="outlined"
+        sx={{ ml: 1, textTransform: "capitalize" }}
+      />
+    );
   };
 
-  const toggleBookingExpand = (bookingId) => {
-    setExpandedBooking(expandedBooking === bookingId ? null : bookingId);
+  const toggleBookingDetails = (bookingId: string) => {
+    setExpandedBookings(prev => ({
+      ...prev,
+      [bookingId]: !prev[bookingId]
+    }));
+  };
+
+  const expandAllBookings = () => {
+    const newState: Record<string, boolean> = {};
+    bookings.forEach(booking => {
+      newState[booking.bookingId] = true;
+    });
+    setExpandedBookings(newState);
+  };
+
+  const collapseAllBookings = () => {
+    const newState: Record<string, boolean> = {};
+    bookings.forEach(booking => {
+      newState[booking.bookingId] = false;
+    });
+    setExpandedBookings(newState);
   };
 
   if (loading) {
     return (
-      <Box sx={{ width: '100%', p: 4 }}>
-        <LinearProgress color="primary" />
+      <Box sx={{ p: 4 }}>
+        <Grid container spacing={3}>
+          {[1, 2, 3].map((item) => (
+            <Grid item xs={12} key={item}>
+              <Paper sx={{ p: 3, borderRadius: 3 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Box display="flex" alignItems="center" mb={2}>
+                      <Skeleton variant="circular" width={40} height={40} />
+                      <Box ml={2}>
+                        <Skeleton width={150} height={24} />
+                        <Skeleton width={200} height={20} />
+                      </Box>
+                    </Box>
+                    <Skeleton width="100%" height={60} />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Skeleton width="100%" height={120} />
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
       </Box>
     );
   }
 
   if (error) {
     return (
-      <Card sx={{ maxWidth: 500, mx: 'auto', mt: 4, textAlign: 'center', p: 3 }}>
-        <Typography color="error" variant="h6">
+      <Card sx={{ maxWidth: 600, mx: "auto", mt: 4, textAlign: "center", p: 4 }}>
+        <XCircle
+          color={theme.palette.error.main}
+          size={48}
+          style={{ margin: "0 auto" }}
+        />
+        <Typography variant="h6" color="error" sx={{ mt: 2 }}>
           Error Loading Bookings
         </Typography>
-        <Typography color="text.secondary" sx={{ mt: 2 }}>
+        <Typography color="text.secondary" sx={{ mt: 1, mb: 2 }}>
           {error}
         </Typography>
       </Card>
@@ -126,8 +244,13 @@ const GuideBookings = () => {
 
   if (!bookings.length) {
     return (
-      <Card sx={{ maxWidth: 500, mx: 'auto', mt: 4, textAlign: 'center', p: 3 }}>
-        <Typography variant="h6">
+      <Card sx={{ maxWidth: 500, mx: "auto", mt: 4, textAlign: "center", p: 4 }}>
+        <Calendar
+          color={theme.palette.text.disabled}
+          size={48}
+          style={{ margin: "0 auto" }}
+        />
+        <Typography variant="h6" sx={{ mt: 2 }}>
           No Bookings Found
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1 }}>
@@ -138,215 +261,379 @@ const GuideBookings = () => {
   }
 
   return (
-    <Grid container spacing={3} sx={{ p: 3 }}>
-      <Grid item xs={12}>
-        <Typography variant="h4" component="h1" sx={{ 
-          fontWeight: 700,
-          color: theme.palette.primary.dark,
-          mb: 2
-        }}>
-          Your Tour Bookings
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
-          Manage and view all your assigned tours and payments
-        </Typography>
-      </Grid>
+    <Box sx={{ p: { xs: 2, md: 4 } }}>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontWeight: 700,
+              color: theme.palette.primary.dark,
+              mb: 1,
+            }}
+          >
+            Tour Bookings
+          </Typography>
+          <Typography variant="subtitle1" color="text.secondary">
+            Manage your upcoming and past tour bookings
+          </Typography>
+        </Box>
+        <Box>
+          <Button 
+            size="small" 
+            onClick={expandAllBookings}
+            sx={{ mr: 1 }}
+          >
+            Expand All
+          </Button>
+          <Button 
+            size="small" 
+            onClick={collapseAllBookings}
+          >
+            Collapse All
+          </Button>
+        </Box>
+      </Box>
 
-      {bookings.map((bookingData, index) => (
-        <Grid item xs={12} key={bookingData.booking._id}>
-          <Card sx={{ 
-            borderRadius: 3,
-            boxShadow: theme.shadows[2],
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              boxShadow: theme.shadows[6]
-            }
-          }}>
-            <CardHeader
-              avatar={
-                <Avatar sx={{ 
-                  bgcolor: theme.palette.primary.main,
-                  width: 48, 
-                  height: 48,
-                  fontSize: '1.25rem'
-                }}>
-                  {index + 1}
-                </Avatar>
-              }
-              action={
-                <IconButton onClick={() => toggleBookingExpand(bookingData.booking._id)}>
-                  {expandedBooking === bookingData.booking._id ? (
-                    <ExpandMoreIcon />
-                  ) : (
-                    <ChevronRightIcon />
-                  )}
-                </IconButton>
-              }
-              title={
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="h6" component="span" sx={{ mr: 2 }}>
-                    {formatDate(bookingData.booking.startDate)} - {formatDate(bookingData.booking.endDate)}
-                  </Typography>
-                  <Tooltip title={bookingData.booking.status}>
-                    {getStatusIcon(bookingData.booking.status)}
-                  </Tooltip>
-                </Box>
-              }
-              subheader={
-                <Typography variant="body2" color="text.secondary">
-                  Booked on: {formatDateTime(bookingData.booking.createdAt)}
-                </Typography>
-              }
+      <Grid container spacing={3}>
+        {bookings.map((booking, index) => (
+          <Grid item xs={12} key={booking.bookingId}>
+            <Paper
+              elevation={2}
               sx={{
-                '& .MuiCardHeader-content': {
-                  overflow: 'hidden'
-                }
+                borderRadius: 3,
+                overflow: "hidden",
+                border: `1px solid ${theme.palette.divider}`,
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  boxShadow: theme.shadows[4],
+                },
               }}
-            />
+            >
+              <Box 
+                sx={{ 
+                  p: 3,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  backgroundColor: expandedBookings[booking.bookingId] 
+                    ? theme.palette.action.hover 
+                    : 'transparent',
+                }}
+                onClick={() => toggleBookingDetails(booking.bookingId)}
+              >
+                <Box display="flex" alignItems="center">
+                  <Avatar
+                    sx={{
+                      bgcolor: theme.palette.primary.main,
+                      color: theme.palette.primary.contrastText,
+                      mr: 2,
+                    }}
+                  >
+                    {index + 1}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" component="div">
+                      {booking.customer.name || "Unknown Client"}
+                      {getStatusChip(booking.status)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatDate(booking.tourDates.start)} -{" "}
+                      {formatDate(booking.tourDates.end)}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box display="flex" alignItems="center">
+                  <Chip
+                    label={`₹${booking.totalPaid.toLocaleString("en-IN")} paid`}
+                    color="success"
+                    size="small"
+                    variant="outlined"
+                    sx={{ mr: 2 }}
+                  />
+                  <IconButton size="small">
+                    {expandedBookings[booking.bookingId] ? (
+                      <ChevronUp />
+                    ) : (
+                      <ChevronDown />
+                    )}
+                  </IconButton>
+                </Box>
+              </Box>
 
-            {expandedBooking === bookingData.booking._id && (
-              <CardContent sx={{ pt: 0 }}>
-                <Divider sx={{ mb: 3 }} />
-
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ borderRadius: 2 }}>
-                      <CardHeader
-                        title="Client Details"
-                        titleTypographyProps={{ variant: 'subtitle1', fontWeight: 600 }}
-                        avatar={<PersonIcon color="primary" />}
-                      />
-                      <List dense>
-                        <ListItem>
-                          <ListItemIcon>
-                            <PersonIcon color="action" />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary={bookingData.booking.userId?.name || 'Unknown'} 
-                            secondary="Client Name"
-                          />
-                        </ListItem>
-                        <ListItem>
-                          <ListItemIcon>
-                            <EmailIcon color="action" />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary={bookingData.booking.userId?.email || 'No email'} 
-                            secondary="Email"
-                          />
-                        </ListItem>
-                      </List>
-                    </Card>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ borderRadius: 2 }}>
-                      <CardHeader
-                        title="Tour Details"
-                        titleTypographyProps={{ variant: 'subtitle1', fontWeight: 600 }}
-                        avatar={<TodayIcon color="primary" />}
-                      />
-                      <List dense>
-                        <ListItem>
-                          <ListItemIcon>
-                            <EventIcon color="action" />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary={`${formatDate(bookingData.booking.startDate)} - ${formatDate(bookingData.booking.endDate)}`} 
-                            secondary="Duration"
-                          />
-                        </ListItem>
-                        <ListItem>
-                          <ListItemIcon>
-                            <LocationIcon color="action" />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary={bookingData.booking.pickupLocation || 'Not specified'} 
-                            secondary="Pickup Location"
-                          />
-                        </ListItem>
-                        <ListItem>
-                          <ListItemIcon>
-                            <LocationIcon color="action" />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary={bookingData.booking.dropoffLocation || 'Not specified'} 
-                            secondary="Dropoff Location"
-                          />
-                        </ListItem>
-                        <ListItem>
-                          <ListItemIcon>
-                            <MoneyIcon color="action" />
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary={`₹${bookingData.booking.budget.toLocaleString('en-IN')}`} 
-                            secondary="Budget"
-                          />
-                        </ListItem>
-                      </List>
-                    </Card>
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Card variant="outlined" sx={{ borderRadius: 2 }}>
-                      <CardHeader
-                        title={
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <PaymentIcon color="primary" sx={{ mr: 1 }} />
-                            <Typography variant="subtitle1" fontWeight={600}>
-                              Payment History ({bookingData.payments.length})
-                            </Typography>
-                          </Box>
-                        }
-                      />
-                      {bookingData.payments.length > 0 ? (
-                        <List dense>
-                          {bookingData.payments.map((payment) => (
-                            <ListItem key={payment._id} divider>
-                              <ListItemIcon>
-                                <Badge
-                                  badgeContent={payment.paymentStatus === 'completed' ? (
-                                    <CheckIcon color="success" fontSize="small" />
-                                  ) : (
-                                    <PendingIcon color="warning" fontSize="small" />
-                                  )}
-                                >
-                                  <Avatar sx={{ bgcolor: theme.palette.grey[200] }}>
-                                    <PaymentIcon color="action" />
-                                  </Avatar>
-                                </Badge>
+              <Collapse in={expandedBookings[booking.bookingId]}>
+                <Divider />
+                <Box sx={{ p: 3 }}>
+                  <Grid container spacing={3}>
+                    {/* Client Details */}
+                    <Grid item xs={12} md={6}>
+                      <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                        <CardContent>
+                          <Typography
+                            variant="subtitle1"
+                            fontWeight={600}
+                            color="primary"
+                            gutterBottom
+                            sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                          >
+                            <User size={20} color={theme.palette.primary.main} />
+                            Client Information
+                          </Typography>
+                          <List disablePadding>
+                            <ListItem disableGutters>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <User
+                                  size={18}
+                                  color={theme.palette.text.secondary}
+                                />
                               </ListItemIcon>
                               <ListItemText
-                                primary={`₹${payment.amount.toLocaleString('en-IN')}`}
-                                secondary={
-                                  <>
-                                    <Typography component="span" variant="body2" color="text.primary">
-                                      {payment.modeOfPayment} • {payment.payId}
-                                    </Typography>
-                                    <br />
-                                    {formatDateTime(payment.completedAt || payment.createdAt)}
-                                  </>
-                                }
+                                primary={booking.customer.name || "Not specified"}
+                                secondary="Full name"
                               />
                             </ListItem>
-                          ))}
-                        </List>
-                      ) : (
-                        <Box sx={{ p: 3, textAlign: 'center' }}>
-                          <Typography variant="body2" color="text.secondary">
-                            No payment records found for this booking
+                            <ListItem disableGutters>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <Mail
+                                  size={18}
+                                  color={theme.palette.text.secondary}
+                                />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={booking.customer.email || "Not specified"}
+                                secondary="Email address"
+                              />
+                            </ListItem>
+                            <ListItem disableGutters>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <Phone
+                                  size={18}
+                                  color={theme.palette.text.secondary}
+                                />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={booking.customer.phone || "Not specified"}
+                                secondary="Phone number"
+                              />
+                            </ListItem>
+                          </List>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+
+                    {/* Tour Details */}
+                    <Grid item xs={12} md={6}>
+                      <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                        <CardContent>
+                          <Typography
+                            variant="subtitle1"
+                            fontWeight={600}
+                            color="primary"
+                            gutterBottom
+                            sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                          >
+                            <Calendar size={20} color={theme.palette.primary.main} />
+                            Tour Details
                           </Typography>
-                        </Box>
-                      )}
-                    </Card>
+                          <List disablePadding>
+                            <ListItem disableGutters>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <Calendar
+                                  size={18}
+                                  color={theme.palette.text.secondary}
+                                />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={`${formatDate(
+                                  booking.tourDates.start
+                                )} - ${formatDate(booking.tourDates.end)}`}
+                                secondary="Tour dates"
+                              />
+                            </ListItem>
+                            <ListItem disableGutters>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <MapPin
+                                  size={18}
+                                  color={theme.palette.text.secondary}
+                                />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={booking.pickupLocation || "Not specified"}
+                                secondary="Pickup location"
+                              />
+                            </ListItem>
+                            <ListItem disableGutters>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <MapPin
+                                  size={18}
+                                  color={theme.palette.text.secondary}
+                                />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={booking.dropoffLocation || "Not specified"}
+                                secondary="Dropoff location"
+                              />
+                            </ListItem>
+                            <ListItem disableGutters>
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <Wallet
+                                  size={18}
+                                  color={theme.palette.text.secondary}
+                                />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={`₹${
+                                  booking.budget?.toLocaleString("en-IN") || "0"
+                                }`}
+                                secondary="Total budget"
+                              />
+                              <ListItemText
+                                primary={`₹${
+                                  booking.remainingBalance?.toLocaleString(
+                                    "en-IN"
+                                  ) || "0"
+                                }`}
+                                secondary="Remaining balance"
+                                sx={{ textAlign: "right" }}
+                              />
+                            </ListItem>
+                          </List>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+
+                    {/* Payment History */}
+                    <Grid item xs={12}>
+                      <Card variant="outlined" sx={{ borderRadius: 2 }}>
+                        <CardContent>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              mb: 2,
+                            }}
+                          >
+                            <Typography
+                              variant="subtitle1"
+                              fontWeight={600}
+                              color="primary"
+                              sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                            >
+                              <CreditCard size={20} color={theme.palette.primary.main} />
+                              Payment History
+                            </Typography>
+                            <Chip
+                              label={`${booking.payments.length} transactions`}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </Box>
+                          {booking.payments.length > 0 ? (
+                            <List disablePadding>
+                              {booking.payments.map((payment) => (
+                                <ListItem
+                                  key={payment.paymentId}
+                                  divider
+                                  disableGutters
+                                  secondaryAction={
+                                    <Chip
+                                      label={payment.status}
+                                      size="small"
+                                      color={
+                                        payment.status === "completed"
+                                          ? "success"
+                                          : payment.status === "pending"
+                                          ? "warning"
+                                          : "error"
+                                      }
+                                      variant="outlined"
+                                    />
+                                  }
+                                >
+                                  <ListItemIcon sx={{ minWidth: 36 }}>
+                                    <Avatar
+                                      sx={{
+                                        bgcolor: theme.palette.grey[100],
+                                        width: 32,
+                                        height: 32,
+                                      }}
+                                    >
+                                      <IndianRupee
+                                        size={16}
+                                        color={theme.palette.text.secondary}
+                                      />
+                                    </Avatar>
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={`₹${payment.amount.toLocaleString(
+                                      "en-IN"
+                                    )}`}
+                                    secondary={
+                                      <>
+                                        {formatDateTime(payment.date)}
+                                        {payment.method &&
+                                          ` • ${payment.method}`}
+                                        {payment.transactionId &&
+                                          ` • ${payment.transactionId}`}
+                                      </>
+                                    }
+                                  />
+                                  {payment.transactionDetails?.screenshotUrl && (
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        window.open(
+                                          payment.transactionDetails
+                                            .screenshotUrl,
+                                          "_blank"
+                                        )
+                                      }
+                                      sx={{ ml: 1 }}
+                                    >
+                                      <Tooltip title="View payment proof">
+                                        <Info size={18} />
+                                      </Tooltip>
+                                    </IconButton>
+                                  )}
+                                </ListItem>
+                              ))}
+                            </List>
+                          ) : (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                py: 4,
+                              }}
+                            >
+                              <CreditCard
+                                size={48}
+                                color={theme.palette.text.disabled}
+                              />
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 2 }}
+                              >
+                                No payment records found for this booking
+                              </Typography>
+                            </Box>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Grid>
                   </Grid>
-                </Grid>
-              </CardContent>
-            )}
-          </Card>
-        </Grid>
-      ))}
-    </Grid>
+                </Box>
+              </Collapse>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
   );
 };
 

@@ -19,6 +19,7 @@ const VerifyEmailPage = () => {
     }
 
     console.log(`Fetching: ${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email/${token}`);
+    
 
     const verifyEmail = async () => {
       try {
