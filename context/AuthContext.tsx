@@ -7,6 +7,7 @@ interface DecodedToken {
   name: string;  
   role: string;
   exp: number;
+  phone?:string
 }
 
 interface AuthContextType {

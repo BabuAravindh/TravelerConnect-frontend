@@ -49,7 +49,7 @@ const GuideSignIn = () => {
         body: JSON.stringify({ email, password }),
       });
   
-      const data = await res.json(); // parse response
+      const data = await res.json(); 
   
       if (!res.ok) {
         const errorMsg = data?.error || data?.message || "Login failed";

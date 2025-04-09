@@ -22,7 +22,7 @@ const Navbar = () => {
 
   const getDashboardPath = () => {
     switch (user?.role) {
-      case "admin": return "/admin/dashboard";
+      case "admin": return "/admin/";
       case "user": return "/user/dashboard";
       case "guide": return "/guides/dashboard";
       default: return "/dashboard";

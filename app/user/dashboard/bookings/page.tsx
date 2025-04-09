@@ -207,7 +207,7 @@ export default function UserBookings() {
           prefill: {
             name: user?.name || '',
             email: user?.email || '',
-            contact: user?.phone?.toString() || '',
+            contact: user?.phone?.replace(/\D/g, '').slice(-10) || '',
           },
           theme: {
             color: "#4f46e5",
@@ -551,7 +551,7 @@ export default function UserBookings() {
                                           ({payment.paymentType})
                                         </span>
                                       </div>
-                                      <div className="text-xs text-gray-600">
+                                      <div className="text-xs text-gray-600 ">
                                         {payment.method.charAt(0).toUpperCase() + payment.method.slice(1)} • 
                                         {payment.date.toLocaleDateString()} • 
                                         Installment #{payment.installmentNumber}

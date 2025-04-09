@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { CheckCircle, Clock, XCircle, CreditCard, Calendar, RefreshCw, DollarSign, RotateCcw, ArrowLeft } from "lucide-react";
+import { CheckCircle, Clock, XCircle, CreditCard, Calendar, RefreshCw, DollarSign, RotateCcw, ArrowLeft, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 
@@ -94,37 +94,51 @@ export default function PaymentsPage() {
   const { user } = useAuth();
   const [bookingPayments, setBookingPayments] = useState<BookingPaymentData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; status?: number } | null>(null);
 
   const fetchPayments = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setError({ message: "User not authenticated. Please log in." });
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
 
-      // Note: Assuming the backend endpoint is now `/api/payments/user/:userId`
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/payment/booking/${user.id}`
-      );
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/payment/booking/${user.id}`;
+      console.log("Fetching payments from:", url); // Debug log
+      const response = await fetch(url);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        if (response.status === 404) {
+          // Treat 404 as "no payments found" rather than an error
+          setBookingPayments([]);
+        } else {
+          throw { status: response.status, message: `HTTP error! status: ${response.status} - ${errorText}` };
+        }
+      } else {
+        const { success, data, message } = await response.json();
+        if (!success) {
+          throw { message: message || "Failed to load payment data" };
+        }
+        setBookingPayments(data || []);
       }
-
-      const { success, data, message } = await response.json();
-
-      if (!success) {
-        throw new Error(message || "Failed to load payment data");
-      }
-
-      setBookingPayments(data || []);
     } catch (err) {
       console.error("Payment fetch error:", err);
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      const status = err?.status || (err as any)?.statusCode || null;
+      setError({ message: status === 500 ? "Server error occurred. Please try again later." : errorMessage, status });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    setError(null); // Reset error before retry
+    fetchPayments();
   };
 
   useEffect(() => {
@@ -132,17 +146,17 @@ export default function PaymentsPage() {
   }, [user?.id]);
 
   // Flatten all payments for summary stats
-  const allPayments = bookingPayments.flatMap(booking => booking.payments);
+  const allPayments = bookingPayments.flatMap((booking) => booking.payments);
 
   // Calculate summary statistics
   const stats = {
     totalPaid: bookingPayments.reduce((sum, booking) => sum + booking.totalPaid, 0),
     totalBudget: bookingPayments.reduce((sum, booking) => sum + booking.budget, 0),
     totalTransactions: allPayments.length,
-    pendingPayments: allPayments.filter(p => p.status === "pending").length,
-    completedPayments: allPayments.filter(p => p.status === "completed").length,
+    pendingPayments: allPayments.filter((p) => p.status === "pending").length,
+    completedPayments: allPayments.filter((p) => p.status === "completed").length,
     lastPaymentDate: allPayments
-      .filter(p => p.status === "completed")
+      .filter((p) => p.status === "completed")
       .sort((a, b) => new Date(b.completedAt || b.createdAt).getTime() - new Date(a.completedAt || a.createdAt).getTime())[0]?.completedAt,
   };
 
@@ -151,7 +165,7 @@ export default function PaymentsPage() {
   }
 
   if (error) {
-    return <ErrorView message={error} onRetry={fetchPayments} />;
+    return <ErrorView message={error.message} status={error.status} onRetry={handleRetry} />;
   }
 
   return (
@@ -169,7 +183,6 @@ export default function PaymentsPage() {
         ) : (
           <div className="space-y-8">
             {bookingPayments.map((booking, index) => (
-              // Using index as key since bookingId is no longer available
               <BookingPaymentSection key={index} booking={booking} />
             ))}
           </div>
@@ -183,33 +196,37 @@ export default function PaymentsPage() {
 export function PaymentDetailPage({ transactionId }: { transactionId: string }) {
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; status?: number } | null>(null);
 
   const fetchPaymentDetails = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Note: Since paymentId is removed, assuming we’d pass transactionId instead
-      // Adjust the endpoint if backend uses a different identifier
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/payments/transaction/${transactionId}`
-      );
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/payments/transaction/${transactionId}`;
+      console.log("Fetching payment details from:", url); // Debug log
+      const response = await fetch(url);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        if (response.status === 404) {
+          throw { message: "Payment details not found for this transaction." };
+        } else {
+          throw { status: response.status, message: `HTTP error! status: ${response.status} - ${errorText}` };
+        }
       }
 
       const { success, data, message } = await response.json();
-
       if (!success) {
-        throw new Error(message || "Failed to load payment details");
+        throw { message: message || "Failed to load payment details" };
       }
 
       setPaymentDetails(data);
     } catch (err) {
       console.error("Payment details fetch error:", err);
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      const status = err?.status || (err as any)?.statusCode || null;
+      setError({ message: status === 500 ? "Server error occurred. Please try again later." : errorMessage, status });
     } finally {
       setLoading(false);
     }
@@ -224,7 +241,7 @@ export function PaymentDetailPage({ transactionId }: { transactionId: string }) 
   }
 
   if (error) {
-    return <ErrorView message={error} onRetry={fetchPaymentDetails} />;
+    return <ErrorView message={error.message} status={error.status} onRetry={fetchPaymentDetails} />;
   }
 
   if (!paymentDetails) {
@@ -371,16 +388,24 @@ function LoadingView() {
   );
 }
 
-function ErrorView({ message, onRetry }: { message: string; onRetry: () => void }) {
+function ErrorView({ message, status, onRetry }: { message: string; status?: number; onRetry: () => void }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white shadow-lg rounded-lg p-6">
-        <h2 className="text-center text-red-600 text-xl font-semibold mb-4">Payment Error</h2>
+      <div className="w-full max-w-md bg-white shadow-lg rounded-lg p-6 text-center">
         <div className="flex justify-center mb-4">
-          <XCircle className="h-12 w-12 text-red-500" />
+          <AlertCircle className="h-12 w-12 text-red-500" />
         </div>
-        <p className="text-center text-gray-700 mb-4">{message}</p>
-        <div className="flex justify-center">
+        <h2 className="text-xl font-semibold text-red-600 mb-2">Payment Error</h2>
+        <p className="text-gray-700 mb-4">{message}</p>
+        {status === 500 && (
+          <p className="text-sm text-gray-500 mb-4">
+            This could be due to a server issue. Please try again later or contact support at{" "}
+            <Link href="mailto:support@travelerconnect.com" className="text-indigo-600 hover:underline">
+              support@travelerconnect.com
+            </Link>.
+          </p>
+        )}
+        <div className="flex justify-center space-x-4">
           <button
             onClick={onRetry}
             className="flex items-center bg-transparent border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-100 transition"
@@ -388,6 +413,10 @@ function ErrorView({ message, onRetry }: { message: string; onRetry: () => void 
             <RefreshCw className="mr-2 h-4 w-4" />
             Try Again
           </button>
+          <Link href="/user/dashboard" className="flex items-center text-indigo-600 hover:underline">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Link>
         </div>
       </div>
     </div>
@@ -396,18 +425,25 @@ function ErrorView({ message, onRetry }: { message: string; onRetry: () => void 
 
 function EmptyState({ onRefresh }: { onRefresh: () => void }) {
   return (
-    <div className="bg-white shadow rounded-lg p-8 text-center">
-      <CreditCard className="mx-auto h-12 w-12 text-gray-400" />
-      <h3 className="mt-2 text-lg font-medium text-gray-900">No payments found</h3>
-      <p className="mt-1 text-sm text-gray-500">You haven’t made any payments yet.</p>
-      <div className="mt-6">
+    <div className="min-h-full 0bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white shadow-lg rounded-lg p-8 text-center max-w-md w-full">
+        <div className="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-gray-100 mb-6">
+          <CreditCard className="h-12 w-12 text-gray-400" />
+        </div>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Payments Found</h3>
+        <p className="text-sm text-gray-500 mb-6">
+          It looks like you haven’t made any payments yet. Once you complete a booking or payment, your transaction history will appear here.
+        </p>
         <button
           onClick={onRefresh}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
         >
           <RefreshCw className="-ml-1 mr-2 h-5 w-5" />
           Refresh
         </button>
+        <p className="text-xs text-gray-400 mt-4">
+          Or <Link href="/user/dashboard/bookings" className="text-indigo-600 hover:underline">check your bookings</Link> to make a payment.
+        </p>
       </div>
     </div>
   );
@@ -439,15 +475,13 @@ function PaymentSummary({ stats }: { stats: any }) {
 }
 
 function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
-  // Sort payments by createdAt date
-  const sortedPayments = [...booking.payments].sort((a, b) => 
+  const sortedPayments = [...booking.payments].sort((a, b) =>
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
-  // Add installment numbers to each payment
   const paymentsWithInstallmentNumbers = sortedPayments.map((payment, index) => ({
     ...payment,
-    installmentNumber: index + 1
+    installmentNumber: index + 1,
   }));
 
   return (
@@ -496,11 +530,7 @@ function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
           </div>
         ) : (
           paymentsWithInstallmentNumbers.map((payment, index) => (
-            <PaymentListItem 
-              key={index} 
-              payment={payment} 
-              transactionId={payment.transactionId} 
-            />
+            <PaymentListItem key={index} payment={payment} transactionId={payment.transactionId} />
           ))
         )}
       </div>
@@ -516,22 +546,19 @@ function StatCard({ label, value, highlight = false }: { label: string; value: s
     </div>
   );
 }
+
 function PaymentListItem({ payment, transactionId }: { payment: Payment; transactionId: string }) {
   const status = statusConfig[payment.status];
-  
-  // Format the installment text
+
   const getInstallmentText = (payment: Payment) => {
-    if (payment.type === 'full') return 'Full Payment';
-    if (payment.isPartial) return 'Partial Payment';
+    if (payment.type === "full") return "Full Payment";
+    if (payment.isPartial) return "Partial Payment";
     return `Installment #${payment.installmentNumber}`;
   };
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-  
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+      <Link href={`/user/dashboard/payments/${transactionId}`}>
         <div className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${status.color} border-l-4`}>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -544,10 +571,10 @@ function PaymentListItem({ payment, transactionId }: { payment: Payment; transac
                   {payment.modeOfPayment.type}
                 </span>
                 <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                  {new Date(payment.createdAt).toLocaleDateString('en-US', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
+                  {new Date(payment.createdAt).toLocaleDateString("en-US", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
                   })}
                 </span>
               </div>
@@ -558,15 +585,15 @@ function PaymentListItem({ payment, transactionId }: { payment: Payment; transac
                 <span className="text-sm font-medium">{status.label}</span>
               </div>
               <p className="text-sm text-gray-500">
-                {new Date(payment.createdAt).toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit'
+                {new Date(payment.createdAt).toLocaleTimeString("en-US", {
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })}
               </p>
             </div>
           </div>
-         
         </div>
+      </Link>
     </motion.div>
   );
 }
