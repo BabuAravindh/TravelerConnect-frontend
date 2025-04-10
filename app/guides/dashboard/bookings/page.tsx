@@ -237,14 +237,14 @@ const BookingsPage = () => {
       }
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/payments/${paymentId}/status`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/payment/${paymentId}/status`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ status: "completed" }),
+          body: JSON.stringify({ paymentStatus : "completed" }),
         }
       );
 

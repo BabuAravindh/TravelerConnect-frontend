@@ -554,11 +554,9 @@ export default function UserBookings() {
                                       <div className="text-xs text-gray-600 ">
                                         {payment.method.charAt(0).toUpperCase() + payment.method.slice(1)} • 
                                         {payment.date.toLocaleDateString()} • 
-                                        Installment #{payment.installmentNumber}
+                                        Installment #{payment.installmentNumber}<br/>
                                         {payment.screenshotUrl && (
-                                          <span className="block text-xs text-blue-600">
-                                            Screenshot: {payment.screenshotUrl}
-                                          </span>
+                                         <a href={payment.screenshotUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500">view the screenshot</a>
                                         )}
                                       </div>
                                     </div>
