@@ -5,6 +5,7 @@ import { Camera, Save } from "lucide-react";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import Select from "react-select";
+import toast from "react-hot-toast";
 
 const genderOptions = [
   { label: "Male", value: "male" },
@@ -61,9 +62,8 @@ const EditProfilePage = () => {
     const fetchProfile = async () => {
       try {
         const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${user.id}`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${user?.id || ""}`
         );
-
         if (response.data) {
           setProfile({
             firstName: response.data.firstName || "",
@@ -82,7 +82,8 @@ const EditProfilePage = () => {
             bankAccountNumber: response.data.bankAccountNumber || "",
             ifscCode: response.data.ifscCode || "",
             bankName: response.data.bankName || "",
-            profilePic: response.data.profilePic || "https://picsum.photos/300/300?grayscale",
+            profilePic: response.data.profilePicture
+            || "https://picsum.photos/300/300?grayscale",
             serviceLocations: response.data.serviceLocations || [],
           });
         }
@@ -91,7 +92,7 @@ const EditProfilePage = () => {
           setProfile({
             firstName: "",
             lastName: "",
-            email: user.email || "",
+            email: user?.email || "",
             role: "guide",
             isVerified: false,
             phoneNumber: "",
@@ -167,12 +168,12 @@ const EditProfilePage = () => {
     const file = e.target.files?.[0];
     if (file) {
       setProfilePicFile(file);
-      setProfile((prev) => (prev ? { ...prev, profilePic: URL.createObjectURL(file) } : prev));
+      setProfile((prev: any) => (prev ? { ...prev, profilePic: URL.createObjectURL(file) } : prev));
     }
   };
 
   const handleInputChange = (key: string, value: string | string[] | null) => {
-    setProfile((prev) => (prev ? { ...prev, [key]: Array.isArray(value) ? value : value } : prev));
+    setProfile((prev: any) => (prev ? { ...prev, [key]: Array.isArray(value) ? value : value } : prev));
     // Clear error when user starts typing
     if (errors[key]) {
       setErrors(prev => ({ ...prev, [key]: '' }));
@@ -181,7 +182,7 @@ const EditProfilePage = () => {
 
   const handleServiceLocationsChange = (selectedOptions: any) => {
     setServiceLocations(selectedOptions || []);
-    setProfile((prev) => ({
+    setProfile((prev: any) => ({
       ...prev,
       serviceLocations: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : [],
     }));
@@ -251,7 +252,7 @@ const EditProfilePage = () => {
       }
 
       const response = await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${user.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${user?.id || ""}`,
         formData,
         {
           headers: {
@@ -259,7 +260,9 @@ const EditProfilePage = () => {
           },
         }
       );
-
+      if(response){
+        toast.success("Profile updated successfully!");
+      }
       setProfile((prev) => ({
         ...prev,
         profilePic: response.data.data.guideProfile.profilePic || prev.profilePic,
@@ -285,13 +288,13 @@ const EditProfilePage = () => {
 
       <div className="flex flex-col items-center">
         <div className="relative">
-          <Image
-            src={profile.profilePic || "https://picsum.photos/300/300?grayscale"}
-            alt="Profile Picture"
-            width={120}
-            height={120}
-            className="rounded-full shadow-md border"
-          />
+        <Image
+  src={profile.profilePic || "https://picsum.photos/300/300?grayscale"}
+  alt="Profile Picture"
+  width={120}
+  height={120}
+  className="rounded-full shadow-md border"
+/>
           <label
             htmlFor="profilePicUpload"
             className="absolute bottom-0 right-0 bg-gray-800 text-white p-2 rounded-full cursor-pointer"
@@ -390,10 +393,10 @@ const EditProfilePage = () => {
           <Select
             options={genderOptions}
             value={genderOptions.find((option) => option.value === profile.gender)}
-            onChange={(selected) => handleInputChange("gender", selected?.value)}
+            onChange={(selected) => handleInputChange("gender", selected?.value || null)}
             className="mt-1"
             classNamePrefix="select"
-            className={`${errors.gender ? 'border-red-500 rounded-lg' : ''}`}
+            classNamePrefix="select"
           />
           {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender}</p>}
         </div>
@@ -409,7 +412,7 @@ const EditProfilePage = () => {
             }
             className="mt-1"
             classNamePrefix="select"
-            className={`${errors.languages ? 'border-red-500 rounded-lg' : ''}`}
+            classNamePrefix="select"
           />
           {errors.languages && <p className="text-red-500 text-sm mt-1">{errors.languages}</p>}
         </div>
@@ -425,7 +428,7 @@ const EditProfilePage = () => {
             }
             className="mt-1"
             classNamePrefix="select"
-            className={`${errors.activities ? 'border-red-500 rounded-lg' : ''}`}
+            classNamePrefix="select"
           />
           {errors.activities && <p className="text-red-500 text-sm mt-1">{errors.activities}</p>}
         </div>
@@ -438,7 +441,7 @@ const EditProfilePage = () => {
             onChange={(selected) => handleInputChange("country", selected?.value)}
             className="mt-1"
             classNamePrefix="select"
-            className={`${errors.country ? 'border-red-500 rounded-lg' : ''}`}
+            classNamePrefix="select"
           />
           {errors.country && <p className="text-red-500 text-sm mt-1">{errors.country}</p>}
         </div>
@@ -451,7 +454,7 @@ const EditProfilePage = () => {
             onChange={(selected) => handleInputChange("state", selected?.value)}
             className="mt-1"
             classNamePrefix="select"
-            className={`${errors.state ? 'border-red-500 rounded-lg' : ''}`}
+            classNamePrefix="select"
           />
           {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
         </div>
@@ -467,7 +470,7 @@ const EditProfilePage = () => {
             isLoading={cities.length === 0}
             className="mt-1"
             classNamePrefix="select"
-            className={`${errors.serviceLocations ? 'border-red-500 rounded-lg' : ''}`}
+            classNamePrefix="select"
           />
           {errors.serviceLocations && <p className="text-red-500 text-sm mt-1">{errors.serviceLocations}</p>}
         </div>

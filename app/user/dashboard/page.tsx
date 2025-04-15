@@ -5,33 +5,10 @@ import { Pencil, Save, X, Camera } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
-
-interface Profile {
-  _id?: string;
-  userId?: string;
-  firstName: string;
-  lastName: string;
-  profilePicture: string;
-  phoneNumber: string;
-  dateOfBirth: string;
-  address?: {
-    countryId?: string;
-    stateId?: string;
-    countryName?: string;
-    stateName?: string;
-  };
-  gender: string;
-}
-
-interface Country {
-  _id: string;
-  countryName: string;
-}
-
-interface State {
-  _id: string;
-  stateName: string;
-}
+import { ProfileService } from "@/services/user/profile/profile.service";
+import { DropdownService } from "@/services/user/profile/dropdown.service";
+import type { Profile } from "@/services/types/user/profile.type";
+import type { Country, State } from "@/services/types/user/dropdown.types";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -41,9 +18,9 @@ export default function ProfilePage() {
     lastName: "",
     profilePicture: "",
     phoneNumber: "",
-    dateOfBirth: "", // Default to empty string, will be set by API or user
+    dateOfBirth: "",
     address: { countryId: "", stateId: "", countryName: "", stateName: "" },
-    gender: "male", // Default to "male"
+    gender: "male",
   });
   const [countries, setCountries] = useState<Country[]>([]);
   const [states, setStates] = useState<State[]>([]);
@@ -57,70 +34,20 @@ export default function ProfilePage() {
     async function fetchData() {
       try {
         setIsLoading(true);
-        await Promise.all([fetchProfile(), fetchDropdownData()]);
+        const [profileData, dropdownData] = await Promise.all([
+          userId ? ProfileService.fetchProfile(userId) : Promise.resolve(null),
+          DropdownService.fetchAllDropdownData()
+        ]);
+
+        if (profileData) {
+          setProfile(profileData);
+        }
+        setCountries(dropdownData.countries);
+        setStates(dropdownData.states);
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
         setIsLoading(false);
-      }
-    }
-
-    async function fetchProfile() {
-      try {
-        if (!userId) return;
-
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`);
-        if (!res.ok) throw new Error("Profile not found");
-        const data = await res.json();
-        // Handle dateOfBirth conversion based on possible API formats
-        let formattedDateOfBirth = "";
-        if (data.dateOfBirth) {
-          const date = new Date(data.dateOfBirth);
-          if (!isNaN(date.getTime())) {
-            formattedDateOfBirth = date.toISOString().split("T")[0]; // Ensures YYYY-MM-DD
-          } else {
-            console.warn("Invalid date from API, using empty string:", data.dateOfBirth);
-          }
-        }
-        const formattedData = {
-          ...data,
-          dateOfBirth: formattedDateOfBirth,
-          gender: data.gender || "male", // Default to "male" if undefined
-        };
-        setProfile({
-          userId: userId || "",
-          firstName: "",
-          lastName: "",
-          profilePicture: "",
-          phoneNumber: "",
-          dateOfBirth: "",
-          address: { countryId: "", stateId: "", countryName: "", stateName: "" },
-          gender: "male",
-          ...formattedData,
-        });
-      } catch (error: any) {
-        console.warn("No profile found, user may be new:", error.message);
-        // Keep default profile if fetch fails
-      }
-    }
-
-    async function fetchDropdownData() {
-      try {
-        const [countriesRes, statesRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/countries`),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/states`),
-        ]);
-
-        if (!countriesRes.ok || !statesRes.ok) throw new Error("Failed to fetch data");
-
-        const countriesData: Country[] = await countriesRes.json();
-        const statesData: State[] = await statesRes.json();
-
-        setCountries(countriesData);
-        setStates(statesData);
-      } catch (error: any) {
-        console.error("Error fetching dropdown data:", error);
-        toast.error("Failed to load country and state data");
       }
     }
 
@@ -170,57 +97,13 @@ export default function ProfilePage() {
     }
   };
 
-  const validateForm = () => {
-    const validationErrors: Record<string, string> = {};
-    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-    const nameRegex = /^[A-Za-z\s]{2,50}$/;
-
-    if (!profile.firstName.trim()) validationErrors.firstName = "First name is required.";
-    else if (!nameRegex.test(profile.firstName))
-      validationErrors.firstName = "First name must be 2-50 letters only.";
-
-    if (!profile.lastName.trim()) validationErrors.lastName = "Last name is required.";
-    else if (!nameRegex.test(profile.lastName))
-      validationErrors.lastName = "Last name must be 2-50 letters only.";
-
-    if (!profile.phoneNumber.trim()) validationErrors.phoneNumber = "Phone number is required.";
-    else if (!phoneRegex.test(profile.phoneNumber))
-      validationErrors.phoneNumber = "Invalid phone number format (e.g., +1234567890).";
-
-    if (!profile.dateOfBirth) validationErrors.dateOfBirth = "Date of birth is required.";
-    else {
-      const dob = new Date(profile.dateOfBirth);
-      const today = new Date();
-      const minDate = new Date("1900-01-01");
-      if (isNaN(dob.getTime())) {
-        validationErrors.dateOfBirth = "Invalid date format.";
-      } else if (dob >= today) {
-        validationErrors.dateOfBirth = "Date of birth must be in the past.";
-      } else if (dob < minDate) {
-        validationErrors.dateOfBirth = "Date of birth is too far in the past.";
-      }
-    }
-
-    if (!profile.address?.countryId) validationErrors["address.countryId"] = "Country is required.";
-    else if (!countries.some((c) => c._id === profile.address?.countryId))
-      validationErrors["address.countryId"] = "Invalid country selection.";
-
-    if (!profile.address?.stateId) validationErrors["address.stateId"] = "State is required.";
-    else if (!states.some((s) => s._id === profile.address?.stateId))
-      validationErrors["address.stateId"] = "Invalid state selection.";
-
-    if (!profile.gender) validationErrors.gender = "Gender is required.";
-    else if (!["male", "female", "others"].includes(profile.gender.toLowerCase()))
-      validationErrors.gender = "Invalid gender selection.";
-
-    setErrors(validationErrors);
-    return Object.keys(validationErrors).length === 0;
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
-
+    
+    const validationErrors = ProfileService.validateProfile(profile, countries, states);
+    setErrors(validationErrors);
+    
+    if (Object.keys(validationErrors).length > 0) return;
     if (!userId) {
       toast.error("User not authenticated");
       return;
@@ -228,40 +111,14 @@ export default function ProfilePage() {
 
     setIsSubmitting(true);
 
-    const formData = new FormData();
-    
-    formData.append("userId", profile.userId || userId);
-    formData.append("firstName", profile.firstName);
-    formData.append("lastName", profile.lastName);
-    formData.append("gender", profile.gender);
-    formData.append("phoneNumber", profile.phoneNumber);
-    formData.append("dateOfBirth", profile.dateOfBirth);
-    formData.append("countryId", profile.address?.countryId || "");
-    formData.append("stateId", profile.address?.stateId || "");
-    formData.append("countryName", profile.address?.countryName || "");
-    formData.append("stateName", profile.address?.stateName || "");
-
-    if (profilePicFile) {
-      formData.append("profilePic", profilePicFile);
-    }
-
     try {
-      const url = profile._id
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/profile/${userId}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/profile`;
-
-      const res = await fetch(url, {
-        method: profile._id ? "PUT" : "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to save profile");
-      }
-
-      const data = await res.json();
-      setProfile(data);
+      const savedProfile = await ProfileService.saveProfile(
+        profile,
+        profilePicFile,
+        !!profile._id
+      );
+      
+      setProfile(savedProfile);
       setProfilePicFile(null);
       toast.success("Profile saved successfully!");
     } catch (error: any) {
@@ -279,7 +136,6 @@ export default function ProfilePage() {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#6999aa] p-4">
       <div className="w-full max-w-5xl flex flex-col md:flex-row gap-6">

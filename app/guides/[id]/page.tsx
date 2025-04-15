@@ -19,7 +19,7 @@ interface Guide {
   firstName: string;
   lastName: string;
   role: string;
-  profilePic?: string;
+  profilePicture?: string;
   bio: string;
   isVerified: boolean;
   gender: string;
@@ -43,6 +43,7 @@ const GuideProfile = () => {
     const fetchGuide = async () => {
       try {
         const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${guideId}`);
+        console.log("Guide data:", res.data);
         setGuide(res.data);
       } catch (error) {
         console.error("Error fetching guide:", error);
@@ -91,7 +92,7 @@ const GuideProfile = () => {
           {/* Banner Image */}
           <div className="absolute inset-0 h-96 w-full overflow-hidden rounded-3xl shadow-xl">
             <Image
-              src="https://picsum.photos/1200/320"
+              src={guide?.profilePicture}
               alt="Banner Image"
               width={1200}
               height={320}
@@ -110,7 +111,7 @@ const GuideProfile = () => {
               {/* Profile Picture */}
               <div className="md:w-1/3 flex justify-center">
                 <Image
-                  src={guide?.profilePic || "https://picsum.photos/500"}
+                  src={guide?.profilePicture || "https://picsum.photos/500"}
                   alt={`${guide?.firstName} ${guide?.lastName}`}
                   width={250}
                   height={250}
