@@ -7,6 +7,28 @@ import { useAuth } from "@/context/AuthContext";
 import Select from "react-select";
 import toast from "react-hot-toast";
 
+// Define TypeScript interface for profile
+interface Profile {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  isVerified: boolean;
+  phoneNumber: string;
+  gender: string;
+  dateJoined: string;
+  state: string;
+  country: string;
+  bio: string;
+  activities: string[];
+  languages: string[];
+  bankAccountNumber: string;
+  ifscCode: string;
+  bankName: string;
+  profilePic: string;
+  serviceLocations: string[];
+}
+
 const genderOptions = [
   { label: "Male", value: "male" },
   { label: "Female", value: "female" },
@@ -14,7 +36,7 @@ const genderOptions = [
 ];
 
 const EditProfilePage = () => {
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
   const [countries, setCountries] = useState<any[]>([]);
   const [states, setStates] = useState<any[]>([]);
@@ -82,8 +104,8 @@ const EditProfilePage = () => {
             bankAccountNumber: response.data.bankAccountNumber || "",
             ifscCode: response.data.ifscCode || "",
             bankName: response.data.bankName || "",
-            profilePic: response.data.profilePicture
-            || "https://picsum.photos/300/300?grayscale",
+            profilePic:
+              response.data.profilePicture || "https://picsum.photos/300/300?grayscale",
             serviceLocations: response.data.serviceLocations || [],
           });
         }
@@ -168,30 +190,44 @@ const EditProfilePage = () => {
     const file = e.target.files?.[0];
     if (file) {
       setProfilePicFile(file);
-      setProfile((prev: any) => (prev ? { ...prev, profilePic: URL.createObjectURL(file) } : prev));
+      setProfile((prev) =>
+        prev ? { ...prev, profilePic: URL.createObjectURL(file) } : prev
+      );
     }
   };
 
   const handleInputChange = (key: string, value: string | string[] | null) => {
-    setProfile((prev: any) => (prev ? { ...prev, [key]: Array.isArray(value) ? value : value } : prev));
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            [key]:
+              key === "gender" && value === null
+                ? "" // Ensure gender is never null
+                : Array.isArray(value)
+                ? value
+                : value || "",
+          }
+        : prev
+    );
     // Clear error when user starts typing
     if (errors[key]) {
-      setErrors(prev => ({ ...prev, [key]: '' }));
+      setErrors((prev) => ({ ...prev, [key]: "" }));
     }
   };
 
   const handleServiceLocationsChange = (selectedOptions: any) => {
     setServiceLocations(selectedOptions || []);
-    setProfile((prev: any) => ({
+    setProfile((prev) => ({
       ...prev,
       serviceLocations: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : [],
     }));
     if (errors.serviceLocations) {
-      setErrors(prev => ({ ...prev, serviceLocations: '' }));
+      setErrors((prev) => ({ ...prev, serviceLocations: "" }));
     }
   };
 
-  const validateProfile = (profile: any) => {
+  const validateProfile = (profile: Profile) => {
     const newErrors: { [key: string]: string } = {};
 
     if (!profile.firstName.trim()) newErrors.firstName = "First Name is required";
@@ -260,12 +296,12 @@ const EditProfilePage = () => {
           },
         }
       );
-      if(response){
+      if (response) {
         toast.success("Profile updated successfully!");
       }
       setProfile((prev) => ({
         ...prev,
-        profilePic: response.data.data.guideProfile.profilePic || prev.profilePic,
+        profilePic: response.data.data.guideProfile.profilePic || prev!.profilePic,
       }));
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -274,7 +310,14 @@ const EditProfilePage = () => {
     }
   };
 
-  if (!profile || countries.length === 0 || states.length === 0 || activitiesList.length === 0) {
+  if (
+    !profile ||
+    countries.length === 0 ||
+    states.length === 0 ||
+    activitiesList.length === 0 ||
+    languagesList.length === 0 ||
+    cities.length === 0
+  ) {
     return (
       <div className="flex justify-center items-center h-screen">
         <p>Loading...</p>
@@ -288,13 +331,13 @@ const EditProfilePage = () => {
 
       <div className="flex flex-col items-center">
         <div className="relative">
-        <Image
-  src={profile.profilePic || "https://picsum.photos/300/300?grayscale"}
-  alt="Profile Picture"
-  width={120}
-  height={120}
-  className="rounded-full shadow-md border"
-/>
+          <Image
+            src={profile.profilePic || "https://picsum.photos/300/300?grayscale"}
+            alt="Profile Picture"
+            width={120}
+            height={120}
+            className="rounded-full shadow-md border"
+          />
           <label
             htmlFor="profilePicUpload"
             className="absolute bottom-0 right-0 bg-gray-800 text-white p-2 rounded-full cursor-pointer"
@@ -324,7 +367,7 @@ const EditProfilePage = () => {
               type="text"
               value={profile[key] || ""}
               onChange={(e) => handleInputChange(key, e.target.value)}
-              className={`w-full mt-1 p-2 border rounded-lg ${errors[key] ? 'border-red-500' : ''}`}
+              className={`w-full mt-1 p-2 border rounded-lg ${errors[key] ? "border-red-500" : ""}`}
               readOnly={readOnly}
             />
             {errors[key] && <p className="text-red-500 text-sm mt-1">{errors[key]}</p>}
@@ -336,10 +379,10 @@ const EditProfilePage = () => {
           <textarea
             value={profile.bio || ""}
             onChange={(e) => handleInputChange("bio", e.target.value)}
-            className={`w-full mt-1 p-2 border rounded-lg resize-none h-24 ${errors.bio ? 'border-red-500' : ''}`}
+            className={`w-full mt-1 p-2 border rounded-lg resize-none h-24 ${errors.bio ? "border-red-500" : ""}`}
             placeholder="Tell us about yourself and your guiding experience..."
           />
-          {errors.bio && <p className="text-red-500 text-sm mt-1">{errors.bio}</p>}
+          {errors.bio && <p className="text-red-500 text-sm mt-1">{errors.bio]}</p>}
         </div>
 
         <div>
@@ -358,10 +401,12 @@ const EditProfilePage = () => {
             type="text"
             value={profile.bankAccountNumber || ""}
             onChange={(e) => handleInputChange("bankAccountNumber", e.target.value)}
-            className={`w-full mt-1 p-2 border rounded-lg ${errors.bankAccountNumber ? 'border-red-500' : ''}`}
+            className={`w-full mt-1 p-2 border rounded-lg ${errors.bankAccountNumber ? "border-red-500" : ""}`}
             placeholder="Enter your bank account number"
           />
-          {errors.bankAccountNumber && <p className="text-red-500 text-sm mt-1">{errors.bankAccountNumber}</p>}
+          {errors.bankAccountNumber && (
+            <p className="text-red-500 text-sm mt-1">{errors.bankAccountNumber}</p>
+          )}
         </div>
 
         <div>
@@ -370,7 +415,7 @@ const EditProfilePage = () => {
             type="text"
             value={profile.ifscCode || ""}
             onChange={(e) => handleInputChange("ifscCode", e.target.value)}
-            className={`w-full mt-1 p-2 border rounded-lg ${errors.ifscCode ? 'border-red-500' : ''}`}
+            className={`w-full mt-1 p-2 border rounded-lg ${errors.ifscCode ? "border-red-500" : ""}`}
             placeholder="Enter your IFSC code"
           />
           {errors.ifscCode && <p className="text-red-500 text-sm mt-1">{errors.ifscCode}</p>}
@@ -382,7 +427,7 @@ const EditProfilePage = () => {
             type="text"
             value={profile.bankName || ""}
             onChange={(e) => handleInputChange("bankName", e.target.value)}
-            className={`w-full mt-1 p-2 border rounded-lg ${errors.bankName ? 'border-red-500' : ''}`}
+            className={`w-full mt-1 p-2 border rounded-lg ${errors.bankName ? "border-red-500" : ""}`}
             placeholder="Enter your bank name"
           />
           {errors.bankName && <p className="text-red-500 text-sm mt-1">{errors.bankName}</p>}
@@ -392,10 +437,9 @@ const EditProfilePage = () => {
           <label className="font-medium">Gender</label>
           <Select
             options={genderOptions}
-            value={genderOptions.find((option) => option.value === profile.gender)}
-            onChange={(selected) => handleInputChange("gender", selected?.value || null)}
+            value={genderOptions.find((option) => option.value === profile.gender) || null}
+            onChange={(selected) => handleInputChange("gender", selected?.value || "")}
             className="mt-1"
-            classNamePrefix="select"
             classNamePrefix="select"
           />
           {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender}</p>}
@@ -405,13 +449,16 @@ const EditProfilePage = () => {
           <label className="font-medium">Languages</label>
           <Select
             options={languagesList}
-            value={languagesList.filter((option) => profile.languages?.includes(option.value))}
+            value={
+              profile.languages
+                ? languagesList.filter((option) => profile.languages.includes(option.value))
+                : []
+            }
             isMulti
             onChange={(selected) =>
               handleInputChange("languages", selected?.map((item) => item.value) || [])
             }
             className="mt-1"
-            classNamePrefix="select"
             classNamePrefix="select"
           />
           {errors.languages && <p className="text-red-500 text-sm mt-1">{errors.languages}</p>}
@@ -421,13 +468,16 @@ const EditProfilePage = () => {
           <label className="font-medium">Activities Offered</label>
           <Select
             options={activitiesList}
-            value={activitiesList.filter((option) => profile.activities?.includes(option.value))}
+            value={
+              profile.activities
+                ? activitiesList.filter((option) => profile.activities.includes(option.value))
+                : []
+            }
             isMulti
             onChange={(selected) =>
               handleInputChange("activities", selected?.map((item) => item.value) || [])
             }
             className="mt-1"
-            classNamePrefix="select"
             classNamePrefix="select"
           />
           {errors.activities && <p className="text-red-500 text-sm mt-1">{errors.activities}</p>}
@@ -437,10 +487,9 @@ const EditProfilePage = () => {
           <label className="font-medium">Country</label>
           <Select
             options={countries}
-            value={countries.find((option) => option.value === profile.country)}
-            onChange={(selected) => handleInputChange("country", selected?.value)}
+            value={countries.find((option) => option.value === profile.country) || null}
+            onChange={(selected) => handleInputChange("country", selected?.value || "")}
             className="mt-1"
-            classNamePrefix="select"
             classNamePrefix="select"
           />
           {errors.country && <p className="text-red-500 text-sm mt-1">{errors.country}</p>}
@@ -450,10 +499,9 @@ const EditProfilePage = () => {
           <label className="font-medium">State</label>
           <Select
             options={states}
-            value={states.find((option) => option.value === profile.state)}
-            onChange={(selected) => handleInputChange("state", selected?.value)}
+            value={states.find((option) => option.value === profile.state) || null}
+            onChange={(selected) => handleInputChange("state", selected?.value || "")}
             className="mt-1"
-            classNamePrefix="select"
             classNamePrefix="select"
           />
           {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state}</p>}
@@ -470,9 +518,10 @@ const EditProfilePage = () => {
             isLoading={cities.length === 0}
             className="mt-1"
             classNamePrefix="select"
-            classNamePrefix="select"
           />
-          {errors.serviceLocations && <p className="text-red-500 text-sm mt-1">{errors.serviceLocations}</p>}
+          {errors.serviceLocations && (
+            <p className="text-red-500 text-sm mt-1">{errors.serviceLocations}</p>
+          )}
         </div>
       </div>
 

@@ -23,37 +23,17 @@ interface Feedback {
   status: string;
   submittedAt: string;
   __v: number;
-  // Entity-specific fields
   guideId?: string;
   attractionId?: string;
   routeId?: string;
 }
 
-interface RouteResponse {
-  _id: string;
-  from: string;
-  to: string;
-  transports: {
-    mode: string;
-    duration: string;
-    details: string;
-    _id: string;
-  }[];
-  guideId: string;
-  createdAt: string;
-  updatedAt: string;
-  __v: number;
-}
-
 interface ApiResponse {
-  success: boolean;
-  route?: RouteResponse;
-  attraction?: {
-    _id: string;
-    name: string;
-    // ... other attraction fields
-  };
-  feedbacks?: Feedback[];
+  totalFeedback: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+  feedback: Feedback[];
 }
 
 const ReviewList = ({ entityId, entityType }: ReviewListProps) => {
@@ -62,40 +42,27 @@ const ReviewList = ({ entityId, entityType }: ReviewListProps) => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [entityDetails, setEntityDetails] = useState({
-    name: "",
-    from: "",
-    to: ""
-  });
+  const [totalReviews, setTotalReviews] = useState(0);
 
-  // Helper function to render star ratings
+
+  
   const renderStars = (rating: number) => {
-    const stars = [];
-    for (let i = 0; i < 5; i++) {
-      stars.push(
-        <span key={i} className={i < rating ? 'text-yellow-400' : 'text-gray-300'}>
-          ★
-        </span>
-      );
-    }
-    return stars;
+    return Array(5).fill(0).map((_, i) => (
+      <span 
+        key={i} 
+        className={i < rating ? 'text-yellow-400' : 'text-gray-300'}
+      >
+        ★
+      </span>
+    ));
   };
 
   const getApiEndpoint = () => {
     switch (entityType) {
       case 'guide': return `api/feedback/${entityId}`;
-      case 'attraction': return `api/attractions/feedback/attraction/${entityId}`;
-      case 'route': return `api/routes/feedback/routes/${entityId}`;
+      case 'attraction': return `api/feedback/attraction/${entityId}`;
+      case 'route': return `api/feedback/route/${entityId}`;
       default: return `api/feedback/${entityId}`;
-    }
-  };
-
-  const getEntityName = () => {
-    switch (entityType) {
-      case 'guide': return 'Guide';
-      case 'attraction': return entityDetails.name || 'Attraction';
-      case 'route': return `Route: ${entityDetails.from} → ${entityDetails.to}`;
-      default: return 'Item';
     }
   };
 
@@ -107,38 +74,29 @@ const ReviewList = ({ entityId, entityType }: ReviewListProps) => {
         setLoading(true);
         setError(null);
 
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-        if (!token) throw new Error("Authentication token not found");
-
+        const token = localStorage.getItem("token");
         const endpoint = getApiEndpoint();
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/${endpoint}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/${endpoint}`;
+        
+        console.log('Fetching reviews from:', apiUrl); // Debug log
+
+        const response = await fetch(apiUrl, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
 
         if (!response.ok) {
           throw new Error(`Failed to fetch ${entityType} reviews: ${response.statusText}`);
         }
 
         const data: ApiResponse = await response.json();
+        console.log('Received data:', data); // Debug log
         
-        // Set entity-specific details
-        if (entityType === 'attraction' && data.attraction) {
-          setEntityDetails(prev => ({ ...prev, name: data.attraction?.name || "" }));
-        } else if (entityType === 'route' && data.route) {
-          setEntityDetails({
-            name: "",
-            from: data.route.from,
-            to: data.route.to
-          });
-        }
-        
-        setReviews(data.feedbacks || []);
-        // Assuming 1 page if no pagination info is returned
-        setTotalPages(1);
+        setReviews(data.feedback || []);
+        setTotalPages(data.totalPages || 1);
+        setTotalReviews(data.totalFeedback || 0);
+        setCurrentPage(data.currentPage || 1);
       } catch (error) {
+        console.error('Error fetching reviews:', error); // Debug log
         setError(error instanceof Error ? error.message : 'An unknown error occurred');
       } finally {
         setLoading(false);
@@ -146,42 +104,72 @@ const ReviewList = ({ entityId, entityType }: ReviewListProps) => {
     };
 
     fetchReviews();
-  }, [entityId, entityType, currentPage]);
+  }, [entityId, entityType]);
+
+  // Debug logs to track state changes
+  useEffect(() => {
+    console.log('Loading state:', loading);
+    console.log('Reviews:', reviews);
+  }, [loading, reviews]);
 
   return (
     <div className="lg:col-span-2 flex flex-col space-y-6 p-6 max-w-full mx-auto">
-      <h3 className="text-2xl font-semibold text-gray-800 border-b pb-3">
-        {getEntityName()} Reviews
-      </h3>
+      <div className="flex justify-between items-center border-b pb-3">
+        <h3 className="text-2xl font-semibold text-gray-800">
+          Guide Reviews
+        </h3>
+        <span className="text-sm text-gray-500">
+          {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
+        </span>
+      </div>
 
       {loading ? (
-        <div className="flex justify-center">
+        <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
       ) : error ? (
-        <p className="text-center text-red-500">{error}</p>
+        <div className="text-center py-8">
+          <p className="text-red-500">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-2 px-4 py-2 bg-gray-100 rounded hover:bg-gray-200"
+          >
+            Try Again
+          </button>
+        </div>
       ) : reviews.length === 0 ? (
-        <p className="text-center text-gray-500">
-          No reviews yet. Be the first to review this {entityType}!
-        </p>
+        <div className="text-center py-8">
+          <p className="text-gray-500">
+            No reviews yet. Be the first to review this guide!
+          </p>
+        </div>
       ) : (
         <>
-          {reviews.map((review) => (
-            <div key={review._id} className="p-5 bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="flex justify-between items-center mb-2">
-                <div className="flex">
-                  {renderStars(review.rating)}
+          <div className="space-y-4">
+            {reviews.map((review) => (
+              <div key={review._id} className="p-5 bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex">
+                    {renderStars(review.rating)}
+                    <span className="ml-2 text-sm text-gray-600">
+                      {review.rating.toFixed(1)}
+                    </span>
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {new Date(review.submittedAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </span>
                 </div>
-                <span className="text-sm text-gray-500">
-                  {new Date(review.submittedAt).toLocaleDateString()}
-                </span>
+                <p className="text-gray-800 text-lg font-medium">{review.comments}</p>
+                <p className="text-sm text-gray-600 mt-2">
+                  - {review.userId?.name || "Anonymous"}
+                </p>
               </div>
-              <p className="text-gray-800 text-lg font-medium">{review.comments}</p>
-              <p className="text-sm text-gray-600 mt-2">
-                - {review.userId?.name || "Anonymous"}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
 
           {totalPages > 1 && (
             <div className="flex justify-center mt-6 gap-4">

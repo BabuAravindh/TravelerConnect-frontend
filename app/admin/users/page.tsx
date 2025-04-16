@@ -33,7 +33,7 @@ export default function AdminUsersPage() {
     try {
       setLoading(true);
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/profile`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/profile/users`,
         {
           headers: {
             'Content-Type': 'application/json',

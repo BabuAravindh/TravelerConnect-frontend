@@ -1,79 +1,115 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import axios from "axios";
-import { toast } from "react-hot-toast";
+import toast from "react-hot-toast"; // Ensure correct import
 
 const useSignup = () => {
   const [loading, setLoading] = useState(false);
-  const [serverMessage, setServerMessage] = useState("");
-  const [isNameTaken, setIsNameTaken] = useState(false); // New state for name conflict
+  const [validationStep, setValidationStep] = useState<"name" | "email" | "password" | "complete" | null>(null);
+  const [validationErrors, setValidationErrors] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: ""
+  });
 
-  const handleSignup = async (data: { name: string; email: string; password: string }) => {
+  const validateField = useCallback(async (field: "name" | "email" | "password", value: string, confirmPassword?: string) => {
+    setValidationStep(field);
     setLoading(true);
-    setServerMessage("");
-    setIsNameTaken(false); // Reset name conflict state
-    console.log("🔍 Sending Signup Request:", data);
 
+    try {
+      let response;
+      if (field === "name") {
+        response = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/auth/validateName`,
+          { name: value }
+        );
+      } else if (field === "email") {
+        response = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL}/auth/validateEmail`,
+          { email: value }
+        );
+      }
+
+      if (response && response.status !== 200) {
+        setValidationErrors(prev => ({ ...prev, [field]: response.data.message }));
+        return false;
+      }
+
+      if (field === "name" || field === "email") {
+        toast.success(response.data.message || "Validation successful!");
+      }
+      return true;
+    } catch (error: any) {
+      console.error(`Validation error for ${field}:`, error);
+      if (error.response?.status === 400) {
+        setValidationErrors(prev => ({ ...prev, [field]: error.response.data.message }));
+      } else {
+        setValidationErrors(prev => ({ ...prev, [field]: "An unexpected error occurred. Please try again later." }));
+      }
+      return false;
+    } finally {
+      setLoading(false);
+    }
+
+    if (field === "password" && confirmPassword && value !== confirmPassword) {
+      setValidationErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match" }));
+      return false;
+    }
+    setValidationErrors(prev => ({ ...prev, confirmPassword: "" }));
+    return true;
+  }, []);
+
+  const handleSignup = async (data: { 
+    name: string; 
+    email: string; 
+    password: string;
+    confirmPassword: string;
+  }) => {
+    setValidationErrors({ name: "", email: "", password: "", confirmPassword: "" });
+    const isNameValid = await validateField("name", data.name);
+    if (!isNameValid) return;
+
+    const isEmailValid = await validateField("email", data.email);
+    if (!isEmailValid) return;
+
+    const isPasswordValid = await validateField("password", data.password, data.confirmPassword);
+    if (!isPasswordValid) return;
+
+    setLoading(true);
     try {
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/auth/signup`,
-        data,
         {
-          headers: {
-            "Content-Type": "application/json",
-          },
+          name: data.name,
+          email: data.email,
+          password: data.password
         }
       );
 
-      console.log("✅ Signup Response:", response.data);
       const { token, user } = response.data;
-
-      if (user?.id && user?.name && user?.role && token) {
+      if (user?.id && token) {
         localStorage.setItem("token", token);
-        setServerMessage("✅ Signup successful! Redirecting...");
-        toast.success("✅ Signup successful! Check your email to verify your account.");
-      } else {
-        throw new Error("Invalid response data");
+        setValidationStep("complete");
+        toast.success("Account created successfully! Please verify your email.");
       }
     } catch (error: any) {
-      console.error("❌ Signup Error:", error);
-
-      if (error.response) {
-        console.error("🚨 Server Response:", error.response.data);
-        
-        // Handle name conflict differently
-        if (error.response.data.info && error.response.data.isNameTaken) {
-          setServerMessage(error.response.data.info);
-          setIsNameTaken(true);
-          toast(error.response.data.info, { 
-            icon: 'ℹ️',
-            style: {
-              background: '#f0f7ff',
-              color: '#0066cc'
-            }
-          });
-        } 
-        // Handle other errors normally
-        else {
-          setServerMessage(error.response.data.message || "Signup failed");
-          toast.error(error.response.data.message || "❌ Signup failed. Please try again.");
-        }
-      } else if (error.request) {
-        console.error("🚫 No Response from Server");
-        setServerMessage("Server is not responding. Please try again later.");
-        toast.error("Server is not responding. Please try again later.");
-      } else {
-        console.error("❌ Unknown Error:", error.message);
-        setServerMessage("An unexpected error occurred. Please try again.");
-        toast.error("An unexpected error occurred. Please try again.");
-      }
+      console.error("Signup error:", error);
+      toast.error(error.response?.data?.message || "Signup failed. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
 
-  return { handleSignup, loading, serverMessage, isNameTaken };
+  return { 
+    handleSignup, 
+    loading, 
+    validateField,
+    validationStep,
+    validationErrors,
+    setValidationErrors
+  };
 };
 
 export default useSignup;

@@ -133,7 +133,7 @@ const ChatMessageArea = ({ guideId }: { guideId: string }) => {
         return;
       }
   
-      setMessages((prev) => [...prev, response.message]);
+     
       setNewMessage("");
     } catch (error) {
       console.error("❌ Error sending message:", error);
@@ -141,46 +141,52 @@ const ChatMessageArea = ({ guideId }: { guideId: string }) => {
   };
   
   
-
   return (
-    <div className="bg-[#6999aa] shadow-lg rounded-lg p-4 max-w-6xl mx-auto">
-      <h2 className="text-xl font-semibold text-white mb-2">Chat</h2>
-      <div className="h-60 overflow-y-auto border border-[#1b374c] p-2 rounded-lg bg-white mb-2 flex flex-col gap-1">
-  {messages.length ? (
-    messages.map((message, index) => (
-      <div
-  key={message._id || index}
-  className={`p-2 my-1 rounded-lg max-w-[75%] ${
-    (typeof message.senderId === "object"
-      ? message.senderId?._id?.toString()
-      : message.senderId?.toString()) === userId?.toString()
-      ? "bg-primary text-white self-end ml-auto text-right"
-      : "bg-gray-200 text-black self-start mr-auto text-left"
-  }`}
->
-  {message.message}
-</div>
-
-    
-
-    ))
-  ) : (
-    <p className="text-gray-500 text-center w-full">No messages yet</p>
-  )}
-</div>
-
-
-
+    <div className="bg-white shadow-lg rounded-lg p-4 max-w-6xl mx-auto">
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">Chat</h2>
+      <div className="h-60 overflow-y-auto border border-gray-300 p-4 rounded-lg bg-gray-50 mb-4 flex flex-col gap-3">
+        {messages.length ? (
+          messages.map((message, index) => {
+            const isCurrentUser = 
+              (typeof message.senderId === 'object' 
+                ? message.senderId?._id?.toString() 
+                : message.senderId?.toString()) === userId?.toString();
+            
+            return (
+              <div
+                key={message._id || index}
+                className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`p-3 rounded-lg max-w-xs md:max-w-md ${
+                    isCurrentUser
+                      ? 'bg-[#1b374c] text-white rounded-tr-none'
+                      : 'bg-gray-200 text-gray-800 rounded-tl-none'
+                  }`}
+                >
+                  {message.message}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500">No messages yet</p>
+          </div>
+        )}
+      </div>
+  
       <div className="flex gap-2">
         <input
           type="text"
-          className="flex-1 p-2 border border-[#1b374c] rounded-lg"
+          className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1b374c]"
           placeholder="Type a message..."
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
         />
         <button
-          className="bg-[#1b374c] text-white px-4 py-2 rounded-lg"
+          className="bg-[#1b374c] hover:bg-[#2a4d6a] text-white px-4 py-2 rounded-lg transition-colors"
           onClick={handleSendMessage}
         >
           Send

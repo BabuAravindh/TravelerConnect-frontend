@@ -4,17 +4,17 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
-import { Star } from "lucide-react";
+import { Star, Verified, Languages, Activity, MapPin } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import ChatMessageArea from "@/components/ChatMessageArea";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import ReviewForm from "@/components/ReviewForm";
-import ReviewList from "@/components/ReviewList"
+import ReviewList from "@/components/ReviewList";
 import Chatbot from "@/components/ChatBot";
-interface Guide {
 
+interface Guide {
   _id?: string;
   firstName: string;
   lastName: string;
@@ -43,7 +43,6 @@ const GuideProfile = () => {
     const fetchGuide = async () => {
       try {
         const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${guideId}`);
-        console.log("Guide data:", res.data);
         setGuide(res.data);
       } catch (error) {
         console.error("Error fetching guide:", error);
@@ -55,127 +54,181 @@ const GuideProfile = () => {
     if (guideId) fetchGuide();
   }, [guideId]);
 
-  if (authLoading || loading) return <p className="text-center mt-10">Loading...</p>;
-  if (!user) return <p className="text-center mt-10">User not authenticated</p>;
-
   const handleRequest = async () => {
     if (!user?.id) {
       toast.error("You must be logged in to send a request.");
       return;
     }
 
-    const requestData = {
-      customerId: user.id,
-      guideId: guideId,
-      paymentStatus: "pending",
-    };
-
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/requests`, requestData);
-
-      if (response.data?.message === "You have already sent a request. Try again later.") {
-        toast.success(response.data.message);
-      } else {
-        toast.success("Request sent to the guide!");
-      }
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/requests`, {
+        customerId: user.id,
+        guideId: guideId,
+        paymentStatus: "pending",
+      });
+      toast.success(response.data?.message || "Request sent to the guide!");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to send request.");
-      console.error("Error:", error);
     }
   };
+
+  if (authLoading || loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <h2 className="text-2xl font-semibold">Please log in to view this page</h2>
+        <button 
+          onClick={() => router.push('/login')}
+          className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
       <Navbar />
-      <div className="bg-gray-100 min-h-screen py-12 px-6 md:px-12 flex flex-col items-center">
-        <div className="relative w-full">
-          {/* Banner Image */}
-          <div className="absolute inset-0 h-96 w-full overflow-hidden rounded-3xl shadow-xl">
-            <Image
-              src={guide?.profilePicture}
-              alt="Banner Image"
-              width={1200}
-              height={320}
-              className="w-full h-full object-cover rounded-3xl"
-            />
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
+      <div className="bg-gray-50 min-h-screen">
+        {/* Hero Section */}
+        <div className="relative h-96 w-full overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 z-10" />
+          <Image
+            src={guide?.profilePicture || "/default-banner.jpg"}
+            alt="Banner"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="relative z-20 h-full flex items-center justify-center">
+            <div className="text-center px-4">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
                 {guide?.firstName} {guide?.lastName}
               </h1>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="relative z-10 max-w-5xl w-full mx-auto mt-40 bg-white shadow-xl rounded-3xl p-10">
-            <div className="flex flex-col md:flex-row gap-12">
-              {/* Profile Picture */}
-              <div className="md:w-1/3 flex justify-center">
-                <Image
-                  src={guide?.profilePicture || "https://picsum.photos/500"}
-                  alt={`${guide?.firstName} ${guide?.lastName}`}
-                  width={250}
-                  height={250}
-                  className="object-cover w-60 h-60 rounded-full border-4 border-gray-300"
-                />
+              <div className="flex items-center justify-center gap-2">
+                <MapPin className="text-white" size={20} />
+                <p className="text-xl text-white">
+                  {guide?.state}, {guide?.country}
+                </p>
               </div>
-
-              {/* Guide Details */}
-              <div className="md:w-2/3 flex flex-col justify-center text-gray-900">
-                <h2 className="text-4xl font-bold mb-2">{guide?.firstName} {guide?.lastName}</h2>
-                <p className="text-lg text-gray-700 mb-1">📍 {guide?.state}, {guide?.country}</p>
-                <p className="text-lg text-gray-700 mb-1">🛠 Role: {guide?.role?.toUpperCase()}</p>
-
-                <div className="flex items-center gap-2 mt-2">
-                  <Star className="text-yellow-500" size={30} />
-                  <span className="text-2xl font-semibold">⭐ {guide?.isVerified ? "Verified Guide" : "Not Verified"}</span>
-                </div>
-
-                <p className="text-lg leading-relaxed mt-4 mb-6 text-gray-600">{guide?.bio}</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg shadow-md">
-                    <h4 className="text-lg font-semibold">🗣 Languages</h4>
-                    <p className="text-gray-600">{guide?.languages?.join(", ") || "Not specified"}</p>
-                  </div>
-
-                  <div className="bg-gray-50 p-4 rounded-lg shadow-md">
-                    <h4 className="text-lg font-semibold">🎭 Activities</h4>
-                    <p className="text-gray-600">{guide?.activities?.join(", ") || "No activities listed"}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Book Guide & Request Chat Buttons */}
-            <div className="mt-6 flex justify-center gap-4">
-              <button
-                onClick={() => router.push(`/guides/book_guide/${guideId}`)}
-                className="bg-button hover:bg-opacity-90 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition"
-              >
-                📅 Book Guide
-              </button>
-
-              <button
-                onClick={handleRequest}
-                className="bg-primary bg-opacity-90 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition"
-              >
-                💬 Request Chat with Guide
-              </button>
             </div>
           </div>
         </div>
-        <Chatbot/>
-        {/* Chat System */}
-        <div className=" mx-auto max-w-5xl w-full  mt-10 ">
-          <ChatMessageArea guideId={guideId} />
+
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Left Column - Profile Card */}
+            <div className="lg:w-1/3">
+              <div className="bg-white rounded-xl shadow-md overflow-hidden sticky top-8">
+                <div className="p-6">
+                  <div className="flex justify-center -mt-20 mb-4">
+                    <div className="relative h-40 w-40 rounded-full border-4 border-white shadow-lg mt-20">
+                      <Image
+                        src={guide?.profilePicture || "/default-avatar.jpg"}
+                        alt={`${guide?.firstName} ${guide?.lastName}`}
+                        fill
+                        className="object-cover rounded-full"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      {guide?.firstName} {guide?.lastName}
+                    </h2>
+                    <p className="text-gray-600">{guide?.role}</p>
+                    
+                    <div className="flex items-center justify-center gap-1 mt-2">
+                      <Verified className={`${guide?.isVerified ? 'text-blue-500' : 'text-gray-400'}`} size={18} />
+                      <span className="text-sm font-medium">
+                        {guide?.isVerified ? "Verified Guide" : "Not Verified"}
+                      </span>
+                    </div>
+                    
+                    <div className="mt-6 flex flex-col gap-3">
+                      <button
+                        onClick={() => router.push(`/guides/book_guide/${guideId}`)}
+                        className="w-full bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded-lg transition"
+                      >
+                        Book Guide
+                      </button>
+                      <button
+                        onClick={handleRequest}
+                        className="w-full bg-button hover:bg-opacity-90 text-white font-medium py-2 px-4 rounded-lg transition"
+                      >
+                        Request Chat
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border-t border-gray-200 px-6 py-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Languages className="text-gray-500" size={18} />
+                    <div>
+                      <h4 className="font-medium text-gray-900">Languages</h4>
+                      <p className="text-gray-600 text-sm">
+                        {guide?.languages?.join(", ") || "Not specified"}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <Activity className="text-gray-500" size={18} />
+                    <div>
+                      <h4 className="font-medium text-gray-900">Activities</h4>
+                      <p className="text-gray-600 text-sm">
+                        {guide?.activities?.join(", ") || "No activities listed"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Content */}
+            <div className="lg:w-2/3 space-y-8">
+              {/* About Section */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">About Me</h3>
+                <p className="text-gray-700 leading-relaxed">
+                  {guide?.bio || "This guide hasn't written a bio yet."}
+                </p>
+              </div>
+
+              {/* Reviews Section */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+              
+                <ReviewList entityId={guideId} entityType="guide" />
+              </div>
+
+              {/* Leave a Review */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+               
+                <ReviewForm entityId={guideId} entityType="guide" />
+              </div>
+
+              {/* Chat Section */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Chat with Guide</h3>
+                <ChatMessageArea guideId={guideId} />
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="mx-auto max-w-5xl w-full mt-20">
-        <ReviewForm entityId={guideId} entityType="guide" />
-        <ReviewList guideId={guideId }  entityType="guide" />
-        </div>
+
+   
+        <Footer />
       </div>
-      
-      <Footer />
     </>
   );
 };
