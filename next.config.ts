@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
-  
+  reactStrictMode: process.env.NODE_ENV !== "development", // Enable in production, disable in development
   images: {
     remotePatterns: [
       {
@@ -11,7 +10,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  
 };
 
 export default nextConfig;

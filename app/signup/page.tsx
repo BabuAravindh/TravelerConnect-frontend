@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import useSignup from "@/hooks/useSignup";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
@@ -8,9 +8,9 @@ import { Footer } from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 
 const SignupPage = () => {
-  const { handleSignup, loading, validateField, validationErrors, setValidationErrors } = useSignup();
+  const { handleSignup, loading, validationErrors, setValidationErrors } = useSignup();
   const [formData, setFormData] = useState({
-    fullName: "",
+    name: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -20,11 +20,13 @@ const SignupPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const validateForm = () => {
-    let newErrors = { fullName: "", email: "", password: "", confirmPassword: "" };
+    let newErrors = { name: "", email: "", password: "", confirmPassword: "" };
     let isValid = true;
 
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name is required.";
+    console.log("Validating confirmPassword:", formData.confirmPassword);
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required.";
       isValid = false;
     }
 
@@ -59,40 +61,49 @@ const SignupPage = () => {
       isValid = false;
     }
 
-    setValidationErrors(newErrors);
+    setValidationErrors((prev) => ({ ...prev, ...newErrors }));
+    console.log("Validation result - isValid:", isValid, "Errors:", newErrors);
     return isValid;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    setValidationErrors(prev => ({ ...prev, [name]: "" }));
+    console.log(`Changing ${name} to:`, value);
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setValidationErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const handleFieldBlur = async (field: "name" | "email", value: string) => {
-    if (value.trim() && (field === "name" || field === "email")) {
-      await validateField(field === "name" ? "name" : "email", value);
-    }
-  };
-
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (validateForm()) {
-      handleSignup({
-        name: formData.fullName,
-        email: formData.email,
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
-      });
-    }
-  };
+  const handleSubmit = useCallback(
+    (event: React.FormEvent) => {
+      event.preventDefault();
+      console.log("Form Data before validation:", formData);
+      if (!formData.confirmPassword.trim()) {
+        setValidationErrors((prev) => ({
+          ...prev,
+          confirmPassword: "Please confirm your password.",
+        }));
+        return;
+      }
+      if (validateForm()) {
+        console.log("Validation passed, submitting:", formData);
+        handleSignup({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+        });
+      } else {
+        console.log("Validation failed, errors:", validationErrors);
+      }
+    },
+    [formData, validateForm, handleSignup, validationErrors]
+  );
 
   return (
     <>
       <Navbar />
       <div className="min-h-screen bg-primary flex justify-center items-center">
         <div className="max-w-screen-xl bg-white shadow-lg rounded-lg flex w-full overflow-hidden justify-center gap-12">
-          {/* Left Section - Sign Up Form */}
           <div className="w-full lg:w-1/2 p-8 lg:p-12">
             <div className="text-center">
               <h1 className="text-3xl font-bold text-gray-900">Sign Up</h1>
@@ -103,16 +114,15 @@ const SignupPage = () => {
               <div>
                 <input
                   type="text"
-                  name="fullName"
-                  placeholder="Full Name"
+                  name="name"
+                  placeholder="Name"
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                    validationErrors.fullName ? "border-red-500 focus:ring-red-400" : "focus:ring-indigo-400"
+                    validationErrors.name ? "border-red-500 focus:ring-red-400" : "focus:ring-indigo-400"
                   }`}
-                  value={formData.fullName}
+                  value={formData.name}
                   onChange={handleChange}
-                  onBlur={() => handleFieldBlur("name", formData.fullName)}
                 />
-                {validationErrors.fullName && <p className="text-red-500 text-sm mt-1">{validationErrors.fullName}</p>}
+                {validationErrors.name && <p className="text-red-500 text-sm mt-1">{validationErrors.name}</p>}
               </div>
 
               <div>
@@ -125,12 +135,19 @@ const SignupPage = () => {
                   }`}
                   value={formData.email}
                   onChange={handleChange}
-                  onBlur={() => handleFieldBlur("email", formData.email)}
                 />
-                {validationErrors.email && <p className="text-red-500 text-sm mt-1">{validationErrors.email}</p>}
+                {validationErrors.email && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {validationErrors.email}{" "}
+                    {validationErrors.email.includes("already registered") && (
+                      <a href="/login" className="text-indigo-500 underline">
+                        Login instead
+                      </a>
+                    )}
+                  </p>
+                )}
               </div>
 
-              {/* Password Field with Eye Icon */}
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -152,7 +169,6 @@ const SignupPage = () => {
                 {validationErrors.password && <p className="text-red-500 text-sm mt-1">{validationErrors.password}</p>}
               </div>
 
-              {/* Confirm Password Field with Eye Icon */}
               <div className="relative">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
@@ -178,7 +194,7 @@ const SignupPage = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !formData.confirmPassword.trim()}
                 className={`w-full py-3 bg-button text-white font-semibold rounded-lg transition ${
                   loading ? "opacity-50 cursor-not-allowed" : "hover:bg-opacity-80"
                 }`}
@@ -189,16 +205,20 @@ const SignupPage = () => {
 
             <p className="mt-4 text-sm text-center text-gray-600">
               By signing up, you agree to our{" "}
-              <a href="#" className="text-indigo-500">Terms & Privacy Policy</a>.
+              <a href="#" className="text-indigo-500">
+                Terms & Privacy Policy
+              </a>
+              .
             </p>
 
             <p className="mt-4 text-sm text-center">
               Already have an account?{" "}
-              <a href="/login" className="text-indigo-500 font-medium">Log in</a>
+              <a href="/login" className="text-indigo-500 font-medium">
+                Log in
+              </a>
             </p>
           </div>
 
-          {/* Right Section - Illustration */}
           <Image
             src="https://storage.googleapis.com/devitary-image-host.appspot.com/15848031292911696601-undraw_designer_life_w96d.svg"
             alt="Traveler Illustration"

@@ -1,114 +1,74 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import axios from "axios";
-import toast from "react-hot-toast"; // Ensure correct import
+import toast from "react-hot-toast";
 
 const useSignup = () => {
   const [loading, setLoading] = useState(false);
-  const [validationStep, setValidationStep] = useState<"name" | "email" | "password" | "complete" | null>(null);
   const [validationErrors, setValidationErrors] = useState({
     name: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
 
-  const validateField = useCallback(async (field: "name" | "email" | "password", value: string, confirmPassword?: string) => {
-    setValidationStep(field);
-    setLoading(true);
-
-    try {
-      let response;
-      if (field === "name") {
-        response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/auth/validateName`,
-          { name: value }
-        );
-      } else if (field === "email") {
-        response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/auth/validateEmail`,
-          { email: value }
-        );
-      }
-
-      if (response && response.status !== 200) {
-        setValidationErrors(prev => ({ ...prev, [field]: response.data.message }));
-        return false;
-      }
-
-      if (field === "name" || field === "email") {
-        toast.success(response.data.message || "Validation successful!");
-      }
-      return true;
-    } catch (error: any) {
-      console.error(`Validation error for ${field}:`, error);
-      if (error.response?.status === 400) {
-        setValidationErrors(prev => ({ ...prev, [field]: error.response.data.message }));
-      } else {
-        setValidationErrors(prev => ({ ...prev, [field]: "An unexpected error occurred. Please try again later." }));
-      }
-      return false;
-    } finally {
-      setLoading(false);
-    }
-
-    if (field === "password" && confirmPassword && value !== confirmPassword) {
-      setValidationErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match" }));
-      return false;
-    }
-    setValidationErrors(prev => ({ ...prev, confirmPassword: "" }));
-    return true;
-  }, []);
-
-  const handleSignup = async (data: { 
-    name: string; 
-    email: string; 
+  const handleSignup = async (data: {
+    name: string;
+    email: string;
     password: string;
     confirmPassword: string;
   }) => {
-    setValidationErrors({ name: "", email: "", password: "", confirmPassword: "" });
-    const isNameValid = await validateField("name", data.name);
-    if (!isNameValid) return;
-
-    const isEmailValid = await validateField("email", data.email);
-    if (!isEmailValid) return;
-
-    const isPasswordValid = await validateField("password", data.password, data.confirmPassword);
-    if (!isPasswordValid) return;
-
     setLoading(true);
+    setValidationErrors({ name: "", email: "", password: "", confirmPassword: "" }); // Clear previous errors
+
     try {
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/auth/signup`,
         {
           name: data.name,
           email: data.email,
-          password: data.password
+          password: data.password,
+          confirmPassword: data.confirmPassword, // Include confirmPassword
         }
       );
 
       const { token, user } = response.data;
       if (user?.id && token) {
         localStorage.setItem("token", token);
-        setValidationStep("complete");
         toast.success("Account created successfully! Please verify your email.");
       }
     } catch (error: any) {
       console.error("Signup error:", error);
-      toast.error(error.response?.data?.message || "Signup failed. Please try again later.");
+      const serverErrors = error.response?.data?.errors || [];
+      const newErrors = { name: "", email: "", password: "", confirmPassword: "" };
+
+      serverErrors.forEach((err: { field: string; message: string }) => {
+        if (err.field && newErrors.hasOwnProperty(err.field)) {
+          newErrors[err.field as keyof typeof newErrors] = err.message;
+        } else {
+          toast.error(err.message || "Signup failed. Please try again later.");
+        }
+      });
+
+      if (error.response?.data?.isNameTaken) {
+        newErrors.name = error.response.data.errors?.[0]?.message || "This name is already taken.";
+      }
+      if (error.response?.data?.isEmailTaken) {
+        newErrors.email = error.response.data.errors?.[0]?.message || "This email is already registered.";
+      }
+
+      setValidationErrors(newErrors);
     } finally {
       setLoading(false);
     }
   };
 
-  return { 
-    handleSignup, 
-    loading, 
-    validateField,
-    validationStep,
+  return {
+    handleSignup,
+    loading,
     validationErrors,
-    setValidationErrors
+    setValidationErrors,
   };
 };
 
