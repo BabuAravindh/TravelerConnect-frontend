@@ -236,6 +236,7 @@ export const roleBasedNavItems: Record<string, { href: string; label: string; ic
     { href: "/admin/messages", label: "Manage Messages", icon: Users },
     { href: "/admin/bookings", label: "All Bookings", icon: Calendar },
     { href: "/admin/payments", label: "Payments", icon: CreditCard },
+    { href: "/admin/refund", label: "Refunds", icon: CreditCard },
     { href: "/admin/information", label: " Website Content", icon: Info },
     { href: "/admin/customerSupport", label: "Customer Report", icon: Info },
     { href: "/admin/ratings", label: "Ratings", icon: Star },

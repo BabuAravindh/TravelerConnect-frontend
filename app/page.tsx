@@ -77,8 +77,8 @@ const Page: React.FC = () => {
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000, // 10 seconds
-          maximumAge: 0, // Don't use cached position
+          timeout: 10000,
+          maximumAge: 0,
         }
       );
     } catch (error) {

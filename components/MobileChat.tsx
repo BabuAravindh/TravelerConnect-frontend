@@ -29,7 +29,7 @@ const MobileChat = () => {
 
   if (!isClient) return null; // Prevent mismatch between server & client
 
-  // **Chat List (WhatsApp Home)**
+
   if (!selectedConversation) {
     return (
       <div className="h-screen bg-gray-900 text-white">
@@ -46,7 +46,7 @@ const MobileChat = () => {
                 className="flex items-center gap-4 p-3 rounded-lg bg-gray-700 cursor-pointer hover:bg-gray-600"
                 onClick={() => setSelectedConversation(conv)}
               >
-                <Image width={50} height={50} className="rounded-full" src="/default-avatar.jpg" alt="avatar" />
+             
                 <div>
                   <span className="font-semibold">{otherUser?.name}</span>
                   <p className="text-sm text-gray-300">Last message...</p>
@@ -69,7 +69,7 @@ const MobileChat = () => {
         <button onClick={() => setSelectedConversation(null)}>
           <ArrowLeft size={24} />
         </button>
-        <Image width={40} height={40} className="rounded-full" src="/default-avatar.jpg" alt="avatar" />
+        
         <span className="font-semibold">{otherUser?.name}</span>
       </div>
 
@@ -99,7 +99,7 @@ const MobileChat = () => {
         />
         <button
           onClick={handleSendMessage}
-          className="bg-green-500 p-3 rounded-full text-white hover:bg-green-600"
+          className="bg-button p-3 rounded-full text-white hover:bg-green-600"
         >
           Send
         </button>

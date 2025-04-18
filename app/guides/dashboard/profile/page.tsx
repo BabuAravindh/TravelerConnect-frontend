@@ -326,6 +326,7 @@ const EditProfilePage = () => {
   }
 
   return (
+    <>
     <div className="max-w-3xl mx-auto p-4 sm:p-6">
       <h2 className="text-2xl font-bold mb-4">Edit Guide Profile</h2>
 
@@ -382,7 +383,7 @@ const EditProfilePage = () => {
             className={`w-full mt-1 p-2 border rounded-lg resize-none h-24 ${errors.bio ? "border-red-500" : ""}`}
             placeholder="Tell us about yourself and your guiding experience..."
           />
-          {errors.bio && <p className="text-red-500 text-sm mt-1">{errors.bio]}</p>}
+          {errors.bio && <p className="text-red-500 text-sm mt-1">{errors.bio}</p>}
         </div>
 
         <div>
@@ -539,6 +540,7 @@ const EditProfilePage = () => {
         )}
       </button>
     </div>
+    </>
   );
 };
 

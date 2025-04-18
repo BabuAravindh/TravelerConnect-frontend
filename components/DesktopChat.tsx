@@ -293,14 +293,6 @@ const DesktopChat: FC = () => {
                         {isBudgetMessage ? (
                           <div>
                             <p className="font-semibold">Budget Proposal: ₹{budgetAmount}</p>
-                            {!isSender && (
-                              <button
-                                onClick={() => budgetAmount && console.log("Proceeding to payment for:", budgetAmount)}
-                                className="mt-2 px-3 py-1 bg-green-500 text-white rounded-md text-sm"
-                              >
-                                Proceed to Payment
-                              </button>
-                            )}
                           </div>
                         ) : (
                           <p>{msg.message}</p>

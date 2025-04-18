@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 const GuideAttractionsPage = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
@@ -24,24 +24,28 @@ const GuideAttractionsPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const token = localStorage.getItem('token')
+
   useEffect(() => {
     setIsMounted(true);
-    return () => setIsMounted(false);
+    return () => {
+      setIsMounted(false);
+      // Clean up all preview URLs when component unmounts
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
+    };
   }, []);
 
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || !user?.id) return;
 
     const fetchData = async () => {
       try {
         setLoading(true);
         const [citiesResponse, attractionsResponse, feedbackResponse] = await Promise.all([
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/cities`),
-          user?.id && fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/attractions/guide/${user.id}`),
-          user?.id && fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/attractions/feedback/guide`, {
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/attractions/guide/${user.id}`),
+          token && fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/attractions/feedback/guide`, {
             headers: {
-              Authorization: `Bearer ${token}` // Adjust based on your auth setup
+              Authorization: `Bearer ${token}`
             }
           })
         ]);
@@ -50,29 +54,28 @@ const GuideAttractionsPage = () => {
         const citiesData = await citiesResponse.json();
         setCities(citiesData.data || []);
 
-        if (attractionsResponse) {
-          if (!attractionsResponse.ok) throw new Error("Failed to fetch attractions");
-          const attractionsData = await attractionsResponse.json();
-          setAttractions(Array.isArray(attractionsData) ? attractionsData : []);
-        }
+        if (!attractionsResponse.ok) throw new Error("Failed to fetch attractions");
+        const attractionsData = await attractionsResponse.json();
+        setAttractions(Array.isArray(attractionsData) ? attractionsData : []);
 
         if (feedbackResponse) {
           if (!feedbackResponse.ok) throw new Error("Failed to fetch feedback");
           const feedbackData = await feedbackResponse.json();
-          setFeedback(feedbackData.feedback || []);
+          setFeedback(feedbackData?.feedback || []);
         }
       } catch (error) {
         console.error("Fetch error:", error);
-        toast.error(error.message);
+        toast.error(error.message || "Failed to load data");
       } finally {
         if (isMounted) setLoading(false);
       }
     };
 
     fetchData();
-  }, [user?.id, user?.token, isMounted]);
+  }, [user?.id, token, isMounted]);
 
   const handleFileChange = (e) => {
+    // Clean up previous preview URLs
     previewUrls.forEach(url => URL.revokeObjectURL(url));
     
     if (e.target.files && e.target.files.length > 0) {
@@ -91,7 +94,7 @@ const GuideAttractionsPage = () => {
     setFormData({
       name: attraction.name,
       description: attraction.description,
-      cityName: attraction.cityName,
+      cityName: attraction.city?.cityName || "",
       category: attraction.category,
     });
     setExistingImages(attraction.images || []);
@@ -152,6 +155,7 @@ const GuideAttractionsPage = () => {
       const response = await fetch(url, {
         method,
         body: formDataToSend,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       const responseData = await response.json();
@@ -164,14 +168,19 @@ const GuideAttractionsPage = () => {
       
       handleCancelEdit();
 
+      
       const attractionsRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/attractions/guide/${user.id}`
+        `${process.env.NEXT_PUBLIC_API_URL}/api/attractions/guide/${user.id}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
       );
       const attractionsData = await attractionsRes.json();
+      console.log(attractionsData)
       setAttractions(Array.isArray(attractionsData) ? attractionsData : []);
     } catch (error) {
       console.error("Submission error:", error);
-      toast.error(error.message);
+      toast.error(error.message || "Failed to save attraction");
     } finally {
       setLoading(false);
     }
@@ -183,7 +192,10 @@ const GuideAttractionsPage = () => {
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/attractions/${id}`,
-        { method: "DELETE" }
+        { 
+          method: "DELETE",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
       );
 
       if (!response.ok) {
@@ -195,15 +207,9 @@ const GuideAttractionsPage = () => {
       setAttractions(prev => prev.filter(a => a._id !== id));
     } catch (error) {
       console.error("Deletion error:", error);
-      toast.error(error.message);
+      toast.error(error.message || "Failed to delete attraction");
     }
   };
-
-  useEffect(() => {
-    return () => {
-      previewUrls.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, [previewUrls]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -217,7 +223,7 @@ const GuideAttractionsPage = () => {
               setShowForm(!showForm);
             }
           }}
-          className="px-4 py-2 bg-button text-white rounded-lg hover:bg-opacity-90 transition-colors"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           disabled={loading}
         >
           {editingId ? "Cancel Edit" : showForm ? "Cancel" : "Create New"}
@@ -302,10 +308,12 @@ const GuideAttractionsPage = () => {
                 <option value="Historical">Historical</option>
                 <option value="Cultural">Cultural</option>
                 <option value="Nature">Nature</option>
+                <option value="Religious">Religious</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
-            {editingId && (
+            {editingId && existingImages.length > 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Existing Images
@@ -344,25 +352,26 @@ const GuideAttractionsPage = () => {
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 disabled={loading}
               />
-              <div className="mt-2 flex flex-wrap gap-2">
-                {previewUrls.map((url, index) => (
-                  <div key={index} className="relative w-20 h-20">
-                    <Image
-                      src={url}
-                      alt={`Preview ${index + 1}`}
-                      fill
-                      className="object-cover rounded-md"
-                      onLoad={() => URL.revokeObjectURL(url)}
-                    />
-                  </div>
-                ))}
-              </div>
+              {previewUrls.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {previewUrls.map((url, index) => (
+                    <div key={index} className="relative w-20 h-20">
+                      <Image
+                        src={url}
+                        alt={`Preview ${index + 1}`}
+                        fill
+                        className="object-cover rounded-md"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 px-4 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-2 px-4 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
                 <span className="flex items-center justify-center">
@@ -394,13 +403,19 @@ const GuideAttractionsPage = () => {
             {attractions.map((attraction) => (
               <div key={attraction._id} className="border rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
                 <div className="relative h-48 w-full">
-                  <Image
-                    src={attraction.images[0] || "/placeholder.jpg"}
-                    alt={attraction.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  />
+                  {attraction.images?.length > 0 ? (
+                    <Image
+                      src={attraction.images[0]}
+                      alt={attraction.name}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-gray-500">No image</span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-4">
                   <h3 className="font-bold text-lg mb-1">{attraction.name}</h3>
@@ -409,17 +424,22 @@ const GuideAttractionsPage = () => {
                     <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-800">
                       {attraction.category}
                     </span>
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-800">
+                      {attraction.city?.cityName || "Unknown city"}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <button
                       onClick={() => handleEdit(attraction)}
                       className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      disabled={loading}
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(attraction._id)}
                       className="text-sm text-red-600 hover:text-red-800 font-medium"
+                      disabled={loading}
                     >
                       Delete
                     </button>
@@ -435,15 +455,34 @@ const GuideAttractionsPage = () => {
               <div className="space-y-4">
                 {feedback.map((fb) => (
                   <div key={fb._id} className="p-4 bg-white rounded-lg shadow-md">
-                    <p className="font-semibold">
-                      Attraction: {fb.attractionId?.name || "Unknown Attraction"}
-                    </p>
-                    <p className="text-gray-600">{fb.comments || "No comment provided"}</p>
-                    <p className="text-sm text-gray-500">
-                      Rating: {fb.rating || "Not rated"}/5
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      Date: {new Date(fb.createdAt).toLocaleDateString()}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-semibold">
+                          {fb.attractionId?.name || "Unknown Attraction"}
+                        </p>
+                        <p className="text-gray-600 mt-1">{fb.comments || "No comment provided"}</p>
+                      </div>
+                      <div className="flex items-center">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <svg
+                            key={i}
+                            className={`w-4 h-4 ${i < (fb.rating || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-400 mt-2">
+                      {new Date(fb.submittedAt || fb.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </p>
                   </div>
                 ))}

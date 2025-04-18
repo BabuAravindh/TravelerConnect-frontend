@@ -31,9 +31,9 @@ export const loadRazorpayScript = (): Promise<boolean> => {
       description: `Payment for booking ${bookingId}`,
       handler: onSuccess,
       prefill: {
-        name: user?.name || "",
-        email: user?.email || "",
-        contact: user?.phone?.replace(/\D/g, "").slice(-10) || "",
+        name: ' ',
+        email: ' ',
+        contact: ' '
       },
       theme: {
         color: "#4f46e5",

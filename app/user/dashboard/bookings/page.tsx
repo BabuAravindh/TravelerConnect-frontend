@@ -29,7 +29,7 @@ import {
   loadRazorpayScript,
   openRazorpayCheckout,
 } from "@/services/user/bookings/razorpayServices";
-
+import toast from "react-hot-toast";
 declare global {
   interface Window {
     Razorpay?: any;
@@ -137,17 +137,10 @@ export default function UserBookings() {
             bookingId,
             amount,
           };
-          const { payment, booking } = await verifyPayment(
-            paymentData,
-            token!
-          );
+          const { payment, booking } = await verifyPayment(paymentData, token!);
 
           setBookings((prev) =>
-            prev.map((b) =>
-              b.id === bookingId
-                ? { ...b, ...booking }
-                : b
-            )
+            prev.map((b) => (b.id === bookingId ? { ...b, ...booking } : b))
           );
           setPaymentHistory((prev) => ({
             ...prev,
@@ -208,6 +201,39 @@ export default function UserBookings() {
     }
   };
 
+  const handleRefundRequest = async (bookingId: string, totalPaid: number) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/refund/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          bookingId,
+          amount: totalPaid,
+        }),
+      });
+  
+      if (!response.ok) {
+        if (response.status === 400) {
+          toast.error("Refund request already exists for this booking");
+          return;
+        }
+        throw new Error("Failed to create refund request");
+      }
+  
+      const data = await response.json();
+      setSuccessMessage(data.message || "Refund request sent successfully! Wait for the email confirmation.");
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (err: any) {
+      toast.error(err.message || "Something went wrong while requesting a refund");
+      setError(err.message || "Error creating refund request");
+      setTimeout(() => setError(null), 5000);
+    }
+  };
+  
+
   const getPaymentStatusStyle = (status?: string) => {
     switch (status) {
       case "paid":
@@ -259,11 +285,7 @@ export default function UserBookings() {
           <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
             <div className="flex items-center">
               <div className="flex-shrink-0 text-red-500">
-                <svg
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path
                     fillRule="evenodd"
                     d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -340,14 +362,14 @@ export default function UserBookings() {
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${getBookingStatusStyle(booking.status)}`}
-                      >
-                        {booking.status || "unknown"}
-                      </span>
-                      <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusStyle(booking.paymentStatus)}`}
                       >
                         {booking.paymentStatus || "pending"}
+                      </span>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${getBookingStatusStyle(booking.status)}`}
+                      >
+                        {booking.status || "unknown"}
                       </span>
                     </div>
 
@@ -612,16 +634,23 @@ export default function UserBookings() {
                       </div>
                     )}
 
-                    {booking.status === "completed" && (
-                      <div className="mt-4">
-                        <Link href={`/user/dashboard/refund/${booking.id}`}>
-                          <button className="w-full flex items-center justify-center gap-2 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700">
+                    {booking.status === "pending" &&
+                      paymentHistoryForBooking.length > 0 &&
+                      paymentHistoryForBooking.every(
+                        (payment) => payment.status === "completed"
+                      ) && (
+                        <div className="mt-4">
+                          <button
+                            onClick={() =>
+                              handleRefundRequest(booking.id, booking.totalPaid || 0)
+                            }
+                            className="w-full flex items-center justify-center gap-2 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700"
+                          >
                             <RotateCcw className="h-4 w-4" />
                             Request Refund
                           </button>
-                        </Link>
-                      </div>
-                    )}
+                        </div>
+                      )}
                   </div>
                 </div>
               );
