@@ -13,6 +13,11 @@ interface Activity {
   value: string;
 }
 
+interface Location {
+  label: string;
+  value: string;
+}
+
 const BookingForm = () => {
   const router = useRouter();
   const params = useParams();
@@ -35,6 +40,12 @@ const BookingForm = () => {
     dropoffLocation: "",
     activities: [] as string[],
   });
+
+  const locationOptions: Location[] = [
+    { label: "Bus Stand", value: "Bus Stand" },
+    { label: "Airport", value: "Airport" },
+    { label: "Railway Station", value: "Railway Station" },
+  ];
 
   const guideId = Array.isArray(params.id) ? params.id[0] : params.id;
   
@@ -193,6 +204,13 @@ const BookingForm = () => {
     }
   };
 
+  const handleLocationChange = (name: string) => (selectedOption: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: selectedOption ? selectedOption.value : ""
+    }));
+  };
+
   const handleActivitiesChange = (selectedOptions: any) => {
     setSelectedActivities(selectedOptions || []);
     setFormData(prev => ({
@@ -308,27 +326,25 @@ const BookingForm = () => {
           
           <div className="mb-4">
             <label className="block text-gray-700 mb-2">Pickup Location</label>
-            <input
-              type="text"
-              name="pickupLocation"
-              value={formData.pickupLocation}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 border rounded"
-              placeholder="Enter pickup location"
+            <Select
+              options={locationOptions}
+              value={locationOptions.find(option => option.value === formData.pickupLocation) || null}
+              onChange={handleLocationChange("pickupLocation")}
+              placeholder="Select pickup location..."
+              className="basic-single-select"
+              classNamePrefix="select"
             />
           </div>
           
           <div className="mb-4">
             <label className="block text-gray-700 mb-2">Dropoff Location</label>
-            <input
-              type="text"
-              name="dropoffLocation"
-              value={formData.dropoffLocation}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 border rounded"
-              placeholder="Enter dropoff location"
+            <Select
+              options={locationOptions}
+              value={locationOptions.find(option => option.value === formData.dropoffLocation) || null}
+              onChange={handleLocationChange("dropoffLocation")}
+              placeholder="Select dropoff location..."
+              className="basic-single-select"
+              classNamePrefix="select"
             />
           </div>
           

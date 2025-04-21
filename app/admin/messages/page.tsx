@@ -235,25 +235,7 @@ const MessagesPage = () => {
                           {message.message}
                         </span>
                       </div>
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          onClick={() => {
-                            const newMessage = prompt('Edit message:', message.message);
-                            if (newMessage && newMessage !== message.message) {
-                              updateMessage(message._id, newMessage);
-                            }
-                          }}
-                          className="text-xs text-blue-500 hover:text-blue-700"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => deleteMessage(message._id)}
-                          className="text-xs text-red-500 hover:text-red-700"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                     
                     </div>
                   ))}
                 </div>

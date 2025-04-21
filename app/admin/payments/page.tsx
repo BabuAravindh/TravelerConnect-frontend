@@ -14,6 +14,7 @@ interface Payment {
   paymentMethod: string;
   paymentId: string;
   completedAt: string;
+  updatedAt: string;
   refundedAt: string | null;
   booking: {
     user?: {
@@ -69,7 +70,6 @@ const PaymentsPage = () => {
       }
 
       toast.success('Payment deleted successfully');
-      // Refresh the payments list
       fetchPayments();
     } catch (err) {
       toast.error(err.message);
@@ -92,13 +92,14 @@ const PaymentsPage = () => {
               <th className="px-6 py-3 text-left">Amount</th>
               <th className="px-6 py-3 text-left">Status</th>
               <th className="px-6 py-3 text-left">Method</th>
+              <th className="px-6 py-3 text-left">Updated At</th>
               <th className="px-6 py-3 text-left">Customer</th>
               <th className="px-6 py-3 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
             {payments.map((payment) => (
-              <tr key={payment.id} className="border-t">
+              <tr key={payment.id} className="border-t hover:bg-gray-50">
                 <td className="px-6 py-4">{payment.orderNumber}</td>
                 <td className="px-6 py-4">₹{payment.amount.toLocaleString('en-IN')}</td>
                 <td className="px-6 py-4">
@@ -110,12 +111,20 @@ const PaymentsPage = () => {
                     {payment.status}
                   </span>
                 </td>
-                <td className="px-6 py-4">{payment.paymentMethod}</td>
+                <td className="px-6 py-4 capitalize">{payment.paymentMethod}</td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {format(new Date(payment.updatedAt), 'PPpp')}
+                </td>
                 <td className="px-6 py-4">
                   {payment.booking?.user ? (
                     <div>
                       <p className="font-medium">{payment.booking.user.name}</p>
                       <p className="text-sm text-gray-500">{payment.booking.user.email}</p>
+                    </div>
+                  ) : payment.booking?.guide ? (
+                    <div>
+                      <p className="font-medium">{payment.booking.guide.name}</p>
+                      <p className="text-sm text-gray-500">{payment.booking.guide.email}</p>
                     </div>
                   ) : 'N/A'}
                 </td>
