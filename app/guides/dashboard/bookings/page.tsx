@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { 
-  Calendar, 
-  User, 
-  Clock, 
-  IndianRupee, 
-  CheckCircle, 
-  Check, 
-  ChevronDown, 
+import {
+  Calendar,
+  User,
+  Clock,
+  IndianRupee,
+  CheckCircle,
+  Check,
+  ChevronDown,
   ChevronUp,
   AlertCircle,
-  Loader2
+  Loader2,
 } from "lucide-react";
 import { format, differenceInDays, parseISO } from "date-fns";
 import Image from "next/image";
@@ -21,7 +21,7 @@ interface Booking {
   id: string;
   userName: string;
   email: string;
-  phoneNumber: Number;
+  phoneNumber: number | string;
   startDate: string;
   endDate: string;
   activities: string[];
@@ -29,9 +29,10 @@ interface Booking {
   budget?: number;
   paymentStatus: string;
   status: string;
- 
   pickupLocation?: string;
   dropoffLocation?: string;
+  specialRequests?: string;
+  bookingDate?: string;
 }
 
 interface Payment {
@@ -70,15 +71,23 @@ interface PaymentHistoryResponse {
 const BookingsPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [paymentHistories, setPaymentHistories] = useState<Record<string, PaymentHistoryResponse>>({});
+  const [paymentHistories, setPaymentHistories] = useState<
+    Record<string, PaymentHistoryResponse>
+  >({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [expandedBooking, setExpandedBooking] = useState<string | null>(null);
-  const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
-  const [updatingPayment, setUpdatingPayment] = useState<Record<string, boolean>>({});
+  const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [updatingPayment, setUpdatingPayment] = useState<
+    Record<string, boolean>
+  >({});
 
   useEffect(() => {
     if (authLoading || !user?.id) return;
+
+    let isMounted = true;
 
     const fetchBookingsAndPayments = async () => {
       setLoading(true);
@@ -90,7 +99,7 @@ const BookingsPage = () => {
           setLoading(false);
           return;
         }
-     
+
         // Fetch bookings
         const bookingsRes = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/bookings/guide/${user.id}`,
@@ -101,26 +110,40 @@ const BookingsPage = () => {
         );
 
         if (!bookingsRes.ok) {
-          throw new Error(bookingsRes.status === 404 
-            ? "No bookings found" 
-            : "Failed to fetch bookings");
+          throw new Error(
+            bookingsRes.status === 404
+              ? "No bookings found"
+              : "Failed to fetch bookings"
+          );
         }
 
         const bookingsData = await bookingsRes.json();
-        const bookingsArray = Array.isArray(bookingsData) 
-          ? bookingsData 
+        console.log("Bookings API Response:", bookingsData);
+        const bookingsArray = Array.isArray(bookingsData)
+          ? bookingsData
           : bookingsData.bookings || [bookingsData];
-        
-        if (!bookingsArray.length) {
+
+        // Validate and filter bookings
+        const validBookings = bookingsArray.filter((booking: Booking) => {
+          const isValid = booking.id && Number.isFinite(booking.budget);
+          if (!isValid) {
+            console.warn("Invalid booking filtered out:", booking);
+          }
+          return isValid;
+        });
+
+        if (!isMounted) return;
+
+        if (!validBookings.length) {
           setBookings([]);
           setLoading(false);
           return;
         }
 
-        setBookings(bookingsArray);
+        setBookings(validBookings);
 
-        // Fetch payment histories in parallel
-        const paymentPromises = bookingsArray.map(booking =>
+        // Fetch payment histories
+        const paymentPromises = validBookings.map((booking: Booking) =>
           fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/api/payment/history/${booking.id}`,
             {
@@ -128,39 +151,65 @@ const BookingsPage = () => {
               headers: { Authorization: `Bearer ${token}` },
             }
           )
-            .then(async res => {
+            .then(async (res) => {
               if (!res.ok) {
-                console.warn(`Payment history not found for booking ${booking.id}`);
+                console.warn(
+                  `Payment history not found for booking ${booking.id}: Status ${res.status}`
+                );
                 return { bookingId: booking.id, paymentHistory: null };
               }
               const data = await res.json();
+              console.log(`Payment history for booking ${booking.id}:`, data);
               return { bookingId: booking.id, paymentHistory: data };
             })
-            .catch(error => {
-              console.error(`Error fetching payment history for booking ${booking.id}:`, error);
+            .catch((error) => {
+              console.error(
+                `Error fetching payment history for booking ${booking.id}:`,
+                error
+              );
               return { bookingId: booking.id, paymentHistory: null };
             })
         );
 
         const paymentResults = await Promise.all(paymentPromises);
-        const paymentHistoriesObj = paymentResults.reduce((acc, { bookingId, paymentHistory }) => {
-          if (paymentHistory) {
-            acc[bookingId] = paymentHistory;
-          }
-          return acc;
-        }, {} as Record<string, PaymentHistoryResponse>);
-        
+        if (!isMounted) return;
+
+        const paymentHistoriesObj = paymentResults.reduce(
+          (acc, { bookingId, paymentHistory }) => {
+            acc[bookingId] = paymentHistory || {
+              success: false,
+              payments: [],
+              summary: {
+                totalBudget: 0,
+                totalPaid: 0,
+                remainingBalance: 0,
+                paymentStatus: "unpaid",
+              },
+            };
+            return acc;
+          },
+          {} as Record<string, PaymentHistoryResponse>
+        );
+
+        console.log("Payment Histories:", paymentHistoriesObj);
         setPaymentHistories(paymentHistoriesObj);
-      } catch (error) {
+      } catch (error: any) {
+        if (!isMounted) return;
         setErrors({
-          global: error.message || "Error fetching bookings. Please try again."
+          global: error.message || "Error fetching bookings. Please try again.",
         });
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchBookingsAndPayments();
+
+    return () => {
+      isMounted = false;
+    };
   }, [authLoading, user?.id]);
 
   const toggleBookingExpansion = (bookingId: string) => {
@@ -168,19 +217,22 @@ const BookingsPage = () => {
   };
 
   const updateBookingStatus = async (bookingId: string) => {
-    setUpdatingStatus(prev => ({ ...prev, [bookingId]: true }));
-    setErrors(prev => ({ ...prev, [bookingId]: null }));
+    setUpdatingStatus((prev) => ({ ...prev, [bookingId]: true }));
+    setErrors((prev) => ({ ...prev, [bookingId]: null }));
 
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        setErrors(prev => ({ ...prev, [bookingId]: "⚠ No token found. Please login." }));
+        setErrors((prev) => ({
+          ...prev,
+          [bookingId]: "⚠ No token found. Please login.",
+        }));
         return;
       }
 
-      const booking = bookings.find(b => b.id === bookingId);
+      const booking = bookings.find((b) => b.id === bookingId);
       if (!booking) {
-        setErrors(prev => ({ ...prev, [bookingId]: "Booking not found." }));
+        setErrors((prev) => ({ ...prev, [bookingId]: "Booking not found." }));
         return;
       }
 
@@ -188,9 +240,12 @@ const BookingsPage = () => {
       const bookingEndDate = parseISO(booking.endDate);
 
       if (bookingEndDate > today) {
-        setErrors(prev => ({
+        setErrors((prev) => ({
           ...prev,
-          [bookingId]: `Cannot mark booking as completed until after ${format(bookingEndDate, 'PPP')}.`
+          [bookingId]: `Cannot mark booking as completed until after ${format(
+            bookingEndDate,
+            "PPP"
+          )}.`,
         }));
         return;
       }
@@ -199,40 +254,45 @@ const BookingsPage = () => {
         `${process.env.NEXT_PUBLIC_API_URL}/api/bookings/${bookingId}/status`,
         {
           method: "PATCH",
-          headers: { 
-            "Content-Type": "application/json", 
-            Authorization: `Bearer ${token}` 
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ status: "completed" }),
         }
       );
-  
+
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || "Failed to update booking status");
       }
-  
-      setBookings(prev =>
-        prev.map(b => (b.id === bookingId ? { ...b, status: "completed" } : b))
+
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === bookingId ? { ...b, status: "completed" } : b
+        )
       );
-    } catch (error) {
-      setErrors(prev => ({
+    } catch (error: any) {
+      setErrors((prev) => ({
         ...prev,
-        [bookingId]: error.message || "Error updating booking status."
+        [bookingId]: error.message || "Error updating booking status.",
       }));
     } finally {
-      setUpdatingStatus(prev => ({ ...prev, [bookingId]: false }));
+      setUpdatingStatus((prev) => ({ ...prev, [bookingId]: false }));
     }
   };
 
   const updatePaymentStatus = async (bookingId: string, paymentId: string) => {
-    setUpdatingPayment(prev => ({ ...prev, [paymentId]: true }));
-    setErrors(prev => ({ ...prev, [bookingId]: null }));
+    setUpdatingPayment((prev) => ({ ...prev, [paymentId]: true }));
+    setErrors((prev) => ({ ...prev, [bookingId]: null }));
 
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        setErrors(prev => ({ ...prev, [bookingId]: "⚠ No token found. Please login." }));
+        setErrors((prev) => ({
+          ...prev,
+          [bookingId]: "⚠ No token found. Please login.",
+        }));
         return;
       }
 
@@ -244,7 +304,7 @@ const BookingsPage = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ paymentStatus : "completed" }),
+          body: JSON.stringify({ paymentStatus: "completed" }),
         }
       );
 
@@ -255,16 +315,16 @@ const BookingsPage = () => {
 
       const updatedPayment = await res.json();
 
-      setPaymentHistories(prev => {
+      setPaymentHistories((prev) => {
         const currentHistory = prev[bookingId];
         if (!currentHistory) return prev;
 
-        const updatedPayments = currentHistory.payments.map(p => 
+        const updatedPayments = currentHistory.payments.map((p) =>
           p.id === paymentId ? { ...p, status: "completed" } : p
         );
 
         const paidAmount = updatedPayments
-          .filter(p => p.status === "completed")
+          .filter((p) => p.status === "completed")
           .reduce((sum, p) => sum + p.amount, 0);
 
         return {
@@ -276,20 +336,23 @@ const BookingsPage = () => {
               ...currentHistory.summary,
               totalPaid: paidAmount,
               remainingBalance: currentHistory.summary.totalBudget - paidAmount,
-              paymentStatus: 
-                paidAmount >= currentHistory.summary.totalBudget ? "paid" :
-                paidAmount > 0 ? "partial" : "unpaid"
-            }
-          }
+              paymentStatus:
+                paidAmount >= currentHistory.summary.totalBudget
+                  ? "paid"
+                  : paidAmount > 0
+                  ? "partial"
+                  : "unpaid",
+            },
+          },
         };
       });
-    } catch (error) {
-      setErrors(prev => ({
+    } catch (error: any) {
+      setErrors((prev) => ({
         ...prev,
-        [bookingId]: error.message || "Error updating payment status."
+        [bookingId]: error.message || "Error updating payment status.",
       }));
     } finally {
-      setUpdatingPayment(prev => ({ ...prev, [paymentId]: false }));
+      setUpdatingPayment((prev) => ({ ...prev, [paymentId]: false }));
     }
   };
 
@@ -304,10 +367,16 @@ const BookingsPage = () => {
       partial: { bg: "bg-orange-100", text: "text-orange-800" },
     };
 
-    const { bg, text } = statusMap[status.toLowerCase()] || { bg: "bg-gray-100", text: "text-gray-800" };
+    const { bg, text } =
+      statusMap[status.toLowerCase()] || {
+        bg: "bg-gray-100",
+        text: "text-gray-800",
+      };
 
     return (
-      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${bg} ${text}`}>
+      <span
+        className={`px-2.5 py-1 rounded-full text-xs font-medium ${bg} ${text}`}
+      >
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
@@ -317,6 +386,19 @@ const BookingsPage = () => {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="animate-spin h-8 w-8 text-blue-500" />
+      </div>
+    );
+  }
+
+  // Validate bookings state before rendering
+  if (!bookings.every((b) => b.id && Number.isFinite(b.budget))) {
+    console.error("Invalid bookings state detected:", bookings);
+    return (
+      <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded flex items-start">
+        <AlertCircle className="text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+        <p className="text-red-700 font-medium">
+          Error: Invalid booking data detected. Please refresh the page.
+        </p>
       </div>
     );
   }
@@ -344,19 +426,30 @@ const BookingsPage = () => {
 
       {bookings.length > 0 ? (
         <div className="space-y-4">
+          {console.log("Bookings state before rendering:", bookings)}
+          {bookings.forEach((booking, index) => {
+            if (!Number.isFinite(booking.budget)) {
+              console.warn(
+                `Invalid budget at render for booking ${booking.id} at index ${index}:`,
+                booking.budget
+              );
+            }
+          })}
           {bookings.map((booking) => {
             const paymentHistory = paymentHistories[booking.id];
             const isExpanded = expandedBooking === booking.id;
             const bookingStartDate = parseISO(booking.startDate);
             const bookingEndDate = parseISO(booking.endDate);
-            const durationDays = differenceInDays(bookingEndDate, bookingStartDate) + 1; // Inclusive of end date
+            const durationDays = differenceInDays(bookingEndDate, bookingStartDate) + 1;
 
             return (
-              <div 
-                key={booking.id} 
-                className={`bg-white rounded-xl shadow-sm border ${isExpanded ? "border-blue-200" : "border-gray-200"} overflow-hidden transition-all`}
+              <div
+                key={booking.id}
+                className={`bg-white rounded-xl shadow-sm border ${
+                  isExpanded ? "border-blue-200" : "border-gray-200"
+                } overflow-hidden transition-all`}
               >
-                <div 
+                <div
                   className="p-5 cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => toggleBookingExpansion(booking.id)}
                 >
@@ -368,47 +461,70 @@ const BookingsPage = () => {
                         </div>
                         <div className="truncate">
                           <h3 className="text-lg font-semibold text-gray-800 truncate">
-                            <span className="text-2xl">Client:</span> {booking.userName || "Guest User"}
+                            <span className="text-2xl">Client:</span>{" "}
+                            {booking.userName || "Guest User"}
                           </h3>
                           <p className="text-sm text-gray-600 truncate">
-                            {booking.email || "No email provided"} • {booking.phoneNumber || "No phone provided"}
+                            {booking.email || "No email provided"} •{" "}
+                            {booking.phoneNumber || "No phone provided"}
                           </p>
                         </div>
                       </div>
-                      
-                     
                     </div>
-                    
+
                     <div className="flex items-center">
                       {getStatusBadge(booking.status)}
                       <button className="ml-3 text-gray-500 hover:text-gray-700">
-                        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        {isExpanded ? (
+                          <ChevronUp size={20} />
+                        ) : (
+                          <ChevronDown size={20} />
+                        )}
                       </button>
                     </div>
                   </div>
 
                   <div className="mt-4 ml-11 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="flex items-center text-gray-700">
-                      <Calendar size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                      <Calendar
+                        size={16}
+                        className="mr-2 text-gray-500 flex-shrink-0"
+                      />
                       <span>
-                        {format(bookingStartDate, 'MMM d')} - {format(bookingEndDate, 'MMM d, yyyy')}
+                        {format(bookingStartDate, "MMM d")} -{" "}
+                        {format(bookingEndDate, "MMM d, yyyy")}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center text-gray-700">
-                      <Clock size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                      <span>{durationDays} {durationDays === 1 ? "day" : "days"}</span>
+                      <Clock
+                        size={16}
+                        className="mr-2 text-gray-500 flex-shrink-0"
+                      />
+                      <span>
+                        {durationDays} {durationDays === 1 ? "day" : "days"}
+                      </span>
                     </div>
-                    
+
                     <div className="flex items-center text-gray-700">
-                      <IndianRupee size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                      <span>Rs. {booking.budget?.toLocaleString('en-IN') || 'N/A'}</span>
+                      <IndianRupee
+                        size={16}
+                        className="mr-2 text-gray-500 flex-shrink-0"
+                      />
+                      <span>
+                        Rs.{" "}
+                        {Number.isFinite(booking.budget)
+                          ? (booking.budget ?? 0)
+                          : "N/A"}
+                      </span>
                     </div>
-                    
+
                     <div className="flex items-center text-gray-700">
                       <span className="truncate">
-
-                        Activites : {booking.activities?.length ? booking.activities.join(", ") : "No activities specified"}
+                        Activities:{" "}
+                        {booking.activities?.length
+                          ? booking.activities.join(", ")
+                          : "No activities specified"}
                       </span>
                     </div>
                   </div>
@@ -427,20 +543,42 @@ const BookingsPage = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-lg border border-gray-200">
                         <div className="space-y-3">
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Pickup Location:</span>
+                            <span className="text-gray-600">
+                              Pickup Location:
+                            </span>
                             <span className="font-medium text-gray-800">
                               {booking.pickupLocation || "Not specified"}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Dropoff Location:</span>
+                            <span className="text-gray-600">
+                              Dropoff Location:
+                            </span>
                             <span className="font-medium text-gray-800">
                               {booking.dropoffLocation || "Not specified"}
                             </span>
                           </div>
                         </div>
                         <div className="space-y-3">
-                         
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">
+                              Special Requests:
+                            </span>
+                            <span className="font-medium text-gray-800">
+                              {booking.specialRequests || "None"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Booking Date:</span>
+                            <span className="font-medium text-gray-800">
+                              {booking.bookingDate
+                                ? format(
+                                    parseISO(booking.bookingDate),
+                                    "MMM d, yyyy"
+                                  )
+                                : "N/A"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -453,36 +591,51 @@ const BookingsPage = () => {
                         </span>
                         Payment Summary
                       </h4>
-                      {paymentHistory ? (
+                      {paymentHistory && paymentHistory.summary ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-4 rounded-lg border border-gray-200">
                           <div className="space-y-3">
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Total Budget:</span>
+                              <span className="text-gray-600">
+                                Total Budget:
+                              </span>
                               <span className="font-medium">
-                                Rs. {paymentHistory.summary.totalBudget.toLocaleString('en-IN')}
+                                Rs.{" "}
+                                {paymentHistory.summary.totalBudget}
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Total Paid:</span>
+                              <span className="text-gray-600">
+                                Total Paid:
+                              </span>
                               <span className="font-medium text-green-600">
-                                Rs. {paymentHistory.summary.totalPaid.toLocaleString('en-IN')}
+                                Rs.{" "}
+                                {paymentHistory.summary.totalPaid}
                               </span>
                             </div>
                           </div>
                           <div className="space-y-3">
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Remaining Balance:</span>
-                              <span className={`font-medium ${
-                                paymentHistory.summary.remainingBalance > 0 
-                                  ? "text-red-600" 
-                                  : "text-green-600"
-                              }`}>
-                                Rs. {paymentHistory.summary.remainingBalance.toLocaleString('en-IN')}
+                              <span className="text-gray-600">
+                                Remaining Balance:
+                              </span>
+                              <span
+                                className={`font-medium ${
+                                  paymentHistory.summary.remainingBalance > 0
+                                    ? "text-red-600"
+                                    : "text-green-600"
+                                }`}
+                              >
+                                Rs.{" "}
+                                {paymentHistory.summary.remainingBalance}
                               </span>
                             </div>
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Payment Status:</span>
-                              {getStatusBadge(paymentHistory.summary.paymentStatus)}
+                              <span className="text-gray-600">
+                                Payment Status:
+                              </span>
+                              {getStatusBadge(
+                                paymentHistory.summary.paymentStatus
+                              )}
                             </div>
                           </div>
                         </div>
@@ -501,7 +654,7 @@ const BookingsPage = () => {
                         </span>
                         Payment History
                       </h4>
-                      {paymentHistory?.payments?.length > 0 ? (
+                      {paymentHistory && paymentHistory.payments?.length > 0 ? (
                         <div className="overflow-hidden rounded-lg border border-gray-200">
                           <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
@@ -531,35 +684,51 @@ const BookingsPage = () => {
                                 {paymentHistory.payments.map((payment) => (
                                   <tr key={payment.id}>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                      {payment.date ? format(parseISO(payment.date), 'MMM d, yyyy') : 'N/A'}
+                                      {payment.date
+                                        ? format(
+                                            parseISO(payment.date),
+                                            "MMM d, yyyy"
+                                          )
+                                        : "N/A"}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                      Rs. {payment.amount.toLocaleString('en-IN')}
+                                      Rs. {payment.amount}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 capitalize">
-                                      {payment.method || 'N/A'}
+                                      {payment.method || "N/A"}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                                       {getStatusBadge(payment.status)}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                      {payment.transactionDetails?.screenshotUrl ? (
-                                        <a 
-                                          href={payment.transactionDetails.screenshotUrl} 
-                                          target="_blank" 
+                                      {payment.transactionDetails
+                                        ?.screenshotUrl ? (
+                                        <a
+                                          href={
+                                            payment.transactionDetails
+                                              .screenshotUrl
+                                          }
+                                          target="_blank"
                                           rel="noopener noreferrer"
                                           className="text-blue-600 hover:text-blue-800 hover:underline flex items-center"
                                         >
                                           View Receipt
                                         </a>
                                       ) : (
-                                        <span className="text-gray-500">N/A</span>
+                                        <span className="text-gray-500">
+                                          N/A
+                                        </span>
                                       )}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                                       {payment.status !== "completed" && (
-                                        <button 
-                                          onClick={() => updatePaymentStatus(booking.id, payment.id)}
+                                        <button
+                                          onClick={() =>
+                                            updatePaymentStatus(
+                                              booking.id,
+                                              payment.id
+                                            )
+                                          }
                                           disabled={updatingPayment[payment.id]}
                                           className={`flex items-center px-3 py-1 rounded-md text-xs transition-colors ${
                                             updatingPayment[payment.id]
@@ -570,7 +739,10 @@ const BookingsPage = () => {
                                           {updatingPayment[payment.id] ? (
                                             <Loader2 className="animate-spin h-4 w-4 mr-1" />
                                           ) : (
-                                            <Check size={14} className="mr-1" />
+                                            <Check
+                                              size={14}
+                                              className="mr-1"
+                                            />
                                           )}
                                           Mark Paid
                                         </button>
@@ -629,9 +801,13 @@ const BookingsPage = () => {
           <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <Calendar className="text-gray-400" size={24} />
           </div>
-          <h3 className="text-lg font-medium text-gray-800 mb-1">No bookings found</h3>
+          <h3 className="text-lg font-medium text-gray-800 mb-1">
+            No bookings found
+          </h3>
           <p className="text-gray-500">
-            {errors.global ? errors.global : "You don't have any bookings scheduled yet."}
+            {errors.global
+              ? errors.global
+              : "You don't have any bookings scheduled yet."}
           </p>
         </div>
       )}

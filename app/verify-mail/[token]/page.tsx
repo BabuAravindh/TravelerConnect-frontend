@@ -7,33 +7,39 @@ const VerifyEmailPage = () => {
   const router = useRouter();
   const token = params?.token as string | undefined;
 
-  const [message, setMessage] = useState("Verifying...");
+  const [message, setMessage] = useState("Verifying your email...");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    console.log("Extracted Token:", token); // Debugging Log
-
     if (!token || typeof token !== "string") {
       setError("Invalid verification link.");
       return;
     }
 
-    console.log(`Fetching: ${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email/${token}`);
-    
-
     const verifyEmail = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email/${token}`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email/${token}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         const data = await response.json();
         console.log("API Response:", data);
 
         if (response.ok) {
-          setMessage(data.message);
-          setTimeout(() => router.push("/"), 3000);
+          setMessage(data.message || "Email verified successfully!");
+
+          // Save token to localStorage
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("user", JSON.stringify(data.user));
+
+          // Redirect to dashboard after 3 seconds
+          setTimeout(() => router.push("/dashboard"), 3000);
         } else {
           setError(data.message || "Verification failed.");
         }

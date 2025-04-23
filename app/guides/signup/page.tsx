@@ -50,13 +50,12 @@ const GuideSignup = () => {
       newErrors.password = "Password is required.";
       isValid = false;
     } else {
-      const password = formData.password;
       const strongPasswordRegex =
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-      if (!strongPasswordRegex.test(password)) {
+      if (!strongPasswordRegex.test(formData.password)) {
         newErrors.password =
-          "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character (e.g., @$!%*?&).";
+          "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a number, and a special character.";
         isValid = false;
       }
     }
@@ -76,14 +75,14 @@ const GuideSignup = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
-    
+
     if (validateForm()) {
       setLoading(true);
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/guide/signup`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             name: formData.fullName,
             email: formData.email,
             password: formData.password,
@@ -93,10 +92,9 @@ const GuideSignup = () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Registration failed");
 
-        // Store token in localStorage
         localStorage.setItem("token", data.token);
-        // Redirect to Guide Dashboard
-        toast.success("Verification mail is sent successfully")
+        toast.success("Verification mail sent successfully!");
+        // router.push("/guides/dashboard");
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -113,22 +111,23 @@ const GuideSignup = () => {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-primary flex justify-center items-center">
-        <div className="max-w-screen-xl bg-white shadow-lg rounded-lg flex w-full overflow-hidden justify-center gap-12">
-          {/* Left Section - Sign Up Form */}
-          <div className="w-full lg:w-1/2 p-8 lg:p-12">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900">Become a Guide</h1>
-              <p className="text-gray-600 mt-2">Create your TravelerConnect Guide account</p>
-            </div>
+      <section className="min-h-screen flex flex-col justify-center bg-primary px-4 py-12">
+        <div className="max-w-8xl  mx-auto bg-white rounded-2xl shadow-lg overflow-hidden grid grid-cols-1 md:grid-cols-2">
+          {/* Form Section */}
+          <div className="p-8 md:p-10">
+            <h2 className="text-3xl font-bold text-gray-800 text-center">Become a Guide</h2>
+            <p className="text-center text-gray-500 mt-2 mb-6">
+              Create your TravelerConnect Guide account
+            </p>
 
             {error && (
-              <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            <form className="space-y-4 mt-6" onSubmit={handleSubmit}>
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              {/* Full Name */}
               <div>
                 <input
                   type="text"
@@ -140,9 +139,12 @@ const GuideSignup = () => {
                   value={formData.fullName}
                   onChange={handleChange}
                 />
-                {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
+                {errors.fullName && (
+                  <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>
+                )}
               </div>
 
+              {/* Email */}
               <div>
                 <input
                   type="email"
@@ -154,10 +156,12 @@ const GuideSignup = () => {
                   value={formData.email}
                   onChange={handleChange}
                 />
-                {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                {errors.email && (
+                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                )}
               </div>
 
-              {/* Password Field with Eye Icon */}
+              {/* Password */}
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -174,12 +178,14 @@ const GuideSignup = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-3 flex items-center"
                 >
-                  {showPassword ? <EyeOff size={20} className="text-gray-500" /> : <Eye size={20} className="text-gray-500" />}
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
-                {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+                {errors.password && (
+                  <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+                )}
               </div>
 
-              {/* Confirm Password Field with Eye Icon */}
+              {/* Confirm Password */}
               <div className="relative">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
@@ -196,13 +202,14 @@ const GuideSignup = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute inset-y-0 right-3 flex items-center"
                 >
-                  {showConfirmPassword ? <EyeOff size={20} className="text-gray-500" /> : <Eye size={20} className="text-gray-500" />}
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
                 {errors.confirmPassword && (
                   <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
                 )}
               </div>
 
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={loading}
@@ -210,33 +217,35 @@ const GuideSignup = () => {
                   loading ? "opacity-50 cursor-not-allowed" : "hover:bg-opacity-90"
                 }`}
               >
-                {loading ? "Registering Guide..." : "Register as Guide"}
+                {loading ? "Registering..." : "Register as Guide"}
               </button>
             </form>
 
-            <p className="mt-4 text-sm text-center text-gray-600">
+            {/* Terms and Login */}
+            <p className="text-xs text-center text-gray-500 mt-4">
               By signing up, you agree to our{" "}
-              <a href="#" className="text-button">Terms & Privacy Policy</a>.
+              <a href="#" className="text-button underline">Terms & Privacy Policy</a>.
             </p>
-
-            <p className="mt-4 text-sm text-center">
+            <p className="text-sm text-center mt-2">
               Already have an account?{" "}
-              <a href="/guides/signin" className="text-button font-medium">Sign in</a>
+              <a href="/guides/signin" className="text-button font-medium underline">
+                Sign in
+              </a>
             </p>
           </div>
 
-          {/* Right Section - Illustration */}
-          <div className="hidden lg:flex items-center justify-center p-8">
+          {/* Illustration */}
+          <div className="hidden md:flex items-center justify-center bg-gray-100 p-8">
             <Image
               src="https://storage.googleapis.com/devitary-image-host.appspot.com/15848031292911696601-undraw_designer_life_w96d.svg"
-              alt="Guide Illustration"
+              alt="Guide Signup Illustration"
               width={400}
               height={400}
-              className="max-w-md"
+              className="object-contain"
             />
           </div>
         </div>
-      </div>
+      </section>
       <Footer />
     </>
   );

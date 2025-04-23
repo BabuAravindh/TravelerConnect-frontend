@@ -14,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Toaster position="top-center" reverseOrder={false} />
         <AuthProvider>
           <NotificationProvider>
+
           {children}
           </NotificationProvider>
           </AuthProvider> 

@@ -5,65 +5,8 @@ import { motion } from "framer-motion";
 import { CheckCircle, Clock, XCircle, CreditCard, Calendar, RefreshCw, DollarSign, RotateCcw, ArrowLeft, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
-
-// Types (Updated to exclude MongoDB IDs)
-interface Payment {
-  amount: number;
-  status: "completed" | "pending" | "failed" | "refunded";
-  type: string;
-  transactionId: string; // Kept as it’s not a MongoDB ID
-  installmentNumber?: number;
-  isPartial?: boolean;
-  createdAt: string;
-  completedAt?: string;
-  notes?: string;
-  modeOfPayment: {
-    type: string;
-    details: Record<string, any>;
-    createdAt: string;
-  };
-}
-
-interface BookingPaymentData {
-  userName: string;
-  dateRange: string;
-  budget: number;
-  totalPaid: number;
-  remainingBalance: number;
-  paymentStatus: string;
-  status: string;
-  payments: Payment[];
-}
-
-interface PaymentDetails {
-  payment: {
-    amount: number;
-    status: "completed" | "pending" | "failed" | "refunded";
-    type: string;
-    transactionId: string; // Kept as it’s not a MongoDB ID
-    installmentNumber: number;
-    isPartial: boolean;
-    createdAt: string;
-    completedAt?: string;
-    notes?: string;
-  };
-  booking: {
-    userName: string;
-    startDate: string;
-    endDate: string;
-    duration: string;
-    budget: number;
-    totalPaid: number;
-    remainingBalance: number;
-    paymentStatus: string;
-    status: string;
-  };
-  modeOfPayment: {
-    type: string;
-    details: Record<string, any>;
-    createdAt: string;
-  };
-}
+import { BookingPaymentData, PaymentDetails } from "./paymentTypes";
+import { fetchBookingPayments, fetchPaymentDetails } from "./payment.service";
 
 // Status configuration
 const statusConfig = {
@@ -96,7 +39,7 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
 
-  const fetchPayments = async () => {
+  const loadPayments = async () => {
     if (!user?.id) {
       setError({ message: "User not authenticated. Please log in." });
       setLoading(false);
@@ -106,58 +49,40 @@ export default function PaymentsPage() {
     try {
       setLoading(true);
       setError(null);
-
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/payment/booking/${user.id}`;
-      console.log("Fetching payments from:", url); // Debug log
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 404) {
-          // Treat 404 as "no payments found" rather than an error
-          setBookingPayments([]);
-        } else {
-          throw { status: response.status, message: `HTTP error! status: ${response.status} - ${errorText}` };
-        }
-      } else {
-        const { success, data, message } = await response.json();
-        if (!success) {
-          throw { message: message || "Failed to load payment data" };
-        }
-        setBookingPayments(data || []);
-      }
+      const payments = await fetchBookingPayments(user.id);
+      setBookingPayments(payments);
     } catch (err) {
-      console.error("Payment fetch error:", err);
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-      const status = err?.status || (err as any)?.statusCode || null;
-      setError({ message: status === 500 ? "Server error occurred. Please try again later." : errorMessage, status });
+      const errorMessage = (err as any).message || "An unknown error occurred";
+      const status = (err as any)?.status || null;
+      setError({ message: errorMessage, status });
     } finally {
       setLoading(false);
     }
   };
 
   const handleRetry = () => {
-    setError(null); // Reset error before retry
-    fetchPayments();
+    setError(null);
+    loadPayments();
   };
 
   useEffect(() => {
-    fetchPayments();
+    loadPayments();
   }, [user?.id]);
 
-  // Flatten all payments for summary stats
-  const allPayments = bookingPayments.flatMap((booking) => booking.payments);
-
   // Calculate summary statistics
+  const allPayments = bookingPayments.flatMap((booking) => booking.payments);
+  const allRefunds = bookingPayments.flatMap((booking) => booking.refunds);
   const stats = {
     totalPaid: bookingPayments.reduce((sum, booking) => sum + booking.totalPaid, 0),
     totalBudget: bookingPayments.reduce((sum, booking) => sum + booking.budget, 0),
+    totalRefunded: allRefunds.reduce((sum, refund) => sum + refund.amount, 0),
     totalTransactions: allPayments.length,
     pendingPayments: allPayments.filter((p) => p.status === "pending").length,
     completedPayments: allPayments.filter((p) => p.status === "completed").length,
+    refundedPayments: allRefunds.length,
     lastPaymentDate: allPayments
       .filter((p) => p.status === "completed")
-      .sort((a, b) => new Date(b.completedAt || b.createdAt).getTime() - new Date(a.completedAt || a.createdAt).getTime())[0]?.completedAt,
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]?.createdAt,
   };
 
   if (loading) {
@@ -173,13 +98,13 @@ export default function PaymentsPage() {
       <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Payment History</h1>
-          <p className="text-gray-500 mt-2">View all your payment transactions</p>
+          <p className="text-gray-500 mt-2">View all your payment and refund transactions</p>
         </div>
 
         <PaymentSummary stats={stats} />
 
         {bookingPayments.length === 0 ? (
-          <EmptyState onRefresh={fetchPayments} />
+          <EmptyState onRefresh={loadPayments} />
         ) : (
           <div className="space-y-8">
             {bookingPayments.map((booking, index) => (
@@ -198,42 +123,23 @@ export function PaymentDetailPage({ transactionId }: { transactionId: string }) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
 
-  const fetchPaymentDetails = async () => {
+  const loadPaymentDetails = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/payments/transaction/${transactionId}`;
-      console.log("Fetching payment details from:", url); // Debug log
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 404) {
-          throw { message: "Payment details not found for this transaction." };
-        } else {
-          throw { status: response.status, message: `HTTP error! status: ${response.status} - ${errorText}` };
-        }
-      }
-
-      const { success, data, message } = await response.json();
-      if (!success) {
-        throw { message: message || "Failed to load payment details" };
-      }
-
-      setPaymentDetails(data);
+      const details = await fetchPaymentDetails(transactionId);
+      setPaymentDetails(details);
     } catch (err) {
-      console.error("Payment details fetch error:", err);
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-      const status = err?.status || (err as any)?.statusCode || null;
-      setError({ message: status === 500 ? "Server error occurred. Please try again later." : errorMessage, status });
+      const errorMessage = (err as any).message || "An unknown error occurred";
+      const status = (err as any)?.status || null;
+      setError({ message: errorMessage, status });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPaymentDetails();
+    loadPaymentDetails();
   }, [transactionId]);
 
   if (loading) {
@@ -241,15 +147,15 @@ export function PaymentDetailPage({ transactionId }: { transactionId: string }) 
   }
 
   if (error) {
-    return <ErrorView message={error.message} status={error.status} onRetry={fetchPaymentDetails} />;
+    return <ErrorView message={error.message} status={error.status} onRetry={loadPaymentDetails} />;
   }
 
   if (!paymentDetails) {
-    return <ErrorView message="Payment not found" onRetry={fetchPaymentDetails} />;
+    return <ErrorView message="Payment not found" onRetry={loadPaymentDetails} />;
   }
 
   const status = statusConfig[paymentDetails.payment.status];
-  const paymentDate = paymentDetails.payment.completedAt || paymentDetails.payment.createdAt;
+  const paymentDate = paymentDetails.payment.createdAt;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -302,27 +208,23 @@ export function PaymentDetailPage({ transactionId }: { transactionId: string }) 
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Transaction ID</p>
-                  <p className="font-medium">{paymentDetails.payment.transactionId || "N/A"}</p>
+                  <p className="font-medium">{paymentDetails.payment.transactionId}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Payment Method</p>
                   <p className="font-medium capitalize">{paymentDetails.modeOfPayment.type}</p>
                   {paymentDetails.modeOfPayment.details && (
                     <p className="text-sm text-gray-500 mt-1">
-                      {Object.entries(paymentDetails.modeOfPayment.details).map(([key, value]) => (
-                        <span key={key} className="block">
-                          {key}: {value}
-                        </span>
-                      ))}
+                      {Object.entries(paymentDetails.modeOfPayment.details)
+                        .filter(([key, value]) => value && key !== "capturedAt")
+                        .map(([key, value]) => (
+                          <span key={key} className="block capitalize">
+                            {key.replace(/([A-Z])/g, " $1").toLowerCase()}: {value}
+                          </span>
+                        ))}
                     </p>
                   )}
                 </div>
-                {paymentDetails.payment.notes && (
-                  <div>
-                    <p className="text-sm text-gray-500">Notes</p>
-                    <p className="font-medium">{paymentDetails.payment.notes}</p>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -334,15 +236,12 @@ export function PaymentDetailPage({ transactionId }: { transactionId: string }) 
                   <p className="font-medium">{paymentDetails.booking.userName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Dates</p>
-                  <p className="font-medium">
-                    {new Date(paymentDetails.booking.startDate).toLocaleDateString()} -{" "}
-                    {new Date(paymentDetails.booking.endDate).toLocaleDateString()}
-                  </p>
+                  <p className="text-sm text-gray-500">Email</p>
+                  <p className="font-medium">{paymentDetails.booking.userEmail}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Duration</p>
-                  <p className="font-medium">{paymentDetails.booking.duration}</p>
+                  <p className="text-sm text-gray-500">Dates</p>
+                  <p className="font-medium">{paymentDetails.booking.dateRange}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Budget</p>
@@ -363,6 +262,46 @@ export function PaymentDetailPage({ transactionId }: { transactionId: string }) 
               </div>
             </div>
           </div>
+
+          {paymentDetails.refund && (
+            <div className="px-6 py-5 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Refund Details</h3>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-500">Refund Amount</p>
+                  <p className="font-medium">₹{paymentDetails.refund.amount}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Status</p>
+                  <p className="font-medium capitalize">{paymentDetails.refund.status}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Refund Date</p>
+                  <p className="font-medium">
+                    {new Date(paymentDetails.refund.createdAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+                {paymentDetails.refund.proof && (
+                  <div>
+                    <p className="text-sm text-gray-500">Proof</p>
+                    <a href={paymentDetails.refund.proof} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
+                      View Proof
+                    </a>
+                  </div>
+                )}
+                {paymentDetails.refund.adminComment && (
+                  <div>
+                    <p className="text-sm text-gray-500">Admin Comment</p>
+                    <p className="font-medium">{paymentDetails.refund.adminComment}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
@@ -425,7 +364,7 @@ function ErrorView({ message, status, onRetry }: { message: string; status?: num
 
 function EmptyState({ onRefresh }: { onRefresh: () => void }) {
   return (
-    <div className="min-h-full 0bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-full bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white shadow-lg rounded-lg p-8 text-center max-w-md w-full">
         <div className="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-gray-100 mb-6">
           <CreditCard className="h-12 w-12 text-gray-400" />
@@ -455,8 +394,8 @@ function PaymentSummary({ stats }: { stats: any }) {
       {[
         { icon: DollarSign, label: "Total Budget", value: `₹${stats.totalBudget.toLocaleString()}` },
         { icon: CreditCard, label: "Total Paid", value: `₹${stats.totalPaid.toLocaleString()}` },
+        { icon: RotateCcw, label: "Total Refunded", value: `₹${stats.totalRefunded.toLocaleString()}` },
         { icon: CheckCircle, label: "Completed", value: stats.completedPayments },
-        { icon: Clock, label: "Pending", value: stats.pendingPayments },
       ].map((item, index) => (
         <div key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <div className="flex items-center">
@@ -479,10 +418,13 @@ function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
-  const paymentsWithInstallmentNumbers = sortedPayments.map((payment, index) => ({
-    ...payment,
-    installmentNumber: index + 1,
-  }));
+  const paymentsWithInstallmentNumbers = sortedPayments
+    .filter((payment) => payment.type === "installment")
+    .map((payment, index) => ({
+      ...payment,
+      installmentNumber: index + 1,
+    }))
+    .concat(sortedPayments.filter((payment) => payment.type !== "installment"));
 
   return (
     <div className="bg-white shadow-sm rounded-lg overflow-hidden">
@@ -496,8 +438,9 @@ function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
               <Calendar className="mr-1.5 h-4 w-4" />
               {booking.dateRange}
             </p>
+            <p className="text-sm text-gray-500 mt-1">{booking.userEmail}</p>
           </div>
-          <div className="mt-2 sm:mt-0">
+          <div className="mt-2 sm:mt-0 flex space-x-4">
             <span
               className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                 booking.paymentStatus === "paid"
@@ -509,17 +452,33 @@ function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
             >
               {booking.paymentStatus}
             </span>
+            <span
+              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                booking.status === "confirmed"
+                  ? "bg-green-100 text-green-800"
+                  : booking.status === "pending"
+                  ? "bg-yellow-100 text-yellow-800"
+                  : "bg-red-100 text-red-800"
+              }`}
+            >
+              {booking.status}
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50">
+      <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50">
         <StatCard label="Budget" value={`₹${booking.budget}`} />
         <StatCard label="Paid" value={`₹${booking.totalPaid}`} />
         <StatCard
           label="Balance"
           value={`₹${booking.remainingBalance}`}
           highlight={booking.remainingBalance > 0}
+        />
+        <StatCard
+          label="Refunded"
+          value={`₹${booking.refunds.reduce((sum, refund) => sum + refund.amount, 0)}`}
+          highlight={booking.refunds.length > 0}
         />
       </div>
 
@@ -534,6 +493,49 @@ function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
           ))
         )}
       </div>
+
+      {booking.refunds.length > 0 && (
+        <div className="px-6 py-4 border-t border-gray-200">
+          <h4 className="text-sm font-medium text-gray-900 mb-4">Refunds</h4>
+          {booking.refunds.map((refund, index) => (
+            <div key={index} className="p-4 bg-blue-50 border-l-4 border-blue-500 mb-2 rounded-r-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-blue-700">₹{refund.amount} Refunded</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                      {new Date(refund.createdAt).toLocaleDateString("en-US", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                    {refund.proof && (
+                      <a
+                        href={refund.proof}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:underline"
+                      >
+                        View Proof
+                      </a>
+                    )}
+                    {refund.adminComment && (
+                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                        Note: {refund.adminComment}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 sm:mt-0 flex items-center space-x-2">
+                  <RotateCcw className="text-blue-600" size={18} />
+                  <span className="text-sm font-medium text-blue-700">{refund.status}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -547,13 +549,13 @@ function StatCard({ label, value, highlight = false }: { label: string; value: s
   );
 }
 
-function PaymentListItem({ payment, transactionId }: { payment: Payment; transactionId: string }) {
+function PaymentListItem({ payment, transactionId }: { payment: Payment & { installmentNumber?: number }; transactionId: string }) {
   const status = statusConfig[payment.status];
 
-  const getInstallmentText = (payment: Payment) => {
+  const getInstallmentText = (payment: Payment & { installmentNumber?: number }) => {
+    if (payment.type === "deposit") return "Deposit";
     if (payment.type === "full") return "Full Payment";
-    if (payment.isPartial) return "Partial Payment";
-    return `Installment #${payment.installmentNumber}`;
+    return payment.installmentNumber ? `Installment #${payment.installmentNumber}` : payment.type;
   };
 
   return (

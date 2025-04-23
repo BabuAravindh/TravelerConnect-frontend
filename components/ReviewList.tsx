@@ -58,7 +58,7 @@ const ReviewList = ({ entityId, entityType }: ReviewListProps) => {
     switch (entityType) {
       case 'guide': return `api/feedback/${entityId}`;
       case 'attraction': return `api/attractions/feedback/${entityId}`;
-      case 'route': return `api/feedback/route/${entityId}`;
+      case 'route': return `api/routes/guide/${entityId}`;
       default: return `api/feedback/${entityId}`;
     }
   };
@@ -72,12 +72,12 @@ const ReviewList = ({ entityId, entityType }: ReviewListProps) => {
 
       const token = localStorage.getItem("token");
       const endpoint = getApiEndpoint();
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/${endpoint}?page=${page}&limit=${REVIEWS_PER_PAGE}`;
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/${endpoint}`;
       
       const response = await fetch(apiUrl, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-
+    console.log(response)
       if (!response.ok) {
         throw new Error(`Failed to fetch ${entityType} reviews: ${response.statusText}`);
       }

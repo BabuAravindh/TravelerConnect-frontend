@@ -52,7 +52,7 @@ export const Footer = () => {
         <p className="text-sm text-gray-600">© {new Date().getFullYear()} TravelerConnect. All rights reserved.</p>
         <ul className="flex flex-col mb-3 space-y-2 lg:mb-0 sm:space-y-0 sm:space-x-5 sm:flex-row">
           <li>
-            <Link href="#" className="text-sm text-gray-600 transition-colors duration-300 hover:text-blue-500">
+            <Link href="/privacyandpolicy" className="text-sm text-gray-600 transition-colors duration-300 hover:text-blue-500">
               Privacy Policy
             </Link>
           </li>

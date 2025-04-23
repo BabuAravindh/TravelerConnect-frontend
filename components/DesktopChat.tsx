@@ -405,12 +405,7 @@ const DesktopChat: FC = () => {
                     className={`flex ${isSender ? "justify-end" : "justify-start"}`}
                   >
                     <div className="flex flex-col max-w-xs">
-                      {!isSender && (
-                        <p className="text-sm text-gray-400">
-                          {(typeof msg.senderId === "object" ? msg.senderId.name : "Unknown") ||
-                            "Unknown"}
-                        </p>
-                      )}
+                     
                       <div
                         className={`p-3 rounded-lg ${
                           isSender

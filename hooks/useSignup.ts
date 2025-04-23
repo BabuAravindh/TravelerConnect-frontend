@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import axios from "axios";
-import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast"; // Re-import to explicitly dismiss toasts
 
 type ValidationErrors = {
   name: string;
@@ -21,6 +21,7 @@ const useSignup = () => {
     password: "",
     confirmPassword: "",
   });
+  const [error, setError] = useState(""); // Kept but not used for toasts
   const router = useRouter();
 
   const handleSignup = async (data: {
@@ -30,12 +31,14 @@ const useSignup = () => {
     confirmPassword: string;
   }) => {
     setLoading(true);
+    setError(""); // Reset error to avoid any toast triggers
     setValidationErrors({
       name: "",
       email: "",
       password: "",
       confirmPassword: "",
     });
+    toast.dismiss(); // Clear any existing toasts
 
     try {
       const response = await axios.post(
@@ -45,48 +48,51 @@ const useSignup = () => {
           email: data.email,
           password: data.password,
           confirmPassword: data.confirmPassword,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          timeout: 10000,
         }
       );
-      console.log("Signup response:", response.data);
-      const { token, user } = response.data;
-      if (user?.id && token) {
-        localStorage.setItem("token", token);
-        setIsSubmitted(true);
-        toast.success("Account created successfully! Please verify your email.");
-
-      }
+        toast.success("Account created verification mail is sent")
+      
     } catch (error: any) {
       console.error("Signup error:", error);
 
-      // Check if error response is related to conflict (email or name already taken)
-      if (error.response?.data?.error) {
-        const errorMessage = error.response?.data?.message;
+      if (axios.isAxiosError(error)) {
+        if (!error.response) {
+          setValidationErrors(prev => ({
+            ...prev,
+            email: "Network error. Please check your connection and try again.",
+          }));
+          return;
+        }
 
-        // Set validation errors based on message
-        setValidationErrors({
-          name: errorMessage.includes("name") ? errorMessage : "",
-          email: errorMessage.includes("email") ? errorMessage : "",
-          password: "",
-          confirmPassword: "",
-        });
+        const status = error.response?.status;
+        const serverErrors = error.response?.data?.errors || [];
 
-        toast.error(errorMessage || "An error occurred. Please try again.");
-        return;
-      }
-
-      // Handle other server-side validation errors
-      const serverErrors = error.response?.data?.errors || [];
-      if (serverErrors.length > 0) {
-        const newErrors = serverErrors.reduce((acc: ValidationErrors, err: { field: string; message: string }) => {
-          if (err.field && acc.hasOwnProperty(err.field)) {
-            acc[err.field as keyof ValidationErrors] = err.message;
-          }
-          return acc;
-        }, { name: "", email: "", password: "", confirmPassword: "" });
-
-        setValidationErrors(newErrors);
+        if (status === 400 && serverErrors.length > 0) {
+          const newErrors = serverErrors.reduce((acc: ValidationErrors, err: { field: string; message: string }) => {
+            if (err.field && acc.hasOwnProperty(err.field)) {
+              acc[err.field as keyof ValidationErrors] = err.message;
+            }
+            return acc;
+          }, { name: "", email: "", password: "", confirmPassword: "" });
+          setValidationErrors(newErrors);
+        } else {
+          // Fallback for other status codes (e.g., 429, 500)
+          setValidationErrors(prev => ({
+            ...prev,
+            email: "An unexpected error occurred. Please try again.",
+          }));
+        }
       } else {
-        toast.error(error.response?.data?.message || "Signup failed. Please try again later.");
+        setValidationErrors(prev => ({
+          ...prev,
+          email: "An unexpected error occurred. Please try again.",
+        }));
       }
     } finally {
       setLoading(false);
@@ -99,6 +105,7 @@ const useSignup = () => {
     validationErrors,
     setValidationErrors,
     isSubmitted,
+    error,
   };
 };
 
