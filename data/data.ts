@@ -226,7 +226,6 @@ export const roleBasedNavItems: Record<string, { href: string; label: string; ic
     { href: "/guides/dashboard/messages", label: "Messages", icon: MessageSquare },
     { href: "/guides/dashboard/payments", label: "Payments", icon: CreditCard },
     { href: "/guides/dashboard/rating", label: "Ratings", icon: Star },
-    { href: "/guides/dashboard/requests", label: "Requests", icon: Star },
     { href: "/guides/dashboard/profile", label: "Profile", icon: User },
   ],
   admin: [

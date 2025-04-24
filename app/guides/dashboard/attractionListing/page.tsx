@@ -4,26 +4,29 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { attractionService } from "./attractionListing.service";
+import { City, Attraction, Feedback, FormData } from "./AttractionListingTypes";
 
 const GuideAttractionsPage = () => {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
+  const token = localStorage.getItem('token')
   const router = useRouter();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: "",
     description: "",
     cityName: "",
     category: "",
   });
-  const [files, setFiles] = useState([]);
-  const [previewUrls, setPreviewUrls] = useState([]);
-  const [existingImages, setExistingImages] = useState([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [cities, setCities] = useState([]);
-  const [attractions, setAttractions] = useState([]);
-  const [feedback, setFeedback] = useState([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [attractions, setAttractions] = useState<Attraction[]>([]);
+  const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -40,32 +43,18 @@ const GuideAttractionsPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [citiesResponse, attractionsResponse, feedbackResponse] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/cities`),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/attractions/guide/${user.id}`),
-          token && fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/attractions/feedback/guide`, {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          })
+        const [citiesData, attractionsData, feedbackData] = await Promise.all([
+          attractionService.getCities(),
+          attractionService.getAttractions(user.id, token ?? undefined),
+          token ? attractionService.getFeedback(token) : Promise.resolve([]),
         ]);
 
-        if (!citiesResponse.ok) throw new Error("Failed to fetch cities");
-        const citiesData = await citiesResponse.json();
-        setCities(citiesData.data || []);
-
-        if (!attractionsResponse.ok) throw new Error("Failed to fetch attractions");
-        const attractionsData = await attractionsResponse.json();
-        setAttractions(Array.isArray(attractionsData) ? attractionsData : []);
-
-        if (feedbackResponse) {
-          if (!feedbackResponse.ok) throw new Error("Failed to fetch feedback");
-          const feedbackData = await feedbackResponse.json();
-          setFeedback(feedbackData?.feedback || []);
-        }
+        setCities(citiesData);
+        setAttractions(attractionsData);
+        setFeedback(feedbackData);
       } catch (error) {
         console.error("Fetch error:", error);
-        toast.error(error.message || "Failed to load data");
+        toast.error(error instanceof Error ? error.message : "Failed to load data");
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -74,10 +63,10 @@ const GuideAttractionsPage = () => {
     fetchData();
   }, [user?.id, token, isMounted]);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Clean up previous preview URLs
     previewUrls.forEach(url => URL.revokeObjectURL(url));
-    
+
     if (e.target.files && e.target.files.length > 0) {
       const selectedFiles = Array.from(e.target.files).slice(0, 5);
       setFiles(selectedFiles);
@@ -85,11 +74,11 @@ const GuideAttractionsPage = () => {
     }
   };
 
-  const handleRemoveImage = (index) => {
+  const handleRemoveImage = (index: number) => {
     setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleEdit = (attraction) => {
+  const handleEdit = (attraction: Attraction) => {
     setEditingId(attraction._id);
     setFormData({
       name: attraction.name,
@@ -117,97 +106,53 @@ const GuideAttractionsPage = () => {
     setShowForm(false);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user?.id) {
       toast.error("You must be logged in to create/update an attraction");
       return;
     }
 
     setLoading(true);
-    
+
     try {
-      const formDataToSend = new FormData();
-      
-      Object.entries(formData).forEach(([key, value]) => {
-        formDataToSend.append(key, value);
-      });
-      
       if (editingId) {
-        existingImages.forEach(image => {
-          formDataToSend.append("existingImages", image);
-        });
+        await attractionService.updateAttraction(
+          editingId,
+          formData,
+          files,
+          existingImages,
+          token ?? undefined
+        );
+        toast.success("Attraction updated successfully!");
       } else {
-        formDataToSend.append("guideId", user.id);
-      }
-      
-      files.forEach(file => {
-        formDataToSend.append("images", file);
-      });
-
-      const url = editingId 
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/attractions/${editingId}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/attractions`;
-
-      const method = editingId ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        body: formDataToSend,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(responseData.error || `Failed to ${editingId ? 'update' : 'create'} attraction`);
+        await attractionService.createAttraction(formData, files, user.id, token ?? undefined);
+        toast.success("Attraction created successfully!");
       }
 
-      toast.success(`Attraction ${editingId ? 'updated' : 'created'} successfully!`);
-      
       handleCancelEdit();
 
-      
-      const attractionsRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/attractions/guide/${user.id}`,
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      );
-      const attractionsData = await attractionsRes.json();
-      console.log(attractionsData)
-      setAttractions(Array.isArray(attractionsData) ? attractionsData : []);
+      const attractionsData = await attractionService.getAttractions(user.id, token ?? undefined);
+      setAttractions(attractionsData);
     } catch (error) {
       console.error("Submission error:", error);
-      toast.error(error.message || "Failed to save attraction");
+      toast.error(error instanceof Error ? error.message : "Failed to save attraction");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this attraction?")) return;
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/attractions/${id}`,
-        { 
-          method: "DELETE",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to delete attraction");
-      }
-
+      await attractionService.deleteAttraction(id, token ?? undefined);
       toast.success("Attraction deleted successfully");
       setAttractions(prev => prev.filter(a => a._id !== id));
     } catch (error) {
       console.error("Deletion error:", error);
-      toast.error(error.message || "Failed to delete attraction");
+      toast.error(error instanceof Error ? error.message : "Failed to delete attraction");
     }
   };
 
@@ -403,9 +348,9 @@ const GuideAttractionsPage = () => {
             {attractions.map((attraction) => (
               <div key={attraction._id} className="border rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
                 <div className="relative h-48 w-full">
-                  {attraction.images?.length > 0 ? (
+                  {(attraction.images ?? []).length > 0 ? (
                     <Image
-                      src={attraction.images[0]}
+                      src={(attraction.images ?? [])[0]}
                       alt={attraction.name}
                       fill
                       className="object-cover"
@@ -470,7 +415,7 @@ const GuideAttractionsPage = () => {
                             fill="currentColor"
                             viewBox="0 0 20 20"
                           >
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3 .921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784 .57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81 .588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
                         ))}
                       </div>

@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -16,57 +15,8 @@ import {
 } from "lucide-react";
 import { format, differenceInDays, parseISO } from "date-fns";
 import Image from "next/image";
-
-interface Booking {
-  id: string;
-  userName: string;
-  email: string;
-  phoneNumber: number | string;
-  startDate: string;
-  endDate: string;
-  activities: string[];
-  duration: string | number;
-  budget?: number;
-  paymentStatus: string;
-  status: string;
-  pickupLocation?: string;
-  dropoffLocation?: string;
-  specialRequests?: string;
-  bookingDate?: string;
-}
-
-interface Payment {
-  id: string;
-  amount: number;
-  type: string;
-  status: string;
-  paymentType: string;
-  method: string;
-  installmentNumber?: number;
-  isPartial?: boolean;
-  details?: {
-    notes?: string;
-    [key: string]: any;
-  };
-  transactionId?: string;
-  date?: string;
-  transactionDetails?: {
-    screenshotUrl?: string | null;
-    [key: string]: any;
-  };
-}
-
-interface PaymentHistoryResponse {
-  success: boolean;
-  payments: Payment[];
-  summary: {
-    totalBudget: number;
-    totalPaid: number;
-    remainingBalance: number;
-    paymentStatus: string;
-    nextPaymentDue?: string;
-  };
-}
+import { bookingService } from "./booking.service";
+import { Booking, Payment, PaymentHistoryResponse } from "./bookingTypes";
 
 const BookingsPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -101,67 +51,25 @@ const BookingsPage = () => {
         }
 
         // Fetch bookings
-        const bookingsRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/bookings/guide/${user.id}`,
-          {
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        if (!bookingsRes.ok) {
-          throw new Error(
-            bookingsRes.status === 404
-              ? "No bookings found"
-              : "Failed to fetch bookings"
-          );
-        }
-
-        const bookingsData = await bookingsRes.json();
-        console.log("Bookings API Response:", bookingsData);
-        const bookingsArray = Array.isArray(bookingsData)
-          ? bookingsData
-          : bookingsData.bookings || [bookingsData];
-
-        // Validate and filter bookings
-        const validBookings = bookingsArray.filter((booking: Booking) => {
-          const isValid = booking.id && Number.isFinite(booking.budget);
-          if (!isValid) {
-            console.warn("Invalid booking filtered out:", booking);
-          }
-          return isValid;
-        });
-
+        const bookingsData = await bookingService.getBookings(user.id, token);
         if (!isMounted) return;
 
-        if (!validBookings.length) {
+        if (!bookingsData.length) {
           setBookings([]);
           setLoading(false);
           return;
         }
 
-        setBookings(validBookings);
+        setBookings(bookingsData);
 
         // Fetch payment histories
-        const paymentPromises = validBookings.map((booking: Booking) =>
-          fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/payment/history/${booking.id}`,
-            {
-              method: "GET",
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          )
-            .then(async (res) => {
-              if (!res.ok) {
-                console.warn(
-                  `Payment history not found for booking ${booking.id}: Status ${res.status}`
-                );
-                return { bookingId: booking.id, paymentHistory: null };
-              }
-              const data = await res.json();
-              console.log(`Payment history for booking ${booking.id}:`, data);
-              return { bookingId: booking.id, paymentHistory: data };
-            })
+        const paymentPromises = bookingsData.map((booking: Booking) =>
+          bookingService
+            .getPaymentHistory(booking.id, token)
+            .then((paymentHistory) => ({
+              bookingId: booking.id,
+              paymentHistory,
+            }))
             .catch((error) => {
               console.error(
                 `Error fetching payment history for booking ${booking.id}:`,
@@ -250,22 +158,7 @@ const BookingsPage = () => {
         return;
       }
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/bookings/${bookingId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status: "completed" }),
-        }
-      );
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to update booking status");
-      }
+      await bookingService.updateBookingStatus(bookingId, token);
 
       setBookings((prev) =>
         prev.map((b) =>
@@ -296,24 +189,10 @@ const BookingsPage = () => {
         return;
       }
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/payment/${paymentId}/status`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ paymentStatus: "completed" }),
-        }
+      const updatedPayment = await bookingService.updatePaymentStatus(
+        paymentId,
+        token
       );
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to update payment status");
-      }
-
-      const updatedPayment = await res.json();
 
       setPaymentHistories((prev) => {
         const currentHistory = prev[bookingId];
@@ -426,14 +305,15 @@ const BookingsPage = () => {
 
       {bookings.length > 0 ? (
         <div className="space-y-4">
-          {console.log("Bookings state before rendering:", bookings)}
-          {bookings.forEach((booking, index) => {
+        
+          {bookings.map((booking, index) => {
             if (!Number.isFinite(booking.budget)) {
               console.warn(
                 `Invalid budget at render for booking ${booking.id} at index ${index}:`,
                 booking.budget
               );
             }
+            return null; // Return null to satisfy ReactNode requirement
           })}
           {bookings.map((booking) => {
             const paymentHistory = paymentHistories[booking.id];

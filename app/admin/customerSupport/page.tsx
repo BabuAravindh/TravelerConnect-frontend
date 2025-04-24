@@ -14,6 +14,17 @@ interface SupportTicket {
   adminNotes?: string;
 }
 
+interface RawSupportTicket {
+  _id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: 'open' | 'pending' | 'resolved';
+  createdAt: string;
+  adminNotes?: string;
+}
+
 const AdminSupportPage = () => {
   // State management
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -56,11 +67,13 @@ const AdminSupportPage = () => {
         if (!response.ok) {
           throw new Error('Failed to fetch tickets');
         }
-        const data = await response.json();
-        setTickets(data.map(ticket => ({
-          ...ticket,
-          id: ticket._id // Map _id to id
-        })));
+        const data: RawSupportTicket[] = await response.json();
+        setTickets(
+          data.map((ticket: RawSupportTicket) => ({
+            ...ticket,
+            id: ticket._id, // Map _id to id
+          }))
+        );
       } catch (err) {
         console.error('Error fetching tickets:', err);
         setError('Failed to load tickets. Please try again.');
@@ -68,7 +81,7 @@ const AdminSupportPage = () => {
         setIsLoading(false);
       }
     };
-
+  
     fetchTickets();
   }, []);
 

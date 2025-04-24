@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import useAuth from "@/hooks/useAuth";
 
+
 interface GuideStats {
   guideId: string;
   totalBookings: number;

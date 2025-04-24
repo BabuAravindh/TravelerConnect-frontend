@@ -2,115 +2,84 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Camera, Save } from "lucide-react";
-import axios from "axios";
-import { useAuth } from "@/context/AuthContext";
 import Select from "react-select";
 import toast from "react-hot-toast";
-
-// Define TypeScript interface for profile
-interface Profile {
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: string;
-  isVerified: boolean;
-  phoneNumber: string;
-  gender: string;
-  dateJoined: string;
-  state: string;
-  country: string;
-  bio: string;
-  activities: string[];
-  languages: string[];
-  bankAccountNumber: string;
-  ifscCode: string;
-  bankName: string;
-  profilePic: string;
-  serviceLocations: string[];
-}
-
-const genderOptions = [
-  { label: "Male", value: "male" },
-  { label: "Female", value: "female" },
-  { label: "Others", value: "others" },
-];
+import { useAuth } from "@/context/AuthContext";
+import { 
+  Profile, 
+  SelectOption, 
+  genderOptions 
+} from "./profileTypes";
+import { 
+  fetchCities, 
+  fetchProfile, 
+  fetchInitialData, 
+  updateProfile 
+} from "./profile.service";
 
 const EditProfilePage = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
-  const [countries, setCountries] = useState<any[]>([]);
-  const [states, setStates] = useState<any[]>([]);
-  const [activitiesList, setActivitiesList] = useState<any[]>([]);
-  const [languagesList, setLanguagesList] = useState<any[]>([]);
-  const [cities, setCities] = useState<any[]>([]);
-  const [serviceLocations, setServiceLocations] = useState<any[]>([]);
+  const [countries, setCountries] = useState<SelectOption[]>([]);
+  const [states, setStates] = useState<SelectOption[]>([]);
+  const [activitiesList, setActivitiesList] = useState<SelectOption[]>([]);
+  const [languagesList, setLanguagesList] = useState<SelectOption[]>([]);
+  const [cities, setCities] = useState<SelectOption[]>([]);
+  const [serviceLocations, setServiceLocations] = useState<SelectOption[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { user } = useAuth();
 
   // Fetch Cities
   useEffect(() => {
-    const fetchCities = async () => {
-      try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/cities`);
-        const cityOptions = response.data.data.map((city: any) => ({
-          label: city.cityName,
-          value: city.cityName,
-        }));
-        setCities(cityOptions);
-      } catch (error) {
-        console.error("Error fetching cities:", error);
-      }
+    const loadCities = async () => {
+      const cityOptions = await fetchCities();
+      setCities(cityOptions);
     };
-
-    fetchCities();
+    loadCities();
   }, []);
 
   // Set service locations when profile or cities change
   useEffect(() => {
     if (profile?.serviceLocations && cities.length > 0) {
       const locations = profile.serviceLocations
-        .map((loc: string) => {
-          const found = cities.find((city) => city.value === loc);
-          return found ? { label: loc, value: loc } : null;
-        })
-        .filter(Boolean);
+        .map((loc: string) => cities.find((city) => city.value === loc))
+        .filter(Boolean) as SelectOption[];
       setServiceLocations(locations);
     }
   }, [profile?.serviceLocations, cities]);
 
   // Fetch Profile
   useEffect(() => {
-    const fetchProfile = async () => {
+    const loadProfile = async () => {
+      if (!user?.id) return;
+      
       try {
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${user?.id || ""}`
-        );
-        if (response.data) {
+        const data = await fetchProfile(user.id);
+        
+        if (data) {
           setProfile({
-            firstName: response.data.firstName || "",
-            lastName: response.data.lastName || "",
-            email: response.data.email || "",
-            role: response.data.role || "guide",
-            isVerified: response.data.isVerified ?? false,
-            phoneNumber: response.data.phoneNumber || "",
-            gender: response.data.gender || "",
-            dateJoined: response.data.dateJoined || new Date().toISOString(),
-            state: response.data.state || "",
-            country: response.data.country || "",
-            bio: response.data.bio || "",
-            activities: Array.isArray(response.data.activities) ? response.data.activities : [],
-            languages: Array.isArray(response.data.languages) ? response.data.languages : [],
-            bankAccountNumber: response.data.bankAccountNumber || "",
-            ifscCode: response.data.ifscCode || "",
-            bankName: response.data.bankName || "",
-            profilePic:
-              response.data.profilePicture || "https://picsum.photos/300/300?grayscale",
-            serviceLocations: response.data.serviceLocations || [],
+            firstName: data.firstName || "",
+            lastName: data.lastName || "",
+            email: data.email || "",
+            role: data.role || "guide",
+            isVerified: data.isVerified ?? false,
+            phoneNumber: data.phoneNumber || "",
+            gender: data.gender || "",
+            dateJoined: data.dateJoined || new Date().toISOString(),
+            state: data.state || "",
+            country: data.country || "",
+            bio: data.bio || "",
+            activities: Array.isArray(data.activities) ? data.activities : [],
+            languages: Array.isArray(data.languages) ? data.languages : [],
+            bankAccountNumber: data.bankAccountNumber || "",
+            ifscCode: data.ifscCode || "",
+            bankName: data.bankName || "",
+            profilePic: data.profilePicture || "https://picsum.photos/300/300?grayscale",
+            serviceLocations: data.serviceLocations || [],
           });
-        }
-      } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 404) {
+        } else {
+          // Create empty profile if not found
           setProfile({
             firstName: "",
             lastName: "",
@@ -131,59 +100,26 @@ const EditProfilePage = () => {
             profilePic: "https://picsum.photos/300/300?grayscale",
             serviceLocations: [],
           });
-        } else {
-          console.error("Error fetching profile:", error);
         }
+      } catch (error) {
+        console.error("Error loading profile:", error);
       }
     };
 
-    if (user?.id) fetchProfile();
+    loadProfile();
   }, [user?.id]);
 
   // Fetch additional data
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [countriesRes, statesRes, activitiesRes, languagesRes] = await Promise.all([
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/countries`),
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/states`),
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/activities`),
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/languages`),
-        ]);
-
-        setCountries(
-          countriesRes.data?.map((c: { countryName: string }) => ({
-            label: c.countryName,
-            value: c.countryName,
-          })) || []
-        );
-
-        setStates(
-          statesRes.data?.map((s: { stateName: string }) => ({
-            label: s.stateName,
-            value: s.stateName,
-          })) || []
-        );
-
-        setActivitiesList(
-          activitiesRes.data?.map((activity: any) => ({
-            label: activity.activityName,
-            value: activity.activityName,
-          })) || []
-        );
-
-        setLanguagesList(
-          languagesRes.data?.map((lang: any) => ({
-            label: lang.languageName,
-            value: lang.languageName,
-          })) || []
-        );
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
+    const loadInitialData = async () => {
+      const { countries, states, activitiesList, languagesList } = await fetchInitialData();
+      setCountries(countries || []);
+      setStates(states || []);
+      setActivitiesList(activitiesList || []);
+      setLanguagesList(languagesList || []);
     };
 
-    fetchData();
+    loadInitialData();
   }, []);
 
   const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,10 +154,31 @@ const EditProfilePage = () => {
 
   const handleServiceLocationsChange = (selectedOptions: any) => {
     setServiceLocations(selectedOptions || []);
-    setProfile((prev) => ({
-      ...prev,
-      serviceLocations: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : [],
-    }));
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            serviceLocations: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : [],
+            firstName: prev.firstName || "",
+            lastName: prev.lastName || "",
+            email: prev.email || "",
+            role: prev.role || "guide",
+            isVerified: prev.isVerified ?? false,
+            phoneNumber: prev.phoneNumber || "",
+            gender: prev.gender || "",
+            dateJoined: prev.dateJoined || new Date().toISOString(),
+            state: prev.state || "",
+            country: prev.country || "",
+            bio: prev.bio || "",
+            activities: prev.activities || [],
+            languages: prev.languages || [],
+            bankAccountNumber: prev.bankAccountNumber || "",
+            ifscCode: prev.ifscCode || "",
+            bankName: prev.bankName || "",
+            profilePic: prev.profilePic || "https://picsum.photos/300/300?grayscale",
+          }
+        : null
+    );
     if (errors.serviceLocations) {
       setErrors((prev) => ({ ...prev, serviceLocations: "" }));
     }
@@ -257,54 +214,43 @@ const EditProfilePage = () => {
   };
 
   const handleSave = async () => {
-    if (!profile) return;
+    if (!profile || !user?.id) return;
 
     const isValid = validateProfile(profile);
     if (!isValid) return;
 
     setIsSaving(true);
     try {
-      const formData = new FormData();
-      formData.append("firstName", profile.firstName);
-      formData.append("lastName", profile.lastName);
-      formData.append("email", profile.email);
-      formData.append("phoneNumber", profile.phoneNumber);
-      formData.append("gender", profile.gender);
-      formData.append("dateJoined", profile.dateJoined);
-      formData.append("state", profile.state);
-      formData.append("country", profile.country);
-      formData.append("bio", profile.bio);
-      profile.activities.forEach((activity: string) => formData.append("activities", activity));
-      profile.languages.forEach((language: string) => formData.append("languages", language));
-      formData.append("bankAccountNumber", profile.bankAccountNumber);
-      formData.append("ifscCode", profile.ifscCode);
-      formData.append("bankName", profile.bankName);
-      profile.serviceLocations.forEach((location: string) =>
-        formData.append("serviceLocations", location)
-      );
-
-      if (profilePicFile) {
-        formData.append("profilePic", profilePicFile);
-      }
-
-      const response = await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile/${user?.id || ""}`,
-        formData,
+      const { guideProfile } = await updateProfile(
+        user.id,
         {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          email: profile.email,
+          phoneNumber: profile.phoneNumber,
+          gender: profile.gender,
+          dateJoined: profile.dateJoined,
+          state: profile.state,
+          country: profile.country,
+          bio: profile.bio,
+          activities: profile.activities,
+          languages: profile.languages,
+          bankAccountNumber: profile.bankAccountNumber,
+          ifscCode: profile.ifscCode,
+          bankName: profile.bankName,
+          serviceLocations: profile.serviceLocations,
+        },
+        profilePicFile || undefined
       );
-      if (response) {
-        toast.success("Profile updated successfully!");
-      }
+
+      toast.success("Profile updated successfully!");
       setProfile((prev) => ({
-        ...prev,
-        profilePic: response.data.data.guideProfile.profilePic || prev!.profilePic,
+        ...prev!,
+        profilePic: guideProfile.profilePic || prev!.profilePic,
       }));
     } catch (error) {
       console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
     } finally {
       setIsSaving(false);
     }
@@ -326,14 +272,13 @@ const EditProfilePage = () => {
   }
 
   return (
-    <>
     <div className="max-w-3xl mx-auto p-4 sm:p-6">
       <h2 className="text-2xl font-bold mb-4">Edit Guide Profile</h2>
 
       <div className="flex flex-col items-center">
         <div className="relative">
           <Image
-            src={profile.profilePic || "https://picsum.photos/300/300?grayscale"}
+            src={profile.profilePic}
             alt="Profile Picture"
             width={120}
             height={120}
@@ -366,7 +311,7 @@ const EditProfilePage = () => {
             <label className="font-medium">{label}</label>
             <input
               type="text"
-              value={profile[key] || ""}
+              value={typeof profile[key as keyof Profile] === "boolean" ? String(profile[key as keyof Profile]) : (profile[key as keyof Profile] as string | undefined) || ""}
               onChange={(e) => handleInputChange(key, e.target.value)}
               className={`w-full mt-1 p-2 border rounded-lg ${errors[key] ? "border-red-500" : ""}`}
               readOnly={readOnly}
@@ -450,11 +395,7 @@ const EditProfilePage = () => {
           <label className="font-medium">Languages</label>
           <Select
             options={languagesList}
-            value={
-              profile.languages
-                ? languagesList.filter((option) => profile.languages.includes(option.value))
-                : []
-            }
+            value={languagesList.filter((option) => profile.languages.includes(option.value))}
             isMulti
             onChange={(selected) =>
               handleInputChange("languages", selected?.map((item) => item.value) || [])
@@ -469,11 +410,7 @@ const EditProfilePage = () => {
           <label className="font-medium">Activities Offered</label>
           <Select
             options={activitiesList}
-            value={
-              profile.activities
-                ? activitiesList.filter((option) => profile.activities.includes(option.value))
-                : []
-            }
+            value={activitiesList.filter((option) => profile.activities.includes(option.value))}
             isMulti
             onChange={(selected) =>
               handleInputChange("activities", selected?.map((item) => item.value) || [])
@@ -540,7 +477,6 @@ const EditProfilePage = () => {
         )}
       </button>
     </div>
-    </>
   );
 };
 

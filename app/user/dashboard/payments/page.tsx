@@ -2,11 +2,22 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { CheckCircle, Clock, XCircle, CreditCard, Calendar, RefreshCw, DollarSign, RotateCcw, ArrowLeft, AlertCircle } from "lucide-react";
+import {
+  CheckCircle,
+  Clock,
+  XCircle,
+  CreditCard,
+  Calendar,
+  RefreshCw,
+  DollarSign,
+  RotateCcw,
+  ArrowLeft,
+  AlertCircle,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
-import { BookingPaymentData, PaymentDetails } from "./paymentTypes";
-import { fetchBookingPayments, fetchPaymentDetails } from "./payment.service";
+import { BookingPaymentData, PaymentWithInstallment } from "./paymentTypes";
+import { fetchBookingPayments } from "./payment.service";
 
 // Status configuration
 const statusConfig = {
@@ -37,7 +48,9 @@ export default function PaymentsPage() {
   const { user } = useAuth();
   const [bookingPayments, setBookingPayments] = useState<BookingPaymentData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ message: string; status?: number } | null>(null);
+  const [error, setError] = useState<{ message: string; status?: number } | null>(
+    null
+  );
 
   const loadPayments = async () => {
     if (!user?.id) {
@@ -82,7 +95,10 @@ export default function PaymentsPage() {
     refundedPayments: allRefunds.length,
     lastPaymentDate: allPayments
       .filter((p) => p.status === "completed")
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]?.createdAt,
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0]?.createdAt,
   };
 
   if (loading) {
@@ -90,15 +106,25 @@ export default function PaymentsPage() {
   }
 
   if (error) {
-    return <ErrorView message={error.message} status={error.status} onRetry={handleRetry} />;
+    return (
+      <ErrorView
+        message={error.message}
+        status={error.status}
+        onRetry={handleRetry}
+      />
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Payment History</h1>
-          <p className="text-gray-500 mt-2">View all your payment and refund transactions</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            Payment History
+          </h1>
+          <p className="text-gray-500 mt-2">
+            View all your payment and refund transactions
+          </p>
         </div>
 
         <PaymentSummary stats={stats} />
@@ -108,201 +134,14 @@ export default function PaymentsPage() {
         ) : (
           <div className="space-y-8">
             {bookingPayments.map((booking, index) => (
-              <BookingPaymentSection key={index} booking={booking} />
+              <BookingPaymentSection
+                key={index}
+                booking={booking}
+                onSelectTransaction={() => {}} // Placeholder, no action needed
+              />
             ))}
           </div>
         )}
-      </main>
-    </div>
-  );
-}
-
-// Payment Detail Page Component
-export function PaymentDetailPage({ transactionId }: { transactionId: string }) {
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ message: string; status?: number } | null>(null);
-
-  const loadPaymentDetails = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const details = await fetchPaymentDetails(transactionId);
-      setPaymentDetails(details);
-    } catch (err) {
-      const errorMessage = (err as any).message || "An unknown error occurred";
-      const status = (err as any)?.status || null;
-      setError({ message: errorMessage, status });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPaymentDetails();
-  }, [transactionId]);
-
-  if (loading) {
-    return <LoadingView />;
-  }
-
-  if (error) {
-    return <ErrorView message={error.message} status={error.status} onRetry={loadPaymentDetails} />;
-  }
-
-  if (!paymentDetails) {
-    return <ErrorView message="Payment not found" onRetry={loadPaymentDetails} />;
-  }
-
-  const status = statusConfig[paymentDetails.payment.status];
-  const paymentDate = paymentDetails.payment.createdAt;
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <main className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <Link href="/user/dashboard/payments" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-6">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Payments
-        </Link>
-
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-6 py-5 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-medium text-gray-900">
-                  Payment #{paymentDetails.payment.transactionId.slice(-6)}
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  {new Date(paymentDate).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
-              </div>
-              <span
-                className={`mt-2 sm:mt-0 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${status.color.replace(
-                  "border-l-",
-                  "border-"
-                )}`}
-              >
-                {status.icon}
-                <span className="ml-1">{status.label}</span>
-              </span>
-            </div>
-          </div>
-
-          <div className="px-6 py-5 grid grid-cols-1 gap-8 sm:grid-cols-2">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Details</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500">Amount</p>
-                  <p className="font-medium">₹{paymentDetails.payment.amount}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Type</p>
-                  <p className="font-medium capitalize">{paymentDetails.payment.type}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Transaction ID</p>
-                  <p className="font-medium">{paymentDetails.payment.transactionId}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Payment Method</p>
-                  <p className="font-medium capitalize">{paymentDetails.modeOfPayment.type}</p>
-                  {paymentDetails.modeOfPayment.details && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      {Object.entries(paymentDetails.modeOfPayment.details)
-                        .filter(([key, value]) => value && key !== "capturedAt")
-                        .map(([key, value]) => (
-                          <span key={key} className="block capitalize">
-                            {key.replace(/([A-Z])/g, " $1").toLowerCase()}: {value}
-                          </span>
-                        ))}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Booking Details</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500">User</p>
-                  <p className="font-medium">{paymentDetails.booking.userName}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Email</p>
-                  <p className="font-medium">{paymentDetails.booking.userEmail}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Dates</p>
-                  <p className="font-medium">{paymentDetails.booking.dateRange}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Budget</p>
-                  <p className="font-medium">₹{paymentDetails.booking.budget}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Total Paid</p>
-                  <p className="font-medium">₹{paymentDetails.booking.totalPaid}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Remaining Balance</p>
-                  <p className="font-medium">₹{paymentDetails.booking.remainingBalance}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Booking Status</p>
-                  <p className="font-medium capitalize">{paymentDetails.booking.status}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {paymentDetails.refund && (
-            <div className="px-6 py-5 border-t border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Refund Details</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500">Refund Amount</p>
-                  <p className="font-medium">₹{paymentDetails.refund.amount}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <p className="font-medium capitalize">{paymentDetails.refund.status}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Refund Date</p>
-                  <p className="font-medium">
-                    {new Date(paymentDetails.refund.createdAt).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-                {paymentDetails.refund.proof && (
-                  <div>
-                    <p className="text-sm text-gray-500">Proof</p>
-                    <a href={paymentDetails.refund.proof} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
-                      View Proof
-                    </a>
-                  </div>
-                )}
-                {paymentDetails.refund.adminComment && (
-                  <div>
-                    <p className="text-sm text-gray-500">Admin Comment</p>
-                    <p className="font-medium">{paymentDetails.refund.adminComment}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
       </main>
     </div>
   );
@@ -327,7 +166,15 @@ function LoadingView() {
   );
 }
 
-function ErrorView({ message, status, onRetry }: { message: string; status?: number; onRetry: () => void }) {
+function ErrorView({
+  message,
+  status,
+  onRetry,
+}: {
+  message: string;
+  status?: number;
+  onRetry: () => void;
+}) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md bg-white shadow-lg rounded-lg p-6 text-center">
@@ -339,9 +186,13 @@ function ErrorView({ message, status, onRetry }: { message: string; status?: num
         {status === 500 && (
           <p className="text-sm text-gray-500 mb-4">
             This could be due to a server issue. Please try again later or contact support at{" "}
-            <Link href="mailto:support@travelerconnect.com" className="text-indigo-600 hover:underline">
+            <Link
+              href="mailto:support@travelerconnect.com"
+              className="text-indigo-600 hover:underline"
+            >
               support@travelerconnect.com
-            </Link>.
+            </Link>
+            .
           </p>
         )}
         <div className="flex justify-center space-x-4">
@@ -352,7 +203,10 @@ function ErrorView({ message, status, onRetry }: { message: string; status?: num
             <RefreshCw className="mr-2 h-4 w-4" />
             Try Again
           </button>
-          <Link href="/user/dashboard" className="flex items-center text-indigo-600 hover:underline">
+          <Link
+            href="/user/dashboard"
+            className="flex items-center text-indigo-600 hover:underline"
+          >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Dashboard
           </Link>
@@ -369,9 +223,12 @@ function EmptyState({ onRefresh }: { onRefresh: () => void }) {
         <div className="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-gray-100 mb-6">
           <CreditCard className="h-12 w-12 text-gray-400" />
         </div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Payments Found</h3>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          No Payments Found
+        </h3>
         <p className="text-sm text-gray-500 mb-6">
-          It looks like you haven’t made any payments yet. Once you complete a booking or payment, your transaction history will appear here.
+          It looks like you haven’t made any payments yet. Once you complete a
+          booking or payment, your transaction history will appear here.
         </p>
         <button
           onClick={onRefresh}
@@ -381,7 +238,14 @@ function EmptyState({ onRefresh }: { onRefresh: () => void }) {
           Refresh
         </button>
         <p className="text-xs text-gray-400 mt-4">
-          Or <Link href="/user/dashboard/bookings" className="text-indigo-600 hover:underline">check your bookings</Link> to make a payment.
+          Or{" "}
+          <Link
+            href="/user/dashboard/bookings"
+            className="text-indigo-600 hover:underline"
+          >
+            check your bookings
+          </Link>{" "}
+          to make a payment.
         </p>
       </div>
     </div>
@@ -392,12 +256,31 @@ function PaymentSummary({ stats }: { stats: any }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
       {[
-        { icon: DollarSign, label: "Total Budget", value: `₹${stats.totalBudget.toLocaleString()}` },
-        { icon: CreditCard, label: "Total Paid", value: `₹${stats.totalPaid.toLocaleString()}` },
-        { icon: RotateCcw, label: "Total Refunded", value: `₹${stats.totalRefunded.toLocaleString()}` },
-        { icon: CheckCircle, label: "Completed", value: stats.completedPayments },
+        {
+          icon: DollarSign,
+          label: "Total Budget",
+          value: `₹${stats.totalBudget.toLocaleString()}`,
+        },
+        {
+          icon: CreditCard,
+          label: "Total Paid",
+          value: `₹${stats.totalPaid.toLocaleString()}`,
+        },
+        {
+          icon: RotateCcw,
+          label: "Total Refunded",
+          value: `₹${stats.totalRefunded.toLocaleString()}`,
+        },
+        {
+          icon: CheckCircle,
+          label: "Completed",
+          value: stats.completedPayments,
+        },
       ].map((item, index) => (
-        <div key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div
+          key={index}
+          className="bg-white p-6 rounded-lg shadow-sm border border-gray-200"
+        >
           <div className="flex items-center">
             <div className="p-3 rounded-lg bg-gray-100 mr-4">
               <item.icon className="text-indigo-600" size={20} />
@@ -413,18 +296,31 @@ function PaymentSummary({ stats }: { stats: any }) {
   );
 }
 
-function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
+function BookingPaymentSection({
+  booking,
+  onSelectTransaction,
+}: {
+  booking: BookingPaymentData;
+  onSelectTransaction: (transactionId: string) => void;
+}) {
   const sortedPayments = [...booking.payments].sort((a, b) =>
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
-  const paymentsWithInstallmentNumbers = sortedPayments
-    .filter((payment) => payment.type === "installment")
-    .map((payment, index) => ({
-      ...payment,
-      installmentNumber: index + 1,
-    }))
-    .concat(sortedPayments.filter((payment) => payment.type !== "installment"));
+  const paymentsWithInstallmentNumbers: PaymentWithInstallment[] = [
+    ...sortedPayments
+      .filter((payment) => payment.type === "installment")
+      .map((payment, index) => ({
+        ...payment,
+        installmentNumber: index + 1,
+      })),
+    ...sortedPayments
+      .filter((payment) => payment.type !== "installment")
+      .map((payment) => ({
+        ...payment,
+        installmentNumber: undefined,
+      })),
+  ];
 
   return (
     <div className="bg-white shadow-sm rounded-lg overflow-hidden">
@@ -477,7 +373,10 @@ function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
         />
         <StatCard
           label="Refunded"
-          value={`₹${booking.refunds.reduce((sum, refund) => sum + refund.amount, 0)}`}
+          value={`₹${booking.refunds.reduce(
+            (sum, refund) => sum + refund.amount,
+            0
+          )}`}
           highlight={booking.refunds.length > 0}
         />
       </div>
@@ -489,7 +388,12 @@ function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
           </div>
         ) : (
           paymentsWithInstallmentNumbers.map((payment, index) => (
-            <PaymentListItem key={index} payment={payment} transactionId={payment.transactionId} />
+            <PaymentListItem
+              key={index}
+              payment={payment}
+              transactionId={payment.transactionId}
+              onSelect={onSelectTransaction}
+            />
           ))
         )}
       </div>
@@ -498,10 +402,15 @@ function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
         <div className="px-6 py-4 border-t border-gray-200">
           <h4 className="text-sm font-medium text-gray-900 mb-4">Refunds</h4>
           {booking.refunds.map((refund, index) => (
-            <div key={index} className="p-4 bg-blue-50 border-l-4 border-blue-500 mb-2 rounded-r-lg">
+            <div
+              key={index}
+              className="p-4 bg-blue-50 border-l-4 border-blue-500 mb-2 rounded-r-lg"
+            >
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="font-semibold text-blue-700">₹{refund.amount} Refunded</p>
+                  <p className="font-semibold text-blue-700">
+                    ₹{refund.amount} Refunded
+                  </p>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
                       {new Date(refund.createdAt).toLocaleDateString("en-US", {
@@ -529,7 +438,9 @@ function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
                 </div>
                 <div className="mt-3 sm:mt-0 flex items-center space-x-2">
                   <RotateCcw className="text-blue-600" size={18} />
-                  <span className="text-sm font-medium text-blue-700">{refund.status}</span>
+                  <span className="text-sm font-medium text-blue-700">
+                    {refund.status}
+                  </span>
                 </div>
               </div>
             </div>
@@ -540,62 +451,94 @@ function BookingPaymentSection({ booking }: { booking: BookingPaymentData }) {
   );
 }
 
-function StatCard({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
+function StatCard({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
   return (
-    <div className={`p-3 rounded-lg ${highlight ? "bg-amber-50 border border-amber-200" : "bg-white"}`}>
+    <div
+      className={`p-3 rounded-lg ${
+        highlight ? "bg-amber-50 border border-amber-200" : "bg-white"
+      }`}
+    >
       <p className="text-xs font-medium text-gray-500">{label}</p>
-      <p className={`text-lg font-semibold ${highlight ? "text-amber-700" : "text-gray-900"}`}>{value}</p>
+      <p
+        className={`text-lg font-semibold ${
+          highlight ? "text-amber-700" : "text-gray-900"
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
 
-function PaymentListItem({ payment, transactionId }: { payment: Payment & { installmentNumber?: number }; transactionId: string }) {
+function PaymentListItem({
+  payment,
+  transactionId,
+  onSelect,
+}: {
+  payment: PaymentWithInstallment;
+  transactionId: string;
+  onSelect: (transactionId: string) => void;
+}) {
   const status = statusConfig[payment.status];
 
-  const getInstallmentText = (payment: Payment & { installmentNumber?: number }) => {
+  const getInstallmentText = (payment: PaymentWithInstallment) => {
     if (payment.type === "deposit") return "Deposit";
     if (payment.type === "full") return "Full Payment";
-    return payment.installmentNumber ? `Installment #${payment.installmentNumber}` : payment.type;
+    return payment.installmentNumber
+      ? `Installment #${payment.installmentNumber}`
+      : payment.type;
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <Link href={`/user/dashboard/payments/${transactionId}`}>
-        <div className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${status.color} border-l-4`}>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-semibold">₹{payment.amount}</p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded capitalize">
-                  {getInstallmentText(payment)}
-                </span>
-                <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded capitalize">
-                  {payment.modeOfPayment.type}
-                </span>
-                <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                  {new Date(payment.createdAt).toLocaleDateString("en-US", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-              </div>
-            </div>
-            <div className="mt-3 sm:mt-0 flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                {status.icon}
-                <span className="text-sm font-medium">{status.label}</span>
-              </div>
-              <p className="text-sm text-gray-500">
-                {new Date(payment.createdAt).toLocaleTimeString("en-US", {
-                  hour: "2-digit",
-                  minute: "2-digit",
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div
+        className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${status.color} border-l-4`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold">₹{payment.amount}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded capitalize">
+                {getInstallmentText(payment)}
+              </span>
+              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded capitalize">
+                {payment.modeOfPayment.type}
+              </span>
+              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                {new Date(payment.createdAt).toLocaleDateString("en-US", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
                 })}
-              </p>
+              </span>
             </div>
           </div>
+          <div className="mt-3 sm:mt-0 flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              {status.icon}
+              <span className="text-sm font-medium">{status.label}</span>
+            </div>
+            <p className="text-sm text-gray-500">
+              {new Date(payment.createdAt).toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          </div>
         </div>
-      </Link>
+      </div>
     </motion.div>
   );
 }

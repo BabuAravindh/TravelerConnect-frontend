@@ -42,6 +42,12 @@ interface Activity {
   __v?: number;
 }
 
+interface LanguageForm {
+  languageName: string;
+  languageStatus: 'active' | 'inactive';
+  order: number;
+}
+
 type TabType = 'languages' | 'countries' | 'states' | 'cities' | 'activities';
 
 export default function LocationsAdmin() {
@@ -50,6 +56,8 @@ export default function LocationsAdmin() {
   const [error, setError] = useState<string | null>(null);
 
   // Data states
+
+  
   const [languages, setLanguages] = useState<Language[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [states, setStates] = useState<State[]>([]);
@@ -57,9 +65,9 @@ export default function LocationsAdmin() {
   const [activities, setActivities] = useState<Activity[]>([]);
 
   // Form states
-  const [languageForm, setLanguageForm] = useState({
+  const [languageForm, setLanguageForm] = useState<LanguageForm>({
     languageName: '',
-    languageStatus: 'active' as const,
+    languageStatus: 'active',
     order: 0,
   });
 

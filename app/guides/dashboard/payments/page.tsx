@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
 import {
   Card,
   CardContent,
@@ -42,36 +41,8 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-
-interface Booking {
-  bookingId: string;
-  bookingDate: string;
-  pickupLocation?: string;
-  dropoffLocation?: string;
-  tourDates: { start: string; end: string };
-  budget: number;
-  status: string;
-  paymentStatus: string;
-  totalPaid: number;
-  remainingBalance: number;
-  activities?: string[];
-  customer: { _id: string; name: string; email: string; phone?: string };
-  razorpayOrderId?: string;
-  payments: Payment[];
-}
-
-interface Payment {
-  paymentId: string;
-  amount: number;
-  date: string;
-  status: string;
-  type: string;
-  method: string;
-  proofUrl: string | null;
-  transactionId: string;
-  notes?: string;
-  transactionDetails?: { screenshotUrl?: string };
-}
+import { bookingService } from "./payments.service";
+import { Booking } from "./paymentsTypes";
 
 const GuideBookings = () => {
   const theme = useTheme();
@@ -94,27 +65,17 @@ const GuideBookings = () => {
           return;
         }
 
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/payment/guide/${guideId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        const data = response.data;
-        setBookings(data.bookings || []);
-        
+        const bookingsData = await bookingService.getGuideBookings(guideId, token);
+        setBookings(bookingsData);
+
         // Initialize all bookings as collapsed by default
-        const initialExpandedState = data.bookings.reduce((acc: Record<string, boolean>, booking: Booking) => {
+        const initialExpandedState = bookingsData.reduce((acc: Record<string, boolean>, booking: Booking) => {
           acc[booking.bookingId] = false;
           return acc;
         }, {});
         setExpandedBookings(initialExpandedState);
       } catch (err) {
-        setError(
-          err.response?.data?.message || "Failed to fetch bookings or payments"
-        );
+        setError((err instanceof Error ? err.message : "An unknown error occurred") || "Failed to fetch bookings or payments");
       } finally {
         setLoading(false);
       }
@@ -172,15 +133,15 @@ const GuideBookings = () => {
   };
 
   const toggleBookingDetails = (bookingId: string) => {
-    setExpandedBookings(prev => ({
+    setExpandedBookings((prev) => ({
       ...prev,
-      [bookingId]: !prev[bookingId]
+      [bookingId]: !prev[bookingId],
     }));
   };
 
   const expandAllBookings = () => {
     const newState: Record<string, boolean> = {};
-    bookings.forEach(booking => {
+    bookings.forEach((booking) => {
       newState[booking.bookingId] = true;
     });
     setExpandedBookings(newState);
@@ -188,7 +149,7 @@ const GuideBookings = () => {
 
   const collapseAllBookings = () => {
     const newState: Record<string, boolean> = {};
-    bookings.forEach(booking => {
+    bookings.forEach((booking) => {
       newState[booking.bookingId] = false;
     });
     setExpandedBookings(newState);
@@ -262,7 +223,7 @@ const GuideBookings = () => {
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Box>
           <Typography
             variant="h4"
@@ -280,17 +241,10 @@ const GuideBookings = () => {
           </Typography>
         </Box>
         <Box>
-          <Button 
-            size="small" 
-            onClick={expandAllBookings}
-            sx={{ mr: 1 }}
-          >
+          <Button size="small" onClick={expandAllBookings} sx={{ mr: 1 }}>
             Expand All
           </Button>
-          <Button 
-            size="small" 
-            onClick={collapseAllBookings}
-          >
+          <Button size="small" onClick={collapseAllBookings}>
             Collapse All
           </Button>
         </Box>
@@ -311,16 +265,16 @@ const GuideBookings = () => {
                 },
               }}
             >
-              <Box 
-                sx={{ 
+              <Box
+                sx={{
                   p: 3,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  backgroundColor: expandedBookings[booking.bookingId] 
-                    ? theme.palette.action.hover 
-                    : 'transparent',
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  cursor: "pointer",
+                  backgroundColor: expandedBookings[booking.bookingId]
+                    ? theme.palette.action.hover
+                    : "transparent",
                 }}
                 onClick={() => toggleBookingDetails(booking.bookingId)}
               >
@@ -586,8 +540,7 @@ const GuideBookings = () => {
                                       size="small"
                                       onClick={() =>
                                         window.open(
-                                          payment.transactionDetails
-                                            .screenshotUrl,
+                                          payment.transactionDetails?.screenshotUrl,
                                           "_blank"
                                         )
                                       }

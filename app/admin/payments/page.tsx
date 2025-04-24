@@ -46,7 +46,7 @@ const PaymentsPage = () => {
       const data = await response.json();
       setPayments(data.payments);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
       toast.error('Failed to load payments');
     } finally {
       setLoading(false);
@@ -72,7 +72,7 @@ const PaymentsPage = () => {
       toast.success('Payment deleted successfully');
       fetchPayments();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err instanceof Error ? err.message : 'An unknown error occurred');
       console.error('Error deleting payment:', err);
     }
   };
