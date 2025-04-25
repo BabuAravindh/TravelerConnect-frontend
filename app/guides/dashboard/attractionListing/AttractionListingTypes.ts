@@ -13,12 +13,19 @@ export interface City {
   }
   
   export interface Feedback {
-    _id: string;
-    attractionId?: { name: string };
-    comments?: string;
-    rating?: number;
-    submittedAt?: string;
     createdAt: string;
+    _id: string;
+    user: string;
+    userEmail: string;
+    rating: number;
+    comments: string;
+    status: string;
+    submittedAt: string;
+    attraction: {
+      id: string;
+      name: string;
+      category: string;
+    };
   }
   
   export interface FormData {
