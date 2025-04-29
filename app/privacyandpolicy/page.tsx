@@ -11,7 +11,7 @@ const PrivacyPolicyPage = () => {
         <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden p-8">
           <div className="text-center mb-10">
             <h1 className="text-3xl font-bold text-gray-800">Privacy Policy</h1>
-            <p className="text-gray-600 mt-2">Last Updated: {new Date().toLocaleDateString()}</p>
+            <p className="text-gray-600 mt-2">Last updated: {new Date().toLocaleDateString()}</p>
           </div>
 
           <div className="prose max-w-none">
@@ -76,7 +76,7 @@ const PrivacyPolicyPage = () => {
               You can control cookies through your browser settings.
             </p>
 
-            <h2 className="text-xl font-semibold text-gray-800 mt-6 mb-3">7. Children's Privacy</h2>
+            <h2 className="text-xl font-semibold text-gray-800 mt-6 mb-3">7. Children Privacy</h2>
             <p className="text-gray-700 mb-6">
               Our services are not directed to children under 13. We do not knowingly collect personal information from children. 
               If we become aware of such collection, we will take steps to delete it.
@@ -85,7 +85,7 @@ const PrivacyPolicyPage = () => {
             <h2 className="text-xl font-semibold text-gray-800 mt-6 mb-3">8. Changes to This Policy</h2>
             <p className="text-gray-700 mb-6">
               We may update this Privacy Policy periodically. We will notify you of significant changes by posting the new policy 
-              on our website and updating the "Last Updated" date.
+              on our website and updating the Last updated date.
             </p>
 
             <h2 className="text-xl font-semibold text-gray-800 mt-6 mb-3">9. Contact Us</h2>

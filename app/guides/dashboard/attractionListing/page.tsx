@@ -3,14 +3,13 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+
 import { attractionService } from "./attractionListing.service";
 import { City, Attraction, Feedback, FormData } from "./AttractionListingTypes";
 
 const GuideAttractionsPage = () => {
   const { user } = useAuth();
   const token = localStorage.getItem('token')
-  const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
     name: "",
     description: "",
@@ -34,7 +33,8 @@ const GuideAttractionsPage = () => {
       setIsMounted(false);
       previewUrls.forEach(url => URL.revokeObjectURL(url));
     };
-  }, []);
+  }, [previewUrls]);
+  
 
   useEffect(() => {
     if (!isMounted || !user?.id) return;

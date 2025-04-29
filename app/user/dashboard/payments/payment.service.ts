@@ -1,7 +1,7 @@
 import { BookingPaymentData, PaymentDetails } from "./paymentTypes";
 
 // Helper function to handle API errors
-const handleApiError = async (response: Response): Promise<{ success: boolean; data: any; message?: string }> => {
+const handleApiError = async (response: Response): Promise<{ success: boolean; data: unknown; message?: string }> => {
   // Read the response body once as text
   const bodyText = await response.text();
 
@@ -9,7 +9,7 @@ const handleApiError = async (response: Response): Promise<{ success: boolean; d
   let jsonBody;
   try {
     jsonBody = JSON.parse(bodyText);
-  } catch (e) {
+  } catch {
     // If parsing fails, use the raw text as the error message
     jsonBody = null;
   }
@@ -41,11 +41,11 @@ export const fetchBookingPayments = async (userId: string): Promise<BookingPayme
       throw { message: message || "Failed to load payment data" };
     }
 
-    return data || [];
-  } catch (err) {
+    return Array.isArray(data) ? (data as BookingPaymentData[]) : [];
+  } catch (err: unknown) {
     console.error("Payment fetch error:", err);
     const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-    const status = (err as any)?.status || null;
+    const status = err instanceof Object && "status" in err ? Number(err.status) : null;
     throw { message: status === 500 ? "Server error occurred. Please try again later." : errorMessage, status };
   }
 };
@@ -65,11 +65,11 @@ export const fetchPaymentDetails = async (transactionId: string): Promise<Paymen
       throw { message: message || "Failed to load payment details" };
     }
 
-    return data;
-  } catch (err) {
+    return data as PaymentDetails;
+  } catch (err: unknown) {
     console.error("Payment details fetch error:", err);
     const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-    const status = (err as any)?.status || null;
+    const status = err instanceof Object && "status" in err ? Number(err.status) : null;
     throw { message: status === 500 ? "Server error occurred. Please try again later." : errorMessage, status };
   }
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { Bus, Train, Plane, Ship, Bike, Car } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, JSX } from "react";
 import { useRouter } from "next/navigation";
 
 type TransportMode = {
@@ -25,9 +25,10 @@ interface DestinationRoutesProps {
   city?: string;
   language?: string;
   activity?: string;
+  searchTerm?: string; 
 }
 
-const transportIcons: Record<string, JSX.Element> = {
+const transportIcons: Record<string,JSX.Element> = {
   Bus: <Bus size={20} className="text-blue-500" />, 
   Train: <Train size={20} className="text-green-500" />, 
   Flight: <Plane size={20} className="text-red-500" />, 
@@ -37,11 +38,10 @@ const transportIcons: Record<string, JSX.Element> = {
   Motorcycle: <Bike size={20} className="text-orange-500" />,
 };
 
-export default function DestinationRoutes({ city }: DestinationRoutesProps) {
+export default function DestinationRoutes({ city,searchTerm }: DestinationRoutesProps) {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
 
   useEffect(() => {

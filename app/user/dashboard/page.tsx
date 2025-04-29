@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Pencil, Save, X, Camera } from "lucide-react";
+import { Save, X, Camera } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -36,7 +36,7 @@ export default function ProfilePage() {
         setIsLoading(true);
         const [profileData, dropdownData] = await Promise.all([
           userId ? ProfileService.fetchProfile(userId) : Promise.resolve(null),
-          DropdownService.fetchAllDropdownData()
+          DropdownService.fetchAllDropdownData(),
         ]);
 
         if (profileData) {
@@ -44,7 +44,7 @@ export default function ProfilePage() {
         }
         setCountries(dropdownData.countries);
         setStates(dropdownData.states);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error loading data:", error);
       } finally {
         setIsLoading(false);
@@ -99,10 +99,10 @@ export default function ProfilePage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const validationErrors = ProfileService.validateProfile(profile, countries, states);
     setErrors(validationErrors);
-    
+
     if (Object.keys(validationErrors).length > 0) return;
     if (!userId) {
       toast.error("User not authenticated");
@@ -117,13 +117,14 @@ export default function ProfilePage() {
         profilePicFile,
         !!profile._id
       );
-      
+
       setProfile(savedProfile);
       setProfilePicFile(null);
       toast.success("Profile saved successfully!");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to save profile";
       console.error("Error updating profile:", error);
-      toast.error(error.message || "Failed to save profile");
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

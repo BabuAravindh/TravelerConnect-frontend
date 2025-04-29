@@ -6,30 +6,31 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Navbar from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { loginGuide } from "./Guide.service";
+import { GuideLoginFormData, FormErrors } from "./GuideAuth";
 
 const GuideSignIn = () => {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState<GuideLoginFormData>({ email: "", password: "" });
+  const [errors, setErrors] = useState<FormErrors>({ email: "", password: "" });
   const [error, setError] = useState("");
 
   const validateForm = () => {
-    const newErrors = { email: "", password: "" };
+    const newErrors: FormErrors = { email: "", password: "" };
     let isValid = true;
 
-    if (!email.trim()) {
+    if (!formData.email.trim()) {
       newErrors.email = "Email is required.";
       isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Enter a valid email address.";
       isValid = false;
     }
 
-    if (!password.trim()) {
+    if (!formData.password.trim()) {
       newErrors.password = "Password is required.";
       isValid = false;
-    } else if (password.length < 4) {
+    } else if (formData.password.length < 4) {
       newErrors.password = "Password must be at least 6 characters.";
       isValid = false;
     }
@@ -41,32 +42,16 @@ const GuideSignIn = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-  
+
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/guide/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-  
-      const data = await res.json(); 
-  
-      if (!res.ok) {
-        const errorMsg = data?.error || data?.message || "Login failed";
-        setError(errorMsg);
-      
-        return;
-      }
-  
+      const data = await loginGuide(formData);
       localStorage.setItem("token", data.token);
       toast.success("Login successful!");
       router.push("/");
-    } catch (err: any) {
-      const fallbackMsg = err?.message || "Something went wrong";
-      setError(fallbackMsg);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
     }
   };
-  
 
   return (
     <>
@@ -80,9 +65,9 @@ const GuideSignIn = () => {
               <label className="block text-sm font-medium text-gray-700">Email</label>
               <input
                 type="email"
-                value={email}
+                value={formData.email}
                 onChange={(e) => {
-                  setEmail(e.target.value);
+                  setFormData((prev) => ({ ...prev, email: e.target.value }));
                   setErrors((prev) => ({ ...prev, email: "" }));
                 }}
                 placeholder="Enter your email"
@@ -97,9 +82,9 @@ const GuideSignIn = () => {
               <label className="block text-sm font-medium text-gray-700">Password</label>
               <input
                 type="password"
-                value={password}
+                value={formData.password}
                 onChange={(e) => {
-                  setPassword(e.target.value);
+                  setFormData((prev) => ({ ...prev, password: e.target.value }));
                   setErrors((prev) => ({ ...prev, password: "" }));
                 }}
                 placeholder="Enter your password"

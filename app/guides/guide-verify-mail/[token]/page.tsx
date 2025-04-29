@@ -118,7 +118,7 @@ const VerifyGuideEmailPage = () => {
           <div className="mt-6 p-4 bg-blue-50 rounded-md text-left">
             <h3 className="font-semibold text-blue-800">Next Steps:</h3>
             <p className="text-sm text-blue-600 mt-1">
-              You'll be redirected to upload your government ID for verification.
+              You will be redirected to upload your government ID for verification.
               This is required to activate your guide account.
             </p>
           </div>

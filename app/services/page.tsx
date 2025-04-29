@@ -65,7 +65,7 @@ const Page = () => {
           Services
         </h2>
         <p className="mb-12 text-lg text-gray-500">
-          We make travel easier, safer, and more personal. Here's what we offer:
+          We make travel easier, safer, and more personal. Here is what we offer:
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-16">

@@ -1,4 +1,3 @@
-import { Home, Calendar, MessageSquare, CreditCard, Users, ClipboardList, Star, User, Book, Info } from "lucide-react";
 
 
 
@@ -209,39 +208,38 @@ export const users = {
 
 
 
-
-  // prefinded routes
-export const roleBasedNavItems: Record<string, { href: string; label: string; icon: any }[]> = {
+ 
+export const roleBasedNavItems: Record<string, { href: string; label: string; icon: string }[]> = {
   user: [
-    { href: "/user/dashboard/", label: "Home", icon: Home },
-    { href: "/user/dashboard/bookings", label: "Bookings", icon: Calendar },
-    { href: "/user/dashboard/messages", label: "Messages", icon: MessageSquare },
-    { href: "/user/dashboard/payments", label: "Payments", icon: CreditCard },
+    { href: "/user/dashboard/", label: "Home", icon: "Home" },
+    { href: "/user/dashboard/bookings", label: "Bookings", icon: "Calendar" },
+    { href: "/user/dashboard/messages", label: "Messages", icon: "MessageSquare" },
+    { href: "/user/dashboard/payments", label: "Payments", icon: "CreditCard" },
   ],
   guide: [
-    { href: "/guides/dashboard/", label: "Home", icon: Home },
-    { href: "/guides/dashboard/bookings", label: "Assigned Bookings", icon: ClipboardList },
-    { href: "/guides/dashboard/attractionListing", label: "attraction Listing", icon: ClipboardList },
-    { href: "/guides/dashboard/destinationRoutes", label: "destination routes", icon: ClipboardList },
-    { href: "/guides/dashboard/messages", label: "Messages", icon: MessageSquare },
-    { href: "/guides/dashboard/payments", label: "Payments", icon: CreditCard },
-    { href: "/guides/dashboard/rating", label: "Ratings", icon: Star },
-    { href: "/guides/dashboard/profile", label: "Profile", icon: User },
+    { href: "/guides/dashboard/", label: "Home", icon: "Home" },
+    { href: "/guides/dashboard/bookings", label: "Assigned Bookings", icon: "ClipboardList" },
+    { href: "/guides/dashboard/attractionListing", label: "attraction Listing", icon: "ClipboardList" },
+    { href: "/guides/dashboard/destinationRoutes", label: "destination routes", icon: "ClipboardList" },
+    { href: "/guides/dashboard/messages", label: "Messages", icon: "MessageSquare" },
+    { href: "/guides/dashboard/payments", label: "Payments", icon: "CreditCard" },
+    { href: "/guides/dashboard/rating", label: "Ratings", icon: "Star" },
+    { href: "/guides/dashboard/profile", label: "Profile", icon: "User" },
   ],
   admin: [
-    { href: "/admin/", label: "Home", icon: Home },
-    { href: "/admin/users", label: "Manage Users", icon: Users },
-    { href: "/admin/request", label: "requests Guide", icon: Users },
-    { href: "/admin/messages", label: "Manage Messages", icon: Users },
-    { href: "/admin/bookings", label: "All Bookings", icon: Calendar },
-    { href: "/admin/payments", label: "Payments", icon: CreditCard },
-    { href: "/admin/refund", label: "Refunds", icon: CreditCard },
-    { href: "/admin/information", label: " Website Content", icon: Info },
-    { href: "/admin/customerSupport", label: "Customer Report", icon: Info },
-    { href: "/admin/ratings", label: "Ratings", icon: Star },
+    { href: "/admin/", label: "Home", icon: "Home" },
+    { href: "/admin/users", label: "Manage Users", icon: "Users" },
+    { href: "/admin/request", label: "requests Guide", icon: "UserPlus" },
+    { href: "/admin/messages", label: "Manage Messages", icon: "MessageSquare" }, 
+    { href: "/admin/bookings", label: "All Bookings", icon: "Calendar" },
+    { href: "/admin/payments", label: "Payments", icon: "CreditCard" },
+    { href: "/admin/refund", label: "Refunds", icon: "RotateCcw" }, 
+    { href: "/admin/AIUsage", label: "AI usage", icon: "Brain" }, 
+    { href: "/admin/information", label: "Website Content", icon: "Info" },
+    { href: "/admin/customerSupport", label: "Customer Report", icon: "FileText" }, 
+    { href: "/admin/ratings", label: "Ratings", icon: "Star" },
   ],
 };
-
 
 //admin dummy data
 export const dashboardData = {

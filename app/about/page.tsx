@@ -17,7 +17,7 @@ const About1 = () => {
             </h1>
             <p className="font-normal text-base leading-6 text-gray-600">
               TravelerConnect is your ultimate companion for exploring India like never before. 
-              Whether you're a solo traveler or a family on vacation, we help you connect with 
+              Whether you&apos;re a solo traveler or a family on vacation, we help you connect with 
               trusted local guides to create memorable experiences. From trip planning to bookings 
               and payments, everything is streamlined in one platform.
             </p>

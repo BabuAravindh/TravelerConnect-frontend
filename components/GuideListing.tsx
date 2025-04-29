@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { Star } from "lucide-react";
+import React, { useState, useEffect, useMemo } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+
 
 interface GuideListingProps {
   searchTerm: string;
@@ -13,12 +13,11 @@ interface GuideListingProps {
   gender: string;
   guides?: Guide[];
   loading: boolean;
-
 }
 
 interface Guide {
   _id: string;
-  name?: string; // Optional since we construct it from firstName and lastName
+  name?: string;
   email: string;
   role: string;
   verificationToken?: string;
@@ -38,18 +37,19 @@ interface Guide {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  dateOfBirth?: string; // Optional since not always present
-  profilePicture?: string; // Renamed to profilePic for consistency
+  dateOfBirth?: string;
+  profilePicture?: string;
   gender: string;
   dateJoined: string;
-  languages?: string[]; // Simplified to string array from getAllGuides
+  languages?: string[];
   bio?: string;
-  activities?: string[]; // Simplified to string array from getAllGuides
+  activities?: string[];
   aadharCardPhoto?: string;
   bankAccountNumber?: string;
-  serviceLocations?: string[]; // Added serviceLocations as string array
-  state?: string; // Added for simplified state from getAllGuides
+  serviceLocations?: string[];
+  state?: string;
 }
+
 const GuideListing: React.FC<GuideListingProps> = ({
   searchTerm,
   city,
@@ -59,22 +59,20 @@ const GuideListing: React.FC<GuideListingProps> = ({
   guides: propGuides = [],
   loading: propLoading = false,
 }) => {
-  const [guides, setGuides] = useState<Guide[]>([]);
+  const [guides, setGuides] = useState<Guide[]>(propGuides);
   const [loading, setLoading] = useState(propLoading);
- 
 
   useEffect(() => {
     const fetchGuides = async () => {
       setLoading(true);
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/profile`);
-        if (!response.ok) throw new Error("Failed to fetch guides");
+        if (!response.ok) throw new Error('Failed to fetch guides');
 
         const data = await response.json();
         setGuides(data);
       } catch (error) {
-        console.error("Error fetching guides:", error);
-        setGuides(dummyGuides);
+        console.error('Error fetching guides:', error);
       } finally {
         setLoading(false);
       }
@@ -83,16 +81,18 @@ const GuideListing: React.FC<GuideListingProps> = ({
     fetchGuides();
   }, []);
 
-  const filteredGuides = guides.filter((guide) => {
-    const fullName = `${guide.firstName} ${guide.lastName}`.toLowerCase();
-    const matchesSearchTerm = !searchTerm || fullName.includes(searchTerm.toLowerCase());
-    const matchesCity = !city || guide.serviceLocations?.some(loc => loc.toLowerCase().includes(city.toLowerCase())); // Changed to check serviceLocations
-    const matchesLanguage = !language || guide.languages?.some((lang) => lang.toLowerCase().includes(language.toLowerCase()));
-    const matchesActivity = !activity || guide.activities?.some((act) => act.toLowerCase().includes(activity.toLowerCase()));
-    const matchesGender = !gender || guide.gender?.toLowerCase() === gender.toLowerCase();
+  const filteredGuides = useMemo(() => {
+    return guides.filter((guide) => {
+      const fullName = `${guide.firstName} ${guide.lastName}`.toLowerCase();
+      const matchesSearchTerm = !searchTerm || fullName.includes(searchTerm.toLowerCase());
+      const matchesCity = !city || guide.serviceLocations?.some((loc) => loc.toLowerCase().includes(city.toLowerCase()));
+      const matchesLanguage = !language || guide.languages?.some((lang) => lang.toLowerCase().includes(language.toLowerCase()));
+      const matchesActivity = !activity || guide.activities?.some((act) => act.toLowerCase().includes(activity.toLowerCase()));
+      const matchesGender = !gender || guide.gender?.toLowerCase() === gender.toLowerCase();
 
-    return matchesSearchTerm && matchesCity && matchesLanguage && matchesActivity && matchesGender;
-  });
+      return matchesSearchTerm && matchesCity && matchesLanguage && matchesActivity && matchesGender;
+    });
+  }, [guides, searchTerm, city, language, activity, gender]);
 
   return (
     <div className="container max-w-7xl mx-auto px-6 py-12 mt-32">
@@ -110,10 +110,11 @@ const GuideListing: React.FC<GuideListingProps> = ({
               {/* Banner Image */}
               <div className="relative w-full h-52">
                 <Image
-                  src={guide.profilePicture || "https://picsum.photos/800/300"}
+                  src={guide.profilePicture || 'https://picsum.photos/800/300'}
                   alt={`${guide.firstName} ${guide.lastName}'s guide banner`}
-                  layout="fill"
-                  objectFit="cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"  // Add this line
+                  style={{ objectFit: 'cover' }}
                   className="rounded-t-xl"
                 />
               </div>
@@ -122,7 +123,7 @@ const GuideListing: React.FC<GuideListingProps> = ({
               <div className="relative flex justify-center -mt-16">
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-lg">
                   <Image
-                    src={guide.profilePicture || "https://picsum.photos/100"}
+                    src={guide.profilePicture || 'https://picsum.photos/100'}
                     alt={`Profile picture of ${guide.firstName} ${guide.lastName}`}
                     width={100}
                     height={100}
@@ -140,7 +141,7 @@ const GuideListing: React.FC<GuideListingProps> = ({
 
                 {/* State Name with Location Icon */}
                 <p className="text-gray-600 mt-2 flex items-center justify-center gap-2 text-lg font-medium">
-                  📍 <span className="text-gray-700">{guide.state || "Unknown Location"}</span>
+                  📍 <span className="text-gray-700">{guide.state || 'Unknown Location'}</span>
                 </p>
 
                 {/* Languages Section */}

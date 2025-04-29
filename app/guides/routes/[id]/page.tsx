@@ -1,19 +1,20 @@
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { JSX, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Bus, Train, Plane, Ship, Bike, Car } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import GuideListing from '@/components/GuideListing';
-import AttractionDetailPage from '../../attraction/[id]/page';
 import AttractionsCarousel from '@/components/Attraction';
 import ReviewForm from '@/components/ReviewForm';
 import ReviewList from '@/components/ReviewList';
+import { fetchRoute, sendChatRequest } from './routes.service';
+import { Route } from './routesType';
 
-const transportIcons = {
+const transportIcons: { [key: string]: JSX.Element } = {
   Bus: <Bus className="w-5 h-5" />,
   Train: <Train className="w-5 h-5" />,
   Flight: <Plane className="w-5 h-5" />,
@@ -27,33 +28,27 @@ export default function RouteDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
   const { user } = useAuth();
-  const [route, setRoute] = useState<{ 
-    from: string; 
-    to: string; 
-    guideId?: { name: string; email: string }; 
-    createdAt: string; 
-    updatedAt: string; 
-    transports: { _id: string; mode: string; duration: string; details?: string }[] 
-  } | null>(null);
+  const [route, setRoute] = useState<Route | null>(null);
   const [loading, setLoading] = useState(true);
   const [requestingChat, setRequestingChat] = useState(false);
 
   useEffect(() => {
-    const fetchRoute = async () => {
+    const loadRoute = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/routes/${id}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to fetch route');
-        setRoute(data);
+        if (typeof id !== 'string') {
+          throw new Error('Invalid route ID');
+        }
+        const routeData = await fetchRoute(id);
+        setRoute(routeData);
       } catch (error) {
-        toast.error(error.message);
+        toast.error(error instanceof Error ? error.message : 'An unknown error occurred');
         router.push('/routes');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRoute();
+    loadRoute();
   }, [id, router]);
 
   const handleChatRequest = async () => {
@@ -65,23 +60,10 @@ export default function RouteDetailsPage() {
 
     setRequestingChat(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/requests`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`,
-        },
-        body: JSON.stringify({
-          customerId: user.id,
-          guideId: route.guideId,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to send request');
+      await sendChatRequest(user.id, route?.guideId, user.token);
       toast.success('Request sent to guide successfully!');
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {
       setRequestingChat(false);
     }
@@ -195,10 +177,10 @@ export default function RouteDetailsPage() {
           
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Available Guides in {route.from}</h2>
-            <GuideListing city={route.from} />
+            <GuideListing city={route.from} searchTerm={''} language={''} activity={''} gender={''} loading={false} />
           </section>
-          <ReviewForm entityId={id} entityType="route" />
-          <ReviewList entityId={id} entityType="route" />
+          <ReviewForm entityId={id as string} entityType="route" />
+          <ReviewList entityId={id as string} entityType="route" />
         </div>
       </main>
       

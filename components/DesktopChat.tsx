@@ -5,7 +5,24 @@ import { useAuth } from "@/context/AuthContext"; // Adjust path as needed
 import Pusher from "pusher-js";
 import toast from "react-hot-toast";
 import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
+
+interface UserInfo {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  bio?: string;
+}
+
+interface Notification {
+  _id: string;
+  senderId: { name: string };
+  type: string;
+  message: string;
+  timestamp: string;
+  isRead: boolean;
+  conversationId: string; // Added this property
+}
 
 const DesktopChat: FC = () => {
   const {
@@ -26,11 +43,10 @@ const DesktopChat: FC = () => {
     fetchOrCreateConversation,
   } = useChat();
 
-  const { user, hasRole, loading } = useAuth();
+  const { loading } = useAuth();
   const [activeUsers, setActiveUsers] = useState<string[]>([]);
-  const [selectedUserInfo, setSelectedUserInfo] = useState<any>(null);
+  const [selectedUserInfo, setSelectedUserInfo] = useState<UserInfo | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  const token = localStorage.getItem('token')
   const [showNotifications, setShowNotifications] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -57,7 +73,7 @@ const DesktopChat: FC = () => {
         );
 
         if (response.ok) {
-          const data = await response.json();
+          const data: UserInfo = await response.json();
           setSelectedUserInfo(data);
         } else {
           toast.error("Failed to fetch user info");
@@ -405,7 +421,6 @@ const DesktopChat: FC = () => {
                     className={`flex ${isSender ? "justify-end" : "justify-start"}`}
                   >
                     <div className="flex flex-col max-w-xs">
-                     
                       <div
                         className={`p-3 rounded-lg ${
                           isSender

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiService } from '@/utils/apiservice';
 
 // Type Definitions
@@ -56,8 +56,6 @@ export default function LocationsAdmin() {
   const [error, setError] = useState<string | null>(null);
 
   // Data states
-
-  
   const [languages, setLanguages] = useState<Language[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [states, setStates] = useState<State[]>([]);
@@ -94,11 +92,7 @@ export default function LocationsAdmin() {
   // Editing states
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchDataForTab();
-  }, [activeTab]);
-
-  const fetchDataForTab = async () => {
+  const fetchDataForTab = useCallback(async () => {
     setIsLoading(true);
     try {
       switch (activeTab) {
@@ -148,7 +142,11 @@ export default function LocationsAdmin() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchDataForTab();
+  }, [activeTab, fetchDataForTab]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

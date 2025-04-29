@@ -1,5 +1,4 @@
-import { Profile } from "../types/user/profile.type";
-import toast from "react-hot-toast";
+import { Profile } from "@/services/types/user/profile.type";
 
 export const ProfileService = {
   async fetchProfile(userId: string): Promise<Profile | null> {

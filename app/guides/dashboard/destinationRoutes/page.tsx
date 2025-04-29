@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, JSX } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { Bus, Train, Plane, Ship, Bike, Car, Trash2, Plus, Edit } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -18,7 +17,6 @@ const transportIcons: Record<'Bus' | 'Train' | 'Flight' | 'Ferry' | 'Private Veh
 };
 
 export default function GuideRoutesPage() {
-  const router = useRouter();
   const { user } = useAuth();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [cities, setCities] = useState<City[]>([]);
@@ -29,12 +27,12 @@ export default function GuideRoutesPage() {
   const [formData, setFormData] = useState<RouteFormData>({
     from: '',
     to: '',
-    transports: [{ mode: '', duration: '', details: '' }],
+    transports: [{ mode: '', duration: '', durationUnit: 'hours', details: '' }],
   });
   const [editFormData, setEditFormData] = useState<RouteFormData>({
     from: '',
     to: '',
-    transports: [{ mode: '', duration: '', details: '' }],
+    transports: [{ mode: '', duration: '', durationUnit: 'hours', details: '' }],
   });
 
   useEffect(() => {
@@ -93,14 +91,14 @@ export default function GuideRoutesPage() {
   const addTransportField = () => {
     setFormData({
       ...formData,
-      transports: [...formData.transports, { mode: '', duration: '', details: '' }],
+      transports: [...formData.transports, { mode: '', duration: '', durationUnit: 'hours', details: '' }],
     });
   };
 
   const addEditTransportField = () => {
     setEditFormData({
       ...editFormData,
-      transports: [...editFormData.transports, { mode: '', duration: '', details: '' }],
+      transports: [...editFormData.transports, { mode: '', duration: '', durationUnit: 'hours', details: '' }],
     });
   };
 
@@ -137,7 +135,7 @@ export default function GuideRoutesPage() {
       setFormData({
         from: '',
         to: '',
-        transports: [{ mode: '', duration: '', details: '' }],
+        transports: [{ mode: '', duration: '', durationUnit: 'hours', details: '' }],
       });
       const routesData = user ? await routeService.getRoutes(user.id, token) : [];
       const feedbackData = await routeService.getFeedback(token);
@@ -155,9 +153,10 @@ export default function GuideRoutesPage() {
     setEditFormData({
       from: route.from,
       to: route.to,
-      transports: route.transports.map(t => ({
+      transports: route.transports.map((t) => ({
         mode: t.mode,
         duration: t.duration,
+        durationUnit: t.durationUnit || 'hours',
         details: t.details || '',
       })),
     });
@@ -194,7 +193,7 @@ export default function GuideRoutesPage() {
     setEditFormData({
       from: '',
       to: '',
-      transports: [{ mode: '', duration: '', details: '' }],
+      transports: [{ mode: '', duration: '', durationUnit: 'hours', details: '' }],
     });
   };
 
@@ -313,15 +312,29 @@ export default function GuideRoutesPage() {
 
                     <div>
                       <label className="block text-sm font-medium mb-1">Duration*</label>
-                      <input
-                        type="text"
-                        name="duration"
-                        value={transport.duration}
-                        onChange={(e) => handleInputChange(e, index)}
-                        placeholder="e.g., 3 hours"
-                        className="w-full p-2 border rounded"
-                        required
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          name="duration"
+                          value={transport.duration.toString()}
+                          onChange={(e) => handleInputChange(e, index)}
+                          placeholder="e.g., 3"
+                          className="w-2/3 p-2 border rounded"
+                          required
+                          min="0"
+                        />
+                        <select
+                          name="durationUnit"
+                          value={transport.durationUnit}
+                          onChange={(e) => handleInputChange(e, index)}
+                          className="w-1/3 p-2 border rounded"
+                          required
+                        >
+                          <option value="hours">Hours</option>
+                          <option value="days">Days</option>
+                          <option value="minutes">Minutes</option>
+                        </select>
+                      </div>
                     </div>
 
                     <div>
@@ -462,15 +475,29 @@ export default function GuideRoutesPage() {
 
                               <div>
                                 <label className="block text-sm font-medium mb-1">Duration*</label>
-                                <input
-                                  type="text"
-                                  name="duration"
-                                  value={transport.duration}
-                                  onChange={(e) => handleEditInputChange(e, index)}
-                                  placeholder="e.g., 3 hours"
-                                  className="w-full p-2 border rounded"
-                                  required
-                                />
+                                <div className="flex gap-2">
+                                  <input
+                                    type="number"
+                                    name="duration"
+                                    value={transport.duration.toString()}
+                                    onChange={(e) => handleEditInputChange(e, index)}
+                                    placeholder="e.g., 3"
+                                    className="w-2/3 p-2 border rounded"
+                                    required
+                                    min="0"
+                                  />
+                                  <select
+                                    name="durationUnit"
+                                    value={transport.durationUnit}
+                                    onChange={(e) => handleEditInputChange(e, index)}
+                                    className="w-1/3 p-2 border rounded"
+                                    required
+                                  >
+                                    <option value="hours">Hours</option>
+                                    <option value="days">Days</option>
+                                    <option value="minutes">Minutes</option>
+                                  </select>
+                                </div>
                               </div>
 
                               <div>
@@ -504,7 +531,7 @@ export default function GuideRoutesPage() {
                           onClick={cancelEdit}
                           className="px-4 py-2 border rounded"
                         >
-YAHOO!                        Cancel
+                          Cancel
                         </button>
                         <button
                           type="submit"
@@ -548,7 +575,7 @@ YAHOO!                        Cancel
                             <span className="font-medium">{transport.mode}</span>
                           </div>
                           <div className="text-sm text-gray-600 mt-1">
-                            <div>Duration: {transport.duration}</div>
+                            <div>Duration: {transport.duration} {transport.durationUnit}</div>
                             {transport.details && (
                               <div className="mt-1">Details: {transport.details}</div>
                             )}

@@ -15,9 +15,21 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { BookingPaymentData, PaymentWithInstallment } from "./paymentTypes";
 import { fetchBookingPayments } from "./payment.service";
+
+// Define stats interface for PaymentSummary
+interface PaymentStats {
+  totalPaid: number;
+  totalBudget: number;
+  totalRefunded: number;
+  totalTransactions: number;
+  pendingPayments: number;
+  completedPayments: number;
+  refundedPayments: number;
+  lastPaymentDate?: string;
+}
 
 // Status configuration
 const statusConfig = {
@@ -52,7 +64,7 @@ export default function PaymentsPage() {
     null
   );
 
-  const loadPayments = async () => {
+  const loadPayments = useCallback(async () => {
     if (!user?.id) {
       setError({ message: "User not authenticated. Please log in." });
       setLoading(false);
@@ -64,14 +76,14 @@ export default function PaymentsPage() {
       setError(null);
       const payments = await fetchBookingPayments(user.id);
       setBookingPayments(payments);
-    } catch (err) {
-      const errorMessage = (err as any).message || "An unknown error occurred";
-      const status = (err as any)?.status || null;
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      const status = err instanceof Object && "status" in err ? Number(err.status) : undefined;
       setError({ message: errorMessage, status });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   const handleRetry = () => {
     setError(null);
@@ -80,12 +92,12 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     loadPayments();
-  }, [user?.id]);
+  }, [loadPayments]);
 
   // Calculate summary statistics
   const allPayments = bookingPayments.flatMap((booking) => booking.payments);
   const allRefunds = bookingPayments.flatMap((booking) => booking.refunds);
-  const stats = {
+  const stats: PaymentStats = {
     totalPaid: bookingPayments.reduce((sum, booking) => sum + booking.totalPaid, 0),
     totalBudget: bookingPayments.reduce((sum, booking) => sum + booking.budget, 0),
     totalRefunded: allRefunds.reduce((sum, refund) => sum + refund.amount, 0),
@@ -252,7 +264,7 @@ function EmptyState({ onRefresh }: { onRefresh: () => void }) {
   );
 }
 
-function PaymentSummary({ stats }: { stats: any }) {
+function PaymentSummary({ stats }: { stats: PaymentStats }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
       {[
@@ -298,7 +310,6 @@ function PaymentSummary({ stats }: { stats: any }) {
 
 function BookingPaymentSection({
   booking,
-  onSelectTransaction,
 }: {
   booking: BookingPaymentData;
   onSelectTransaction: (transactionId: string) => void;
@@ -391,8 +402,6 @@ function BookingPaymentSection({
             <PaymentListItem
               key={index}
               payment={payment}
-              transactionId={payment.transactionId}
-              onSelect={onSelectTransaction}
             />
           ))
         )}
@@ -480,12 +489,8 @@ function StatCard({
 
 function PaymentListItem({
   payment,
-  transactionId,
-  onSelect,
 }: {
   payment: PaymentWithInstallment;
-  transactionId: string;
-  onSelect: (transactionId: string) => void;
 }) {
   const status = statusConfig[payment.status];
 

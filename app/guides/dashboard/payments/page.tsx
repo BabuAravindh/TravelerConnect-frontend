@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -14,7 +13,6 @@ import {
   Avatar,
   IconButton,
   Tooltip,
-  LinearProgress,
   useTheme,
   Box,
   Typography,
@@ -46,7 +44,6 @@ import { Booking } from "./paymentsTypes";
 
 const GuideBookings = () => {
   const theme = useTheme();
-  const router = useRouter();
   const { user } = useAuth();
   const guideId = user?.id;
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -215,7 +212,7 @@ const GuideBookings = () => {
           No Bookings Found
         </Typography>
         <Typography color="text.secondary" sx={{ mt: 1 }}>
-          You don't have any bookings yet.
+          You don&apos;t have any bookings yet.
         </Typography>
       </Card>
     );

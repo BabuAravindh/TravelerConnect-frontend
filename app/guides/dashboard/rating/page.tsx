@@ -1,31 +1,32 @@
-"use client"
+"use client";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { fetchReviews } from "./rating.service";
+import { Review } from "./ratingType";
 
 export default function GuideReviews() {
-  const [reviews, setReviews] = useState([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
-    const fetchReviews = async () => {
+    const loadReviews = async () => {
+      if (!user?.id) return;
+
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/feedback/${user?.id}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch reviews");
-        }
-        const data = await response.json();
-        setReviews(data.feedback);
+        const fetchedReviews = await fetchReviews(user.id);
+        setReviews(fetchedReviews);
       } catch (err) {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
         setLoading(false);
       }
     };
 
-    if (user?.id) fetchReviews();
+    loadReviews();
   }, [user?.id]);
 
   return (

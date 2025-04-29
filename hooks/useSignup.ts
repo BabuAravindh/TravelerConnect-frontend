@@ -14,7 +14,7 @@ type ValidationErrors = {
 
 const useSignup = () => {
   const [loading, setLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitted] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({
     name: "",
     email: "",

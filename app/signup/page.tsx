@@ -28,10 +28,10 @@ const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(""); // Kept for rendering
 
   const validateForm = useCallback(() => {
-    let newErrors = { name: "", email: "", password: "", confirmPassword: "" };
+    const newErrors = { name: "", email: "", password: "", confirmPassword: "" };
     let isValid = true;
 
     if (!formData.name.trim()) {
@@ -97,10 +97,16 @@ const SignupPage = () => {
         const data = await res.json();
         if (!res.ok) {
           if (data.errors && data.errors.length > 0) {
-            const newErrors = data.errors.reduce((acc: any, err: { field: string; message: string }) => {
-              acc[err.field] = err.message;
-              return acc;
-            }, { name: "", email: "", password: "", confirmPassword: "" });
+            const newErrors = data.errors.reduce(
+              (
+                acc: { name: string; email: string; password: string; confirmPassword: string },
+                err: { field: string; message: string }
+              ) => {
+                acc[err.field as keyof typeof acc] = err.message;
+                return acc;
+              },
+              { name: "", email: "", password: "", confirmPassword: "" }
+            );
             setErrors(newErrors);
             if (newErrors.email === "This email is already registered") {
               setError("This email is already in use.");
@@ -115,8 +121,9 @@ const SignupPage = () => {
         setTimeout(() => {
           router.push("/verify-email");
         }, 2000);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Registration failed";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -143,7 +150,11 @@ const SignupPage = () => {
                 </p>
               </div>
 
-              
+              {error && (
+                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
 
               <form className="space-y-5" onSubmit={handleSubmit}>
                 <div>

@@ -1,23 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link"; // Added for internal navigation
 import { Eye, EyeOff } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import toast from "react-hot-toast";
+import { signupGuide } from "./guideAuth.service";
+import { GuideSignupFormData, GuideSignupErrors } from "./guideAuth";
 
 const GuideSignup = () => {
-  const router = useRouter();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<GuideSignupFormData>({
     fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
 
-  const [errors, setErrors] = useState({
+  const [errors, setErrors] = useState<GuideSignupErrors>({
     fullName: "",
     email: "",
     password: "",
@@ -30,7 +31,7 @@ const GuideSignup = () => {
   const [error, setError] = useState("");
 
   const validateForm = () => {
-    let newErrors = { fullName: "", email: "", password: "", confirmPassword: "" };
+    const newErrors: GuideSignupErrors = { fullName: "", email: "", password: "", confirmPassword: "" };
     let isValid = true;
 
     if (!formData.fullName.trim()) {
@@ -79,24 +80,16 @@ const GuideSignup = () => {
     if (validateForm()) {
       setLoading(true);
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/guide/signup`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: formData.fullName,
-            email: formData.email,
-            password: formData.password,
-          }),
+        const data = await signupGuide({
+          name: formData.fullName,
+          email: formData.email,
+          password: formData.password,
         });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Registration failed");
-
         localStorage.setItem("token", data.token);
         toast.success("Verification mail sent successfully!");
         // router.push("/guides/dashboard");
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
       } finally {
         setLoading(false);
       }
@@ -112,8 +105,7 @@ const GuideSignup = () => {
     <>
       <Navbar />
       <section className="min-h-screen flex flex-col justify-center bg-primary px-4 py-12">
-        <div className="max-w-8xl  mx-auto bg-white rounded-2xl shadow-lg overflow-hidden grid grid-cols-1 md:grid-cols-2">
-          {/* Form Section */}
+        <div className="max-w-8xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden grid grid-cols-1 md:grid-cols-2">
           <div className="p-8 md:p-10">
             <h2 className="text-3xl font-bold text-gray-800 text-center">Become a Guide</h2>
             <p className="text-center text-gray-500 mt-2 mb-6">
@@ -127,7 +119,6 @@ const GuideSignup = () => {
             )}
 
             <form className="space-y-4" onSubmit={handleSubmit}>
-              {/* Full Name */}
               <div>
                 <input
                   type="text"
@@ -144,7 +135,6 @@ const GuideSignup = () => {
                 )}
               </div>
 
-              {/* Email */}
               <div>
                 <input
                   type="email"
@@ -161,7 +151,6 @@ const GuideSignup = () => {
                 )}
               </div>
 
-              {/* Password */}
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -185,7 +174,6 @@ const GuideSignup = () => {
                 )}
               </div>
 
-              {/* Confirm Password */}
               <div className="relative">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
@@ -209,7 +197,6 @@ const GuideSignup = () => {
                 )}
               </div>
 
-              {/* Submit */}
               <button
                 type="submit"
                 disabled={loading}
@@ -221,20 +208,18 @@ const GuideSignup = () => {
               </button>
             </form>
 
-            {/* Terms and Login */}
             <p className="text-xs text-center text-gray-500 mt-4">
               By signing up, you agree to our{" "}
-              <a href="#" className="text-button underline">Terms & Privacy Policy</a>.
+              <Link href="#" className="text-button underline">Terms & Privacy Policy</Link>.
             </p>
             <p className="text-sm text-center mt-2">
               Already have an account?{" "}
-              <a href="/guides/signin" className="text-button font-medium underline">
+              <Link href="/guides/signin" className="text-button font-medium underline">
                 Sign in
-              </a>
+              </Link>
             </p>
           </div>
 
-          {/* Illustration */}
           <div className="hidden md:flex items-center justify-center bg-gray-100 p-8">
             <Image
               src="https://storage.googleapis.com/devitary-image-host.appspot.com/15848031292911696601-undraw_designer_life_w96d.svg"

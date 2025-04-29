@@ -1,4 +1,4 @@
-import { Country, State } from "../types/user/dropdown.types";
+import { Country, State } from "@/services/types/user/dropdown.types";
 import toast from "react-hot-toast";
 
 export const DropdownService = {

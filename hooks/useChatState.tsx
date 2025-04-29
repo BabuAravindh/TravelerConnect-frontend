@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 
 const useChatState = () => {
     const [selectedUser,setSelectedUser] = useState(null)

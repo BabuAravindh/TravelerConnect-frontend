@@ -1,32 +1,32 @@
 "use client";
+
 import { useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { uploadGuideId } from "./guideVerification.service";
 
 const GuideIDUpload = () => {
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState<File | null>(null);
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
     
     if (!selectedFile) return;
 
-    // Validate file type
     const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "application/pdf"];
     if (!allowedTypes.includes(selectedFile.type)) {
       setUploadError("Please upload a JPG, PNG, or PDF file");
       return;
     }
 
-    // Validate file size (5MB max)
     if (selectedFile.size > 5 * 1024 * 1024) {
       setUploadError("File size must be less than 5MB");
       return;
@@ -37,7 +37,7 @@ const GuideIDUpload = () => {
     setUploadSuccess(false);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadError(null);
     
@@ -53,29 +53,14 @@ const GuideIDUpload = () => {
 
     setIsUploading(true);
 
-    const formData = new FormData();
-    formData.append("governmentId", file);
-    formData.append("userId", user.id);
-
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verifyId`, {
-        method: "POST",
-        body: formData,
-        credentials: 'include'
-      });
-      
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || `Server responded with status ${response.status}`);
-      }
-
+      await uploadGuideId(file, user.id);
       setUploadSuccess(true);
       setTimeout(() => {
         router.push('/');
       }, 1500);
     } catch (error) {
-      setUploadError(error.message || "Failed to upload file. Please try again.");
+      setUploadError(error instanceof Error ? error.message : "Failed to upload file. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -98,7 +83,6 @@ const GuideIDUpload = () => {
 
           <div className="bg-white py-8 px-6 shadow rounded-lg sm:px-10">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* File upload area */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Government ID
@@ -107,7 +91,7 @@ const GuideIDUpload = () => {
                   className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-all ${
                     uploadError ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
                   }`}
-                  onClick={() => fileInputRef.current.click()}
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   <div className="space-y-1 text-center">
                     <svg

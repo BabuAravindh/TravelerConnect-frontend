@@ -4,33 +4,15 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
-import { Star, Verified, Languages, Activity, MapPin, Calendar, Clock, BadgeCheck, Globe, Award, User, BookOpen, MessageSquare } from "lucide-react";
+import { Star, Verified, Languages, Activity, MapPin, Calendar, BadgeCheck, Globe, Award, User, BookOpen, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import ChatMessageArea from "@/components/ChatMessageArea";
-import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import ReviewForm from "@/components/ReviewForm";
 import ReviewList from "@/components/ReviewList";
-
-interface Guide {
-  _id?: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  profilePicture?: string;
-  bio: string;
-  isVerified: boolean;
-  gender: string;
-  dateJoined: string;
-  state: string;
-  country: string;
-  activities: string[];
-  languages: string[];
-  rating?: number;
-  reviewCount?: number;
-}
+import { Guide } from "./GuiteTypes";
 
 const GuideProfile = () => {
   const params = useParams();
@@ -57,24 +39,6 @@ const GuideProfile = () => {
     if (guideId) fetchGuide();
   }, [guideId]);
 
-  const handleRequest = async () => {
-    if (!user?.id) {
-      toast.error("You must be logged in to send a request.");
-      return;
-    }
-
-    try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/requests`, {
-        customerId: user.id,
-        guideId: guideId,
-        paymentStatus: "pending",
-      });
-      toast.success(response.data?.message || "Request sent to the guide!");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to send request.");
-    }
-  };
-
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -100,7 +64,7 @@ const GuideProfile = () => {
           </div>
         </div>
         <h2 className="text-4xl font-bold text-gray-900">Authentication Required</h2>
-        <p className="text-lg text-gray-600 max-w-lg">Please log in to view this guide's profile and access all features</p>
+        <p className="text-lg text-gray-600 max-w-lg">Please log in to view this guide&apos;s profile and access all features</p>
         <button 
           onClick={() => router.push('/login')}
           className="mt-8 px-10 py-4 bg-primary text-white rounded-md hover:bg-button transition-all duration-300 transform hover:scale-105 font-semibold text-lg shadow-md"
@@ -119,7 +83,7 @@ const GuideProfile = () => {
         <div className="relative h-[600px] w-full overflow-hidden bg-primary">
           <Image
             src={guide?.profilePicture || "/default-banner.jpg"}
-            alt="Banner"
+            alt="_banner"
             fill
             className="object-cover opacity-80"
             priority
@@ -193,29 +157,6 @@ const GuideProfile = () => {
                   </div>
                 </div>
               </motion.div>
-
-              {/* Availability Card */}
-              {/* <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
-                className="bg-white border-l-4 border-primary shadow-md p-8"
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <Clock size={28} className="text-button" />
-                  <h3 className="text-2xl font-bold text-gray-900">Availability</h3>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-3 h-3 rounded-full bg-green-600"></div>
-                    <span className="text-base font-medium text-gray-900">Available now</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-base text-gray-600">
-                    <Calendar size={20} className="text-gray-500" />
-                    <span>Responds within 2 hours</span>
-                  </div>
-                </div>
-              </motion.div> */}
 
               {/* Languages Card */}
               <motion.div 
@@ -355,7 +296,7 @@ const GuideProfile = () => {
                         ) : (
                           <div className="text-center py-16 text-gray-600 border-l-4 border-primary">
                             <BookOpen className="mx-auto mb-6 text-gray-500 w-12 h-12" />
-                            <p className="text-xl font-medium">This guide hasn't written a bio yet</p>
+                            <p className="text-xl font-medium">This guide has not written a bio yet</p>
                           </div>
                         )}
                       </div>

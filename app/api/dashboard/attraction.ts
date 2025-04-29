@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-
-export async function GET(req) {
+export async function GET(req: { url: string | URL; }) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("query") || "India";
-  const category = searchParams.get("category") || "attractions";
 
   try {
     const response = await fetch(
@@ -21,7 +19,8 @@ export async function GET(req) {
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Failed to fetch attractions" }, { status: 500 });
   }
 }
+

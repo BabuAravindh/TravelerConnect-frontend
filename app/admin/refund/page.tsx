@@ -1,18 +1,62 @@
-// components/RefundManagement.jsx
+// app/admin/refund/page.tsx
 "use client";
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
+import Image from "next/image";
+
+interface User {
+  name: string;
+  email: string;
+}
+
+interface Booking {
+  _id: string;
+  userId: User;
+}
+
+interface Refund {
+  _id: string;
+  bookingId: Booking;
+  amount: number;
+  status: "pending" | "refunded" | "rejected";
+  adminComment?: string;
+  proof?: string;
+  createdAt: string;
+}
+
+interface FormData {
+  adminComment: string;
+}
+
+interface StatData {
+  total: number;
+  pending: number;
+  refunded: number;
+  rejected: number;
+}
+
+interface SortConfig {
+  key: string;
+  direction: "asc" | "desc";
+}
+
+interface ErrorResponse {
+  error?: string;
+  data?: {
+    error?: string;
+  };
+}
 
 const RefundManagement = () => {
   // State management
-  const [refunds, setRefunds] = useState([]);
+  const [refunds, setRefunds] = useState<Refund[]>([]);
+  const [selectedRefund, setSelectedRefund] = useState<Refund | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
-  const [selectedRefund, setSelectedRefund] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ adminComment: "" });
-  const [file, setFile] = useState(null);
-  const [stats, setStats] = useState({
+  const [formData, setFormData] = useState<FormData>({ adminComment: "" });
+  const [file, setFile] = useState<File | null>(null);
+  const [stats, setStats] = useState<StatData>({
     total: 0,
     pending: 0,
     refunded: 0,
@@ -20,7 +64,7 @@ const RefundManagement = () => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
-  const [sortConfig, setSortConfig] = useState({ key: "createdAt", direction: "desc" });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "createdAt", direction: "desc" });
 
   // Fetch refunds data
   const fetchRefunds = async () => {
@@ -31,9 +75,9 @@ const RefundManagement = () => {
       setRefunds(refundData);
       setStats({
         total: refundData.length,
-        pending: refundData.filter((r) => r.status === "pending").length,
-        refunded: refundData.filter((r) => r.status === "refunded").length,
-        rejected: refundData.filter((r) => r.status === "rejected").length,
+        pending: refundData.filter((r: Refund) => r.status === "pending").length,
+        refunded: refundData.filter((r: Refund) => r.status === "refunded").length,
+        rejected: refundData.filter((r: Refund) => r.status === "rejected").length,
       });
     } catch (error) {
       alert("Failed to fetch refunds");
@@ -48,14 +92,15 @@ const RefundManagement = () => {
   }, []);
 
   // Handle form input changes
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
+  
   // Handle file input change
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const selectedFile = files[0];
       const isImage = selectedFile.type.startsWith("image/");
       const isLt5M = selectedFile.size / 1024 / 1024 < 5;
       if (!isImage) {
@@ -71,7 +116,7 @@ const RefundManagement = () => {
   };
 
   // Handle refund update submission
-  const handleUpdateRefund = async (e) => {
+  const handleUpdateRefund = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!formData.adminComment) {
       alert("Admin comment is required");
@@ -107,16 +152,23 @@ const RefundManagement = () => {
       setIsModalOpen(false);
       setFile(null);
       setFormData({ adminComment: "" });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Update refund error:", error);
-      alert(error.response?.data?.error || "Failed to process refund");
+      
+      // Type guard to check if error is an AxiosError
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError<ErrorResponse>;
+        alert(axiosError.response?.data?.error || "Failed to process refund");
+      } else {
+        alert("Failed to process refund");
+      }
     } finally {
       setUploadLoading(false);
     }
   };
 
   // Handle table sorting
-  const handleSort = (key) => {
+  const handleSort = (key: string) => {
     setSortConfig((prev) => ({
       key,
       direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
@@ -127,8 +179,8 @@ const RefundManagement = () => {
   const sortedRefunds = [...refunds].sort((a, b) => {
     if (sortConfig.key === "createdAt") {
       return sortConfig.direction === "asc"
-        ? new Date(a.createdAt) - new Date(b.createdAt)
-        : new Date(b.createdAt) - new Date(a.createdAt);
+        ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }
     return 0;
   });
@@ -141,7 +193,7 @@ const RefundManagement = () => {
   const totalPages = Math.ceil(refunds.length / pageSize);
 
   // Open modal
-  const openModal = (refund) => {
+  const openModal = (refund: Refund) => {
     setSelectedRefund(refund);
     setFormData({ adminComment: refund.adminComment || "" });
     setFile(null);
@@ -156,7 +208,7 @@ const RefundManagement = () => {
   };
 
   // Status styling
-  const getStatusStyles = (status) => {
+  const getStatusStyles = (status: string) => {
     switch (status) {
       case "pending":
         return { bg: "bg-yellow-100", text: "text-yellow-800", label: "Pending" };
@@ -419,11 +471,15 @@ const RefundManagement = () => {
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700">Refund Proof</label>
                   <div className="flex items-end gap-4">
-                    <img
-                      src={selectedRefund.proof}
-                      alt="Refund proof"
-                      className="w-32 h-32 object-cover rounded-lg border border-gray-300"
-                    />
+                    {selectedRefund.proof && (
+                      <Image
+                        src={selectedRefund.proof}
+                        alt="Refund proof"
+                        width={128}
+                        height={128}
+                        className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                      />
+                    )}
                     <a
                       href={selectedRefund.proof}
                       target="_blank"

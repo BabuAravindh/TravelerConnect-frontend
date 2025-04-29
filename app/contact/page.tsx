@@ -124,16 +124,18 @@ const ContactPage = () => {
                 Get in Touch
               </h2>
               <p className="mx-auto mt-4 max-w-3xl text-xl text-white">
-                Have questions or feedback? We'd love to hear from you!
-              </p>
+  Have questions or feedback? We love to hear from you!
+</p>
+
+
             </div>
           </div>
           <div className="flex items-stretch justify-center">
             <div className="grid md:grid-cols-2">
               <div className="h-full pr-6">
-                <p className="mt-3 mb-12 text-lg text-white">
-                  Our team is here to help you with any questions you may have about our products or services. Reach out and we'll respond as soon as possible.
-                </p>
+              <p className="text-white">Mobile: +1 (123) 456-7890</p>
+<p className="text-white">Email: contact@example.com</p>
+
                 <ul className="mb-6 md:mb-0">
                   <li className="flex">
                     <div className="flex h-10 w-10 items-center justify-center rounded bg-button text-white">
@@ -143,9 +145,10 @@ const ContactPage = () => {
                       </svg>
                     </div>
                     <div className="ml-4 mb-4">
-                      <h3 className="mb-2 text-lg font-medium leading-6 text-white">Our Address</h3>
-                      <p className="text-white">1230 Maecenas Street Donec Road</p>
-                      <p className="text-white">New York, EEUU</p>
+                    <h3 className="mb-2 text-lg font-medium leading-6 text-white">Our Address</h3>
+<p className="text-white">1230 Maecenas Street Donec Road</p>
+<p className="text-white">New York, EEUU</p>
+
                     </div>
                   </li>
                   <li className="flex">
@@ -178,7 +181,7 @@ const ContactPage = () => {
                 <h2 className="mb-4 text-2xl font-bold text-black">Ready to Get Started?</h2>
                 {submitSuccess && (
                   <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-md">
-                    Thank you for your message! We'll get back to you soon.
+                    Thank you for your message! We get back to you soon.
                   </div>
                 )}
                 {errors.form && (

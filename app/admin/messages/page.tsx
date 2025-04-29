@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+
 
 interface Participant {
   _id: string;
@@ -10,7 +10,7 @@ interface Participant {
 interface Conversation {
   _id: string;
   participants: Participant[];
-  messages: any[];
+  messages: Record<string, Message[]>;
   createdAt: string;
   updatedAt: string;
   __v: number;
@@ -34,7 +34,6 @@ const MessagesPage = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const router = useRouter();
 
   useEffect(() => {
     fetchConversations();
@@ -50,7 +49,7 @@ const MessagesPage = () => {
       } else {
         setError('Failed to fetch conversations');
       }
-    } catch (err) {
+    } catch  {
       setError('Error fetching conversations');
     } finally {
       setLoading(false);
@@ -72,7 +71,7 @@ const MessagesPage = () => {
       } else {
         setError('Failed to fetch messages');
       }
-    } catch (err) {
+    } catch {
       setError('Error fetching messages');
     } finally {
       setLoading(false);
@@ -97,52 +96,52 @@ const MessagesPage = () => {
       } else {
         setError('Failed to delete conversation');
       }
-    } catch (err) {
+    } catch  {
       setError('Error deleting conversation');
     }
   };
 
-  const deleteMessage = async (messageId: string) => {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/chats/admin/messages/${messageId}`,
-        {
-          method: 'DELETE',
-        }
-      );
-      const data = await response.json();
-      if (data.success) {
-        setMessages(messages.filter(m => m._id !== messageId));
-      } else {
-        setError('Failed to delete message');
-      }
-    } catch (err) {
-      setError('Error deleting message');
-    }
-  };
+  // const deleteMessage = async (messageId: string) => {
+  //   try {
+  //     const response = await fetch(
+  //       `${process.env.NEXT_PUBLIC_API_URL}/api/chats/admin/messages/${messageId}`,
+  //       {
+  //         method: 'DELETE',
+  //       }
+  //     );
+  //     const data = await response.json();
+  //     if (data.success) {
+  //       setMessages(messages.filter(m => m._id !== messageId));
+  //     } else {
+  //       setError('Failed to delete message');
+  //     }
+  //   } catch (err) {
+  //     setError('Error deleting message');
+  //   }
+  // };
 
-  const updateMessage = async (messageId: string, newMessage: string) => {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/chats/admin/messages/${messageId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ message: newMessage }),
-        }
-      );
-      const data = await response.json();
-      if (data.success) {
-        setMessages(messages.map(m => (m._id === messageId ? data.data : m)));
-      } else {
-        setError('Failed to update message');
-      }
-    } catch (err) {
-      setError('Error updating message');
-    }
-  };
+  // const updateMessage = async (messageId: string, newMessage: string) => {
+  //   try {
+  //     const response = await fetch(
+  //       `${process.env.NEXT_PUBLIC_API_URL}/api/chats/admin/messages/${messageId}`,
+  //       {
+  //         method: 'PUT',
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //         },
+  //         body: JSON.stringify({ message: newMessage }),
+  //       }
+  //     );
+  //     const data = await response.json();
+  //     if (data.success) {
+  //       setMessages(messages.map(m => (m._id === messageId ? data.data : m)));
+  //     } else {
+  //       setError('Failed to update message');
+  //     }
+  //   } catch (err) {
+  //     setError('Error updating message');
+  //   }
+  // };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();

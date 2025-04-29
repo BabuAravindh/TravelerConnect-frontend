@@ -12,21 +12,7 @@ import GuideListing from "@/components/GuideListing";
 import DestinationRoutes from "@/components/DestinationRoutes";
 import ReviewForm from "@/components/ReviewForm";
 import ReviewList from "@/components/ReviewList";
-
-interface Attraction {
-  _id: string;
-  name: string;
-  description: string;
-  city: string;
-  guideId: string | null;
-  images: string[];
-  category: string;
-  price?: number | null;
-  rating?: number | null;
-  createdAt: string;
-  updatedAt: string;
-  __v: number;
-}
+import { Attraction } from "./attractionType";
 
 export default function AttractionDetailPage() {
   const params = useParams();
@@ -103,7 +89,7 @@ export default function AttractionDetailPage() {
 
       toast.success('Request sent to guide successfully!');
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {
       setRequestingChat(false);
     }
@@ -196,7 +182,7 @@ export default function AttractionDetailPage() {
 
             {/* Attraction Details */}
             <div className="p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 ">
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900 mb-3">{attraction.name}</h1>
                   <div className="flex flex-wrap items-center gap-3">
@@ -282,13 +268,11 @@ export default function AttractionDetailPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Available Guides in {attraction.city}</h2>
-            <GuideListing city={attraction.city} />
+            <GuideListing city={attraction.city} searchTerm={""} language={""} activity={""} gender={""} loading={false} />
             <ReviewForm entityId={attraction._id} entityType="attraction"/>
             <ReviewList entityId={attraction._id} entityType="attraction"/>
           </section>
         </div>
-
-      
       </main>
       
       <Footer />

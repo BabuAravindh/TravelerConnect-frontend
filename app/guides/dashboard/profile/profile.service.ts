@@ -1,12 +1,12 @@
 import axios from "axios";
-import { Profile } from "./profileTypes";
+import { Profile, SelectOption } from "./profileTypes";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export const fetchCities = async () => {
+export const fetchCities = async (): Promise<SelectOption[]> => {
   try {
     const response = await axios.get(`${API_URL}/api/predefine/cities`);
-    return response.data.data.map((city: any) => ({
+    return response.data.data.map((city: { cityName: string }) => ({
       label: city.cityName,
       value: city.cityName,
     }));
@@ -41,19 +41,19 @@ export const fetchInitialData = async () => {
       countries: countriesRes.data?.map((c: { countryName: string }) => ({
         label: c.countryName,
         value: c.countryName,
-      })),
+      })) || [],
       states: statesRes.data?.map((s: { stateName: string }) => ({
         label: s.stateName,
         value: s.stateName,
-      })),
-      activitiesList: activitiesRes.data?.map((activity: any) => ({
+      })) || [],
+      activitiesList: activitiesRes.data?.map((activity: { activityName: string }) => ({
         label: activity.activityName,
         value: activity.activityName,
-      })),
-      languagesList: languagesRes.data?.map((lang: any) => ({
+      })) || [],
+      languagesList: languagesRes.data?.map((lang: { languageName: string }) => ({
         label: lang.languageName,
         value: lang.languageName,
-      })),
+      })) || [],
     };
   } catch (error) {
     console.error("Error fetching initial data:", error);

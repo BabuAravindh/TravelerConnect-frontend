@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Pusher from "pusher-js";
+import Pusher, { Channel } from "pusher-js";
 import { useAuth } from "@/context/AuthContext"; // Adjust path as needed
 import toast from "react-hot-toast";
 
@@ -161,6 +161,8 @@ const useChat = () => {
   useEffect(() => {
     if (!userId || !token || loading) return;
 
+
+    
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
     });
@@ -190,7 +192,7 @@ const useChat = () => {
     });
 
     // Subscribe to conversation channel if selected
-    let channel: Pusher.Channel | null = null;
+    let channel: Channel | null = null;
     if (selectedConversation) {
       const channelName = `chat-${selectedConversation._id}`;
       console.log(`📢 Subscribing to Pusher channel: ${channelName}`);
@@ -278,7 +280,9 @@ const useChat = () => {
 
       conversation = response.conversation;
       console.log("✅ Created new conversation:", conversation);
-      setConversations((prev) => [...prev, conversation]);
+      if (conversation) {
+        setConversations((prev) => [...prev, conversation as Conversation]);
+      }
     }
 
     setSelectedConversation(conversation);

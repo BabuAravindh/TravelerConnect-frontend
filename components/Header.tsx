@@ -3,12 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { TypeAnimation } from "react-type-animation";
-import Navbar from "./Navbar";
-import { Filter, Search } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import { Search } from "lucide-react";
 
 interface HeroSectionProps {
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
   city: string;
   setCity: (city: string) => void;
   language: string;
@@ -17,9 +15,7 @@ interface HeroSectionProps {
   setActivity: (act: string) => void;
   gender: string;
   setGender: (gender: string) => void;
-  loading: boolean;
   onSearch: () => void;
-  guides: any[];
 }
 
 interface CityWithGuides {
@@ -41,8 +37,6 @@ interface Activity {
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({
-  searchTerm,
-  setSearchTerm,
   city,
   setCity,
   language,
@@ -51,7 +45,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   setActivity,
   gender,
   setGender,
-  loading,
   onSearch,
 }) => {
   const [citiesWithGuides, setCitiesWithGuides] = useState<CityWithGuides[]>([]);
@@ -60,7 +53,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   const genders = ["Male", "Female", "Other"];
   const images = ["/images/hero-slider-1.jpg", "/images/hero-slider-2.jpg", "/images/hero-slider-3.jpg"];
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [citySearchTerm, setCitySearchTerm] = useState("");
   const [filteredCities, setFilteredCities] = useState<CityWithGuides[]>([]);
@@ -113,6 +105,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
       setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
     }, 3000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Get city names for the TypeAnimation (only cities with guides)
@@ -128,7 +121,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
           <div className="flex flex-col-reverse lg:flex-row items-center justify-between">
             <div className="lg:w-7/12 mt-28 text-center lg:text-left">
               <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-5 lg:relative lg:top-40 lg:left-64">
-                Let's Enjoy Your <br /> Trip In{" "}
+                Let&apos;s Enjoy Your <br /> Trip In{" "}
                 <span className="text-white underline">
                   {citiesWithGuidesNames.length > 0 ? (
                     <TypeAnimation
@@ -247,7 +240,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     ))}
                   </select>
                 </div>
-               
               </form>
             </div>
 

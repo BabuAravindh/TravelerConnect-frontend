@@ -1,7 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
-
-const REVIEWS_PER_PAGE = 3;
+import { useState, useEffect, useCallback } from "react";
 
 type ReviewEntityType = 'guide' | 'attraction' | 'route';
 
@@ -54,16 +52,16 @@ const ReviewList = ({ entityId, entityType }: ReviewListProps) => {
     ));
   };
 
-  const getApiEndpoint = () => {
+  const getApiEndpoint = useCallback(() => {
     switch (entityType) {
       case 'guide': return `api/feedback/${entityId}`;
       case 'attraction': return `api/attractions/feedback/${entityId}`;
       case 'route': return `api/routes/guide/${entityId}`;
       default: return `api/feedback/${entityId}`;
     }
-  };
+  }, [entityId, entityType]);
 
-  const fetchReviews = async (page = 1) => {
+  const fetchReviews = useCallback(async () => {
     if (!entityId) return;
 
     try {
@@ -77,7 +75,7 @@ const ReviewList = ({ entityId, entityType }: ReviewListProps) => {
       const response = await fetch(apiUrl, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-    console.log(response)
+
       if (!response.ok) {
         throw new Error(`Failed to fetch ${entityType} reviews: ${response.statusText}`);
       }
@@ -96,15 +94,16 @@ const ReviewList = ({ entityId, entityType }: ReviewListProps) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [entityId, entityType, getApiEndpoint]);
 
   useEffect(() => {
-    fetchReviews(currentPage);
-  }, [entityId, entityType, currentPage]);
+    fetchReviews();
+  }, [fetchReviews]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
+      fetchReviews();
     }
   };
 
@@ -138,7 +137,7 @@ const ReviewList = ({ entityId, entityType }: ReviewListProps) => {
         <div className="text-center py-8">
           <p className="text-red-500">{error}</p>
           <button 
-            onClick={() => fetchReviews(currentPage)}
+            onClick={fetchReviews}
             className="mt-2 px-4 py-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
           >
             Retry

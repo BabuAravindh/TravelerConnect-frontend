@@ -30,35 +30,32 @@ import {
   openRazorpayCheckout,
 } from "@/services/user/bookings/razorpayServices";
 import toast from "react-hot-toast";
-declare global {
-  interface Window {
-    Razorpay?: any;
-  }
+
+// Define Razorpay response interface
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+
+// Define interfaces for type safety
+interface User {
+  id: string;
+  name: string;
+  email: string;
 }
 
 export default function UserBookings() {
   const { user } = useAuth();
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [paymentHistory, setPaymentHistory] = useState<
-    Record<string, PaymentHistory[]>
-  >({});
-  const [paymentAmounts, setPaymentAmounts] = useState<{ [key: string]: number }>(
-    {}
-  );
-  const [paymentMethods, setPaymentMethods] = useState<{
-    [key: string]: string;
-  }>({});
-  const [screenshots, setScreenshots] = useState<{ [key: string]: File | null }>(
-    {}
-  );
-  const [showManualPayment, setShowManualPayment] = useState<{
-    [key: string]: boolean;
-  }>({});
-  const [showPaymentHistory, setShowPaymentHistory] = useState<{
-    [key: string]: boolean;
-  }>({});
+  const [paymentHistory, setPaymentHistory] = useState<Record<string, PaymentHistory[]>>({});
+  const [paymentAmounts, setPaymentAmounts] = useState<Record<string, number>>({});
+  const [paymentMethods, setPaymentMethods] = useState<Record<string, string>>({});
+  const [screenshots, setScreenshots] = useState<Record<string, File | null>>({});
+  const [showManualPayment, setShowManualPayment] = useState<Record<string, boolean>>({});
+  const [showPaymentHistory, setShowPaymentHistory] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -66,24 +63,27 @@ export default function UserBookings() {
   useEffect(() => {
     if (!user?.id || !token) {
       setLoading(false);
-      setError("User not authenticated.");
+      setError("Please log in to view your bookings.");
       return;
     }
 
     const fetchData = async () => {
       try {
-        const bookings = await fetchUserBookings(user.id, token);
+        const bookingsData = await fetchUserBookings(user.id, token);
         const paymentMap: Record<string, PaymentHistory[]> = {};
+
         await Promise.all(
-          bookings.map(async (booking) => {
+          bookingsData.map(async (booking) => {
             paymentMap[booking.id] = await fetchPaymentHistory(booking.id, token);
           })
         );
 
-        setBookings(bookings);
+        setBookings(bookingsData);
         setPaymentHistory(paymentMap);
-      } catch (err) {
-        setError(err.message);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to fetch bookings.";
+        setError(errorMessage);
+        toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -109,58 +109,74 @@ export default function UserBookings() {
   const handleInitiatePayment = async (
     bookingId: string,
     amount: number,
-    paymentType = "installment"
+    paymentType: "installment" | "full" = "installment"
   ) => {
+    if (!amount || amount <= 0) {
+      setError("Please enter a valid payment amount.");
+      toast.error("Please enter a valid payment amount.");
+      return;
+    }
+
     try {
-      const { order } = await initiatePayment(
-        bookingId,
-        amount,
-        token!,
-        paymentType
-      );
+      const { order } = await initiatePayment(bookingId, amount, token!, paymentType);
       const isScriptLoaded = await loadRazorpayScript();
 
       if (!isScriptLoaded) {
-        throw new Error("Failed to load payment processor");
+        throw new Error("Failed to load payment processor.");
       }
 
       openRazorpayCheckout(
         order,
         bookingId,
         amount,
-        user,
-        async (response: any) => {
-          const paymentData = {
-            orderId: response.razorpay_order_id,
-            paymentId: response.razorpay_payment_id,
-            signature: response.razorpay_signature,
-            bookingId,
-            amount,
-          };
-          const { payment, booking } = await verifyPayment(paymentData, token!);
+        user!,
+        async (response: RazorpayResponse) => {
+          try {
+            const paymentData = {
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+              bookingId,
+              amount,
+            };
+            const { payment, booking } = await verifyPayment(paymentData, token!);
 
-          setBookings((prev) =>
-            prev.map((b) => (b.id === bookingId ? { ...b, ...booking } : b))
-          );
-          setPaymentHistory((prev) => ({
-            ...prev,
-            [bookingId]: [...(prev[bookingId] || []), payment],
-          }));
-          setSuccessMessage(`Payment of ₹${payment.amount} completed successfully!`);
-          setTimeout(() => setSuccessMessage(null), 5000);
+            setBookings((prev) =>
+              prev.map((b) => (b.id === bookingId ? { ...b, ...booking } : b))
+            );
+            setPaymentHistory((prev) => ({
+              ...prev,
+              [bookingId]: [...(prev[bookingId] || []), payment],
+            }));
+            setSuccessMessage(`Payment of ₹${payment.amount} completed successfully!`);
+            toast.success(`Payment of ₹${payment.amount} completed successfully!`);
+            setTimeout(() => setSuccessMessage(null), 5000);
+          } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : "Payment verification failed.";
+            setError(errorMessage);
+            toast.error(errorMessage);
+          }
         }
       );
-    } catch (err) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to initiate payment.";
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
   const handleRecordManualPayment = async (bookingId: string) => {
-    try {
-      const amount = paymentAmounts[bookingId] || 0;
-      const method = paymentMethods[bookingId] || "cash";
-      const screenshot = screenshots[bookingId];
+    const amount = paymentAmounts[bookingId] || 0;
+    const method = paymentMethods[bookingId] || "cash";
+    const screenshot = screenshots[bookingId];
 
+    if (!amount || amount <= 0) {
+      setError("Please enter a valid payment amount.");
+      toast.error("Please enter a valid payment amount.");
+      return;
+    }
+
+    try {
       const { bookingStatus, message } = await recordManualPayment(
         bookingId,
         amount,
@@ -192,16 +208,25 @@ export default function UserBookings() {
         ],
       }));
       setSuccessMessage(message || `₹${amount} ${method} payment recorded!`);
+      toast.success(message || `₹${amount} ${method} payment recorded!`);
       setTimeout(() => setSuccessMessage(null), 5000);
       setPaymentAmounts((prev) => ({ ...prev, [bookingId]: 0 }));
       setScreenshots((prev) => ({ ...prev, [bookingId]: null }));
       setShowManualPayment((prev) => ({ ...prev, [bookingId]: false }));
-    } catch (err) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to record manual payment.";
+      setError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
   const handleRefundRequest = async (bookingId: string, totalPaid: number) => {
+    if (!process.env.NEXT_PUBLIC_API_URL) {
+      setError("API URL is not configured.");
+      toast.error("API URL is not configured.");
+      return;
+    }
+
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/refund/`, {
         method: "POST",
@@ -214,28 +239,29 @@ export default function UserBookings() {
           amount: totalPaid,
         }),
       });
-  
+
       if (!response.ok) {
         if (response.status === 400) {
-          toast.error("Refund request already exists for this booking");
+          toast.error("Refund request already exists for this booking.");
           return;
         }
-        throw new Error("Failed to create refund request");
+        throw new Error("Failed to create refund request.");
       }
-  
+
       const data = await response.json();
       setSuccessMessage(data.message || "Refund request sent successfully! Wait for the email confirmation.");
+      toast.success(data.message || "Refund request sent successfully!");
       setTimeout(() => setSuccessMessage(null), 5000);
-    } catch (err: any) {
-      toast.error(err.message || "Something went wrong while requesting a refund");
-      setError(err.message || "Error creating refund request");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Error creating refund request.";
+      setError(errorMessage);
+      toast.error(errorMessage);
       setTimeout(() => setError(null), 5000);
     }
   };
-  
 
   const getPaymentStatusStyle = (status?: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case "paid":
         return "bg-green-100 text-green-800";
       case "partial":
@@ -248,7 +274,7 @@ export default function UserBookings() {
   };
 
   const getBookingStatusStyle = (status?: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case "confirmed":
         return "bg-green-100 text-green-800";
       case "pending":
@@ -338,7 +364,7 @@ export default function UserBookings() {
               No bookings found
             </h3>
             <p className="text-gray-500">
-              You haven't made any bookings yet.
+              You have not made any bookings yet.
             </p>
             <div className="mt-6">
               <Link href="/">
@@ -364,12 +390,12 @@ export default function UserBookings() {
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusStyle(booking.paymentStatus)}`}
                       >
-                        {booking.paymentStatus || "pending"}
+                        {booking.paymentStatus || "Pending"}
                       </span>
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${getBookingStatusStyle(booking.status)}`}
                       >
-                        {booking.status || "unknown"}
+                        {booking.status || "Unknown"}
                       </span>
                     </div>
 
@@ -404,23 +430,23 @@ export default function UserBookings() {
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center">
                           <User className="h-4 w-4 mr-2 text-gray-500" />
-                          <span>{booking.guideName}</span>
+                          <span>{booking.guideName || "N/A"}</span>
                         </div>
                         <div className="flex items-center">
                           <Mail className="h-4 w-4 mr-2 text-gray-500" />
-                          <span>{booking.guideEmail}</span>
+                          <span>{booking.guideEmail || "N/A"}</span>
                         </div>
                         <div className="flex items-center">
                           <Phone className="h-4 w-4 mr-2 text-gray-500" />
-                          <span>{booking.guidePhoneNumber}</span>
+                          <span>{booking.guidePhoneNumber || "N/A"}</span>
                         </div>
                         <div className="flex items-center">
                           <Languages className="h-4 w-4 mr-2 text-gray-500" />
-                          <span>{booking.guideLanguages}</span>
+                          <span>{booking.guideLanguages || "N/A"}</span>
                         </div>
                         <div className="flex items-center">
                           <Activity className="h-4 w-4 mr-2 text-gray-500" />
-                          <span>{booking.activities.join(", ") || "N/A"}</span>
+                          <span>{booking.activities?.join(", ") || "N/A"}</span>
                         </div>
                       </div>
                     </div>
@@ -461,7 +487,7 @@ export default function UserBookings() {
                                       <div className="text-xs text-gray-600">
                                         {payment.method.charAt(0).toUpperCase() +
                                           payment.method.slice(1)}{" "}
-                                        • {payment.date.toLocaleDateString()} •
+                                        • {new Date(payment.date).toLocaleDateString()} •
                                         Installment #{payment.installmentNumber}
                                         <br />
                                         {payment.screenshotUrl && (
@@ -471,7 +497,7 @@ export default function UserBookings() {
                                             rel="noopener noreferrer"
                                             className="text-blue-500"
                                           >
-                                            View the screenshot
+                                            View Screenshot
                                           </a>
                                         )}
                                       </div>
@@ -536,7 +562,7 @@ export default function UserBookings() {
                           }
                           disabled={
                             !paymentAmounts[booking.id] ||
-                            paymentAmounts[booking.id] < 1
+                            paymentAmounts[booking.id] <= 0
                           }
                           className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed mb-3"
                         >
@@ -606,7 +632,8 @@ export default function UserBookings() {
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file && file.size > 5 * 1024 * 1024) {
-                                    setError("File size exceeds 5MB limit");
+                                    setError("File size exceeds 5MB limit.");
+                                    toast.error("File size exceeds 5MB limit.");
                                     return;
                                   }
                                   setScreenshots((prev) => ({
@@ -622,7 +649,7 @@ export default function UserBookings() {
                               onClick={() => handleRecordManualPayment(booking.id)}
                               disabled={
                                 !paymentAmounts[booking.id] ||
-                                paymentAmounts[booking.id] < 1
+                                paymentAmounts[booking.id] <= 0
                               }
                               className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                             >

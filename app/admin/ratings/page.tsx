@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState ,useCallback} from 'react';
 
 interface Feedback {
   _id: string;
@@ -27,49 +27,56 @@ const RatingsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalFeedback, setTotalFeedback] = useState(0);
 
-  useEffect(() => {
-    fetchFeedback();
-  }, [currentPage]);
 
-  const fetchFeedback = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/feedback/admin/all?page=${currentPage}&limit=10`
-      );
-      const data = await response.json();
-      setFeedback(data.feedback);
-      setTotalPages(data.totalPages);
-      setTotalFeedback(data.totalFeedback);
-    } catch (error) {
-      alert('Failed to fetch feedback');
-      console.error('Error fetching feedback:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const handleDelete = async (feedbackId: string) => {
-    if (!confirm('Are you sure you want to delete this feedback?')) return;
-    
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/feedback/admin/${feedbackId}`,
-        { method: 'DELETE' }
-      );
-
-      if (response.ok) {
-        alert('Feedback deleted successfully');
-        fetchFeedback(); // Refresh the list
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || 'Failed to delete feedback');
+    const fetchFeedback = useCallback(async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/feedback/admin/all?page=${currentPage}&limit=10`
+        );
+        const data = await response.json();
+        setFeedback(data.feedback);
+        setTotalPages(data.totalPages);
+        setTotalFeedback(data.totalFeedback);
+      } catch (error) {
+        alert('Failed to fetch feedback');
+        console.error('Error fetching feedback:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      alert('An error occurred while deleting feedback');
-      console.error('Error deleting feedback:', error);
-    }
-  };
+    }, [currentPage]);  // include currentPage as a dependency
+  
+    useEffect(() => {
+      fetchFeedback();
+    }, [fetchFeedback]);  // add fetchFeedback to the dependency array
+  
+    const handleDelete = async (feedbackId: string) => {
+      if (!confirm('Are you sure you want to delete this feedback?')) return;
+  
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/feedback/admin/${feedbackId}`,
+          { method: 'DELETE' }
+        );
+  
+        if (response.ok) {
+          alert('Feedback deleted successfully');
+          fetchFeedback(); // Refresh the list
+        } else {
+          const errorData = await response.json();
+          alert(errorData.message || 'Failed to delete feedback');
+        }
+      } catch (error) {
+        alert('An error occurred while deleting feedback');
+        console.error('Error deleting feedback:', error);
+      }
+    };
+  
+   ;
+   useEffect(() => {
+    fetchFeedback();
+  }, [currentPage, fetchFeedback]);
 
   return (
     <div className="p-6">

@@ -13,9 +13,11 @@ export const bookingService = {
         }
       );
       return response.data.bookings || [];
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage =
-        (error as any).response?.data?.message || "Failed to fetch bookings or payments";
+        error instanceof Error && 'response' in error
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : "Failed to fetch bookings or payments";
       throw new Error(errorMessage);
     }
   },

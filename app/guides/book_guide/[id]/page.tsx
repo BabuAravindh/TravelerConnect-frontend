@@ -6,17 +6,16 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { Footer } from "@/components/Footer";
-import Select from "react-select";
+import Select, { MultiValue } from "react-select";
+import { BookingFormData, Activity, Location, BookingConflict } from "./bookingFormType";
 
-interface Activity {
+type LocationOption = {
   label: string;
   value: string;
-}
+};
 
-interface Location {
-  label: string;
-  value: string;
-}
+
+
 
 const BookingForm = () => {
   const router = useRouter();
@@ -27,18 +26,15 @@ const BookingForm = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<Activity[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
-  const [bookingConflict, setBookingConflict] = useState<{
-    show: boolean;
-    dates?: { start: string; end: string };
-  }>({ show: false });
+  const [bookingConflict, setBookingConflict] = useState<BookingConflict>({ show: false });
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<BookingFormData>({
     startDate: "",
     endDate: "",
     budget: "",
     pickupLocation: "",
     dropoffLocation: "",
-    activities: [] as string[],
+    activities: [],
   });
 
   const locationOptions: Location[] = [
@@ -198,24 +194,23 @@ const BookingForm = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear conflict message when dates change
     if (name === "startDate" || name === "endDate") {
       setBookingConflict({ show: false });
     }
   };
 
-  const handleLocationChange = (name: string) => (selectedOption: any) => {
+  const handleLocationChange = (name: string) => (selectedOption: LocationOption | null) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: selectedOption ? selectedOption.value : ""
+      [name]: selectedOption ? selectedOption.value : "",
     }));
   };
-
-  const handleActivitiesChange = (selectedOptions: any) => {
-    setSelectedActivities(selectedOptions || []);
-    setFormData(prev => ({
+  
+  const handleActivitiesChange = (selectedOptions: MultiValue<Activity>) => {
+    setSelectedActivities(selectedOptions as Activity[]);
+    setFormData((prev) => ({
       ...prev,
-      activities: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : []
+      activities: selectedOptions.map((opt: Activity) => opt.value), // Replaced 'any' with 'Activity'
     }));
   };
 
@@ -248,7 +243,7 @@ const BookingForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBookingConflict({ show: false }); // Reset conflict message
+    setBookingConflict({ show: false });
     
     if (!validateForm()) return;
 
@@ -280,7 +275,6 @@ const BookingForm = () => {
           Booking Form
         </div>
         
-        {/* Booking conflict message */}
         {bookingConflict.show && (
           <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mx-6 mt-4">
             <div className="flex">

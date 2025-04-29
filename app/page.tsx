@@ -6,19 +6,18 @@ import DestinationRoutes from "@/components/DestinationRoutes";
 import { Footer } from "@/components/Footer";
 import GuideListing from "@/components/GuideListing";
 import HeroSection from "@/components/Header";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Guide } from "./guides/[id]/GuiteTypes";
 
 const Page: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm] = useState(""); // Kept for GuideListing
   const [city, setCity] = useState("");
   const [language, setLanguage] = useState("");
   const [activity, setActivity] = useState("");
   const [gender, setGender] = useState("");
   const [guides, setGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(false);
-  const [locationError, setLocationError] = useState("");
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
-
+  
   // Function to get city name from coordinates using LocationIQ
   const getCityFromCoordinates = async (lat: number, lon: number) => {
     try {
@@ -33,65 +32,58 @@ const Page: React.FC = () => {
     }
   };
 
-  // Function to get user's location
-  const getUserLocation = async () => {
-    setIsGettingLocation(true);
-    setLocationError("");
-
+  const getUserLocation = useCallback(async () => {
     if (!navigator.geolocation) {
-      setLocationError("Geolocation is not supported by your browser");
-      setIsGettingLocation(false);
+      console.warn("Geolocation is not supported by this browser.");
       return;
     }
-
+  
     try {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          const detectedCity = await getCityFromCoordinates(latitude, longitude);
-          if (detectedCity) {
-            setCity(detectedCity);
-            setLocationError("");
-          } else {
-            setLocationError("Could not determine city from your location");
+      await new Promise<void>((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            const detectedCity = await getCityFromCoordinates(latitude, longitude);
+            if (detectedCity) {
+              setCity(detectedCity);
+            } else {
+              console.warn("Could not determine city from coordinates.");
+            }
+            resolve();
+          },
+          (error) => {
+            let errorMessage = "Unable to retrieve your location";
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                errorMessage = "Location access was denied";
+                break;
+              case error.POSITION_UNAVAILABLE:
+                errorMessage = "Location information is unavailable";
+                break;
+              case error.TIMEOUT:
+                errorMessage = "The request to get location timed out";
+                break;
+              default:
+                errorMessage = "An unknown error occurred while getting location";
+            }
+            console.warn(errorMessage);
+            resolve(); // Resolve instead of reject to prevent unhandled rejection
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0,
           }
-          setIsGettingLocation(false);
-        },
-        (error) => {
-          let errorMessage = "Unable to retrieve your location";
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = "Location access was denied. Please enable location services in your browser settings.";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = "Location information is unavailable.";
-              break;
-            case error.TIMEOUT:
-              errorMessage = "The request to get location timed out.";
-              break;
-            default:
-              errorMessage = "An unknown error occurred while getting location.";
-          }
-          setLocationError(errorMessage);
-          setIsGettingLocation(false);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
-        }
-      );
+        );
+      });
     } catch (error) {
       console.error("Geolocation error:", error);
-      setLocationError("An error occurred while trying to get your location");
-      setIsGettingLocation(false);
     }
-  };
-
-  // Get user's location when component mounts (optional)
+  }, []);
+  
   useEffect(() => {
     getUserLocation();
-  }, []);
+  }, [getUserLocation]);
 
   const fetchGuides = async () => {
     setLoading(true);
@@ -101,7 +93,7 @@ const Page: React.FC = () => {
       if (language) params.append("language", language);
       if (activity) params.append("activity", activity);
       if (gender) params.append("gender", gender);
-      if (searchTerm) params.append("search", searchTerm);
+      if (searchTerm) params.append("searchTerm", searchTerm);
 
       console.log("Fetching guides with params:", params.toString());
 
@@ -123,8 +115,6 @@ const Page: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <HeroSection
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
         city={city}
         setCity={setCity}
         language={language}
@@ -133,12 +123,7 @@ const Page: React.FC = () => {
         setActivity={setActivity}
         gender={gender}
         setGender={setGender}
-        guides={guides}
-        loading={loading}
         onSearch={fetchGuides}
-        locationError={locationError}
-        isGettingLocation={isGettingLocation}
-        onRequestLocation={getUserLocation}
       />
 
       <div className="flex flex-col gap-12 px-6 py-12 lg:px-16 flex-grow">
@@ -161,10 +146,10 @@ const Page: React.FC = () => {
         </div>
 
         <div className="max-w-7xl mx-auto w-full">
-          <DestinationRoutes city={city} language={language} activity={activity} />
+          <DestinationRoutes city={city} language={language} activity={activity} searchTerm={searchTerm} />
         </div>
       </div>
-    <CityInsights cityName={city} />
+      <CityInsights cityName={city} />
       <Footer />
     </div>
   );

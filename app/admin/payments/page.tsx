@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 
 interface Payment {
@@ -32,7 +31,7 @@ const PaymentsPage = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const router = useRouter();
+
 
   useEffect(() => {
     fetchPayments();

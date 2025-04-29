@@ -62,6 +62,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     if (authLoading || !userId || !token || userRole === "admin") return;
 
+    if (process.env.NODE_ENV === "development") {
+      Pusher.logToConsole = true;
+    }
+
     const pusherInstance = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
       authEndpoint: `${process.env.NEXT_PUBLIC_API_URL}/api/chats/auth`,
@@ -72,7 +76,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       },
       enabledTransports: ["ws"],
       forceTLS: true,
-      logToConsole: process.env.NODE_ENV === "development",
     });
 
     setPusher(pusherInstance);

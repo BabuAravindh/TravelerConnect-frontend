@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import useAuth from "@/hooks/useAuth";
-import useChat from "@/hooks/useChat";
 import Pusher from "pusher-js";
 import fetchWithAuth from "@/utils/fetchWithAuth";
 
@@ -11,7 +10,7 @@ interface Message {
   senderId: {
     _id: string;
     name: string;
-  };
+  } | string;
   receiverId: {
     _id: string;
     name: string;
@@ -25,7 +24,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL; // Backend URL
 
 const ChatMessageArea = ({ guideId }: { guideId: string }) => {
   const { userId } = useAuth();
-  const { fetchOrCreateConversation } = useChat();
   const [messages, setMessages] = useState<Message[]>([]);
   const [guestId, setGuestId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");

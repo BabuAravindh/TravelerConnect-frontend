@@ -1,19 +1,17 @@
 "use client";
 import { useState, useEffect } from "react";
-import UserSidebar from "@/components/UserSidebar";
+
 import {
   FaEye,
   FaSync,
   FaUser,
-  FaPhone,
-  FaMoneyBillWave,
   FaSearch,
-  FaInfoCircle,
   FaLanguage,
   FaTimes,
 } from "react-icons/fa";
 import { toast } from "react-hot-toast";
 import axios, { AxiosError } from "axios";
+import Image from "next/image";
 
 interface Guide {
   _id: string;
@@ -41,7 +39,7 @@ interface ApiError {
   message: string;
   statusCode?: number;
   error?: string;
-  details?: any;
+  details?: Record<string, string>;
 }
 
 const GuidesPage = () => {
@@ -186,7 +184,7 @@ const GuidesPage = () => {
         ) : error ? (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
             <p className="font-bold">Error</p>
-            <p>{error}</p>
+            <p>{error.message}</p>
             <button
               onClick={fetchGuides}
               className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
@@ -237,8 +235,10 @@ const GuidesPage = () => {
                           <div className="flex items-center">
                             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                               {guide.profilePicture ? (
-                                <img
+                                <Image
                                   src={guide.profilePicture}
+                                  width={40}
+                                  height={40}
                                   alt={guide.name}
                                   className="h-10 w-10 rounded-full object-cover"
                                 />

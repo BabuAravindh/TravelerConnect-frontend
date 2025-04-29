@@ -1,6 +1,5 @@
 "use client"; // Ensure this runs on the client only
 import React, { useRef, useEffect, useState } from "react";
-import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import useChat from "@/hooks/useChat";
 

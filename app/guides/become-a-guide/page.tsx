@@ -6,20 +6,50 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { GuideFormData, SelectOption } from "./becomeGuideType";
+import Image from "next/image";
+import { SingleValue } from "react-select";
 
 const Select = dynamic(() => import("react-select"), { ssr: false });
 
+// Interfaces for API responses
+interface Language {
+  _id: string;
+  languageName: string;
+  languageStatus: string;
+}
+
+interface State {
+  _id: string;
+  stateName: string;
+}
+
+interface Country {
+  _id: string;
+  countryName: string;
+}
+
+interface City {
+  _id: string;
+  cityName: string;
+}
+
+interface CitiesResponse {
+  success: boolean;
+  data: City[];
+}
+
 const BecomeAGuide = () => {
-  const [languages, setLanguages] = useState<{ value: string; label: string }[]>([]);
+  const [languages, setLanguages] = useState<SelectOption[]>([]);
   const { user } = useAuth();
-  const [states, setStates] = useState<{ value: string; label: string }[]>([]);
-  const [cities, setCities] = useState<{ value: string; label: string }[]>([]);
-  const [countries, setCountries] = useState<{ value: string; label: string }[]>([]);
+  const [states, setStates] = useState<SelectOption[]>([]);
+  const [cities, setCities] = useState<SelectOption[]>([]);
+  const [countries, setCountries] = useState<SelectOption[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aadharPreview, setAadharPreview] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  const activities = [
+  const activities: SelectOption[] = [
     { value: "Hiking", label: "Hiking" },
     { value: "Camping", label: "Camping" },
     { value: "City Tours", label: "City Tours" },
@@ -27,14 +57,14 @@ const BecomeAGuide = () => {
     { value: "Cultural Tours", label: "Cultural Tours" },
   ];
 
-  const [formData, setFormData] = useState({
-    languages: [] as string[],
-    activities: [] as string[],
+  const [formData, setFormData] = useState<GuideFormData>({
+    languages: [],
+    activities: [],
     bio: "",
     countryId: "",
     stateId: "",
-    cities: [] as string[], // Changed from cityId to cities
-    aadharCardPhoto: null as File | null,
+    cities: [],
+    aadharCardPhoto: null,
     bankAccountNumber: "",
   });
 
@@ -51,21 +81,21 @@ const BecomeAGuide = () => {
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/predefine/cities`),
         ]);
 
-        const languagesData = await langRes.json();
-        const statesData = await stateRes.json();
-        const countriesData = await countryRes.json();
-        const citiesData = await cityRes.json();
+        const languagesData: Language[] = await langRes.json();
+        const statesData: State[] = await stateRes.json();
+        const countriesData: Country[] = await countryRes.json();
+        const citiesData: CitiesResponse = await cityRes.json();
 
         setLanguages(
           languagesData
-            .filter((lang: any) => lang.languageStatus === "active")
-            .map((lang: any) => ({ value: lang._id, label: lang.languageName }))
+            .filter((lang) => lang.languageStatus === "active")
+            .map((lang) => ({ value: lang._id, label: lang.languageName }))
         );
-        setStates(statesData.map((state: any) => ({ value: state._id, label: state.stateName })));
-        setCountries(countriesData.map((country: any) => ({ value: country._id, label: country.countryName })));
+        setStates(statesData.map((state) => ({ value: state._id, label: state.stateName })));
+        setCountries(countriesData.map((country) => ({ value: country._id, label: country.countryName })));
         setCities(
           citiesData.success && citiesData.data
-            ? citiesData.data.map((city: any) => ({
+            ? citiesData.data.map((city) => ({
                 value: city._id,
                 label: city.cityName,
               }))
@@ -74,7 +104,7 @@ const BecomeAGuide = () => {
       } catch (error) {
         console.error("Error fetching predefined data:", error);
         toast.error("Failed to load form data. Please refresh the page.");
-        setCities([]); // Ensure cities is always an array
+        setCities([]);
       } finally {
         setIsLoading(false);
       }
@@ -115,7 +145,7 @@ const BecomeAGuide = () => {
     if (!formData.activities.length) newErrors.activities = "At least one activity is required";
     if (!formData.countryId) newErrors.countryId = "Country is required";
     if (!formData.stateId) newErrors.stateId = "State is required";
-    if (!formData.cities.length) newErrors.cities = "At least one city is required"; // Updated
+    if (!formData.cities.length) newErrors.cities = "At least one city is required";
     if (!formData.aadharCardPhoto) newErrors.aadharCardPhoto = "Aadhaar Card is required";
     if (!formData.bankAccountNumber) newErrors.bankAccountNumber = "Bank Account Number is required";
     if (!formData.bio) newErrors.bio = "Bio is required";
@@ -138,7 +168,7 @@ const BecomeAGuide = () => {
       formData.languages.forEach((lang) => formDataToSend.append("languages", lang));
       formData.activities.forEach((activity) => formDataToSend.append("activities", activity));
       formDataToSend.append("serviceLocations", formData.stateId);
-      formData.cities.forEach((city) => formDataToSend.append("cities", city)); // Updated to send array
+      formData.cities.forEach((city) => formDataToSend.append("cities", city));
       formDataToSend.append("bankAccountNumber", formData.bankAccountNumber);
       formDataToSend.append("bio", formData.bio);
 
@@ -146,9 +176,8 @@ const BecomeAGuide = () => {
         formDataToSend.append("aadharCardPhoto", formData.aadharCardPhoto);
       }
 
-      // Debug FormData contents
       console.log("FormData contents:");
-      for (let [key, value] of formDataToSend.entries()) {
+      for (const [key, value] of formDataToSend.entries()) {
         console.log(`${key}: ${value}`);
       }
 
@@ -172,15 +201,16 @@ const BecomeAGuide = () => {
         bio: "",
         countryId: "",
         stateId: "",
-        cities: [] as string[], 
+        cities: [],
         aadharCardPhoto: null,
         bankAccountNumber: "",
       });
       setAadharPreview("");
       setErrors({});
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error submitting guide request:", error);
-      toast.error(error.message || "Failed to submit guide request");
+      const errorMessage = error instanceof Error ? error.message : "Failed to submit guide request";
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -220,12 +250,13 @@ const BecomeAGuide = () => {
                   name="languages"
                   placeholder="Select Languages"
                   value={languages.filter((l) => formData.languages.includes(l.value))}
-                  onChange={(selected) =>
-                    setFormData((prev) => ({
+                  onChange={(newValue: unknown) => {
+                    const selectedOptions = newValue as SelectOption[];
+                    return setFormData((prev) => ({
                       ...prev,
-                      languages: selected?.map((s) => s.value) || [],
-                    }))
-                  }
+                      languages: selectedOptions.map((s) => s.value),
+                    }));
+                  }}
                   className="w-full"
                   classNamePrefix="select"
                 />
@@ -245,12 +276,13 @@ const BecomeAGuide = () => {
                   name="activities"
                   placeholder="Select Activities"
                   value={activities.filter((a) => formData.activities.includes(a.value))}
-                  onChange={(selected) =>
+                  onChange={(newValue: unknown) => {
+                    const selected = newValue as SelectOption[];
                     setFormData((prev) => ({
                       ...prev,
-                      activities: selected?.map((s) => s.value) || [],
-                    }))
-                  }
+                      activities: selected.map((s) => s.value),
+                    }));
+                  }}
                   className="w-full"
                   classNamePrefix="select"
                 />
@@ -265,21 +297,23 @@ const BecomeAGuide = () => {
                   Country
                 </label>
                 <Select
-                  options={countries}
-                  name="countryId"
-                  placeholder="Select Country"
-                  value={countries.find((c) => c.value === formData.countryId) || null}
-                  onChange={(selected) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      countryId: selected?.value || "",
-                      stateId: "",
-                      cities: [], // Reset cities when country changes
-                    }))
-                  }
-                  className="w-full"
-                  classNamePrefix="select"
-                />
+  options={countries}
+  name="countryId"
+  placeholder="Select Country"
+  value={countries.find((c) => c.value === formData.countryId) || null}
+  onChange={(newValue: unknown) => {
+    const selectedOption = newValue as SingleValue<SelectOption>;
+    setFormData((prev) => ({
+      ...prev,
+      countryId: selectedOption?.value || "",
+      stateId: "",
+      cities: [],
+    }));
+  }}
+  className="w-full"
+  classNamePrefix="select"
+/>
+
                 {errors.countryId && (
                   <p className="text-red-500 text-sm mt-1">{errors.countryId}</p>
                 )}
@@ -291,21 +325,22 @@ const BecomeAGuide = () => {
                   State
                 </label>
                 <Select
-                  options={states}
-                  name="stateId"
-                  placeholder="Select State"
-                  value={states.find((s) => s.value === formData.stateId) || null}
-                  onChange={(selected) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      stateId: selected?.value || "",
-                      cities: [], // Reset cities when state changes
-                    }))
-                  }
-                  className="w-full"
-                  classNamePrefix="select"
-                  isDisabled={!formData.countryId}
-                />
+  options={states}
+  name="stateId"
+  placeholder="Select State"
+  value={states.find((s) => s.value === formData.stateId) || null}
+  onChange={(newValue: unknown) => {
+    const selectedOption = newValue as SingleValue<SelectOption>;
+    setFormData((prev) => ({
+      ...prev,
+      stateId: selectedOption?.value || "",
+      cities: [],
+    }));
+  }}
+  className="w-full"
+  classNamePrefix="select"
+  isDisabled={!formData.countryId}
+/>
                 {errors.stateId && (
                   <p className="text-red-500 text-sm mt-1">{errors.stateId}</p>
                 )}
@@ -322,12 +357,16 @@ const BecomeAGuide = () => {
   name="cities"
   placeholder="Select Cities"
   value={cities.filter((c) => formData.cities.includes(c.value))}
-  onChange={(selected) =>
+  onChange={(newValue: unknown) => {
+    const selected = newValue as SelectOption[];
     setFormData((prev) => ({
       ...prev,
-      cities: selected?.map((s) => s.value) || [],
-    }))}
-  />
+      cities: selected.map((s) => s.value),
+    }));
+  }}
+  className="w-full"
+  classNamePrefix="select"
+/>
                 {errors.cities && (
                   <p className="text-red-500 text-sm mt-1">{errors.cities}</p>
                 )}
@@ -348,9 +387,11 @@ const BecomeAGuide = () => {
                 />
                 {aadharPreview && (
                   <div className="mt-2">
-                    <img
+                    <Image
                       src={aadharPreview}
                       alt="Aadhaar preview"
+                      width={80}
+                      height={80}
                       className="h-20 w-auto rounded-md border"
                     />
                   </div>

@@ -107,7 +107,7 @@ const EditProfilePage = () => {
     };
 
     loadProfile();
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   // Fetch additional data
   useEffect(() => {
@@ -152,13 +152,13 @@ const EditProfilePage = () => {
     }
   };
 
-  const handleServiceLocationsChange = (selectedOptions: any) => {
-    setServiceLocations(selectedOptions || []);
+  const handleServiceLocationsChange = (selectedOptions: ReadonlyArray<SelectOption> | null) => {
+    setServiceLocations(selectedOptions ? [...selectedOptions] : []);
     setProfile((prev) =>
       prev
         ? {
             ...prev,
-            serviceLocations: selectedOptions ? selectedOptions.map((opt: any) => opt.value) : [],
+            serviceLocations: selectedOptions ? selectedOptions.map((opt: SelectOption) => opt.value) : [],
             firstName: prev.firstName || "",
             lastName: prev.lastName || "",
             email: prev.email || "",

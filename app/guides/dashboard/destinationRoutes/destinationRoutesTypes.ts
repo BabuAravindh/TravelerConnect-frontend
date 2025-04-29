@@ -6,7 +6,8 @@ export interface City {
   export interface Transport {
     _id?: string;
     mode: string;
-    duration: string;
+    duration:string,
+    durationUnit: 'hours' | 'days' | 'minutes'; 
     details?: string;
   }
   
