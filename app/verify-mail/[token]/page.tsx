@@ -39,7 +39,7 @@ const VerifyEmailPage = () => {
           localStorage.setItem("user", JSON.stringify(data.user));
 
           // Redirect to dashboard after 3 seconds
-          setTimeout(() => router.push("/dashboard"), 3000);
+          setTimeout(() => router.push("/"), 3000);
         } else {
           setError(data.message || "Verification failed.");
         }

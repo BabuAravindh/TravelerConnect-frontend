@@ -27,28 +27,26 @@ const handleApiError = async (response: Response): Promise<{ success: boolean; d
 };
 
 // Fetch all booking payments for a user
-export const fetchBookingPayments = async (userId: string): Promise<BookingPaymentData[]> => {
-  if (!userId) {
-    throw { message: "User ID is required" };
-  }
-
+// In payment.service.ts
+export async function fetchBookingPayments(userId: string): Promise<BookingPaymentData[]> {
   try {
-    const url = `${process.env.NEXT_PUBLIC_API_URL}/api/payment/booking/${userId}`;
-    const response = await fetch(url);
-    const { success, data, message } = await handleApiError(response);
-
-    if (!success) {
-      throw { message: message || "Failed to load payment data" };
+    const response = await fetch(`/api/users/${userId}/payments`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        // User exists but has no payments
+        return [];
+      }
+      throw new Error(`Failed to fetch payments: ${response.statusText}`);
     }
 
-    return Array.isArray(data) ? (data as BookingPaymentData[]) : [];
-  } catch (err: unknown) {
-    console.error("Payment fetch error:", err);
-    const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-    const status = err instanceof Object && "status" in err ? Number(err.status) : null;
-    throw { message: status === 500 ? "Server error occurred. Please try again later." : errorMessage, status };
+    const data = await response.json();
+    return data.payments || [];
+  } catch (error) {
+    console.error('Payment fetch error:', error);
+    throw error;
   }
-};
+}
 
 // Fetch payment details by transaction ID
 export const fetchPaymentDetails = async (transactionId: string): Promise<PaymentDetails> => {

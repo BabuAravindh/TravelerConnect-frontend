@@ -24,7 +24,7 @@ const About1 = () => {
           </div>
           <div className="w-full lg:w-8/12">
             <Image
-              src="https://i.ibb.co/FhgPJt8/Rectangle-116.png"
+              src="/aboutHome.png"
               alt="Travelers exploring nature"
               width={800}
               height={500}
@@ -49,10 +49,10 @@ const About1 = () => {
           <div className="w-full lg:w-8/12 lg:pt-8">
             <div className="grid md:grid-cols-4 sm:grid-cols-2 grid-cols-1 lg:gap-4 shadow-lg rounded-md">
               {[
-                { name: "Aarav", src: "https://i.ibb.co/FYTKDG6/Rectangle-118-2.png" },
-                { name: "Diya", src: "https://i.ibb.co/fGmxhVy/Rectangle-119.png" },
-                { name: "Rohan", src: "https://i.ibb.co/Pc6XVVC/Rectangle-120.png" },
-                { name: "Sneha", src: "https://i.ibb.co/7nSJPXQ/Rectangle-121.png" },
+                { name: "Aarav", src: "/about1.png" },
+                { name: "Diya", src: "/about2.png" },
+                { name: "Rohan", src: "/about3.png" },
+                { name: "Sneha", src: "/about4.png" },
               ].map((person) => (
                 <div key={person.name} className="p-4 pb-6 flex justify-center flex-col items-center">
                   <Image
@@ -69,6 +69,7 @@ const About1 = () => {
           </div>
         </div>
       </div>
+      
       <Footer />
     </>
   );

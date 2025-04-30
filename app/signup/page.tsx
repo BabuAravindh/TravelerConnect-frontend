@@ -118,9 +118,7 @@ const SignupPage = () => {
         }
 
         toast.success("Verification mail sent successfully!");
-        setTimeout(() => {
-          router.push("/verify-email");
-        }, 2000);
+      
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : "Registration failed";
         setError(errorMessage);
@@ -283,7 +281,7 @@ const SignupPage = () => {
               <div className="mt-6 text-center text-sm text-gray-600">
                 <p>
                   By signing up, you agree to our{" "}
-                  <Link href="/terms" className="text-button underline">
+                  <Link href="/privacyandpolicy" className="text-button underline">
                     Terms & Privacy Policy
                   </Link>
                 </p>

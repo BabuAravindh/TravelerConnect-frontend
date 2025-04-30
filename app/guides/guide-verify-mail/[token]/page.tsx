@@ -2,6 +2,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+const storeToken = (token: string) => {
+  console.log("Storing token in localStorage under 'token':", token);
+  localStorage.setItem("token", token); // Using "token" as the key
+};
+
 const VerifyGuideEmailPage = () => {
   const params = useParams();
   const router = useRouter();
@@ -13,6 +18,10 @@ const VerifyGuideEmailPage = () => {
 
   useEffect(() => {
     console.log("Extracted Token:", token);
+
+    // Clear any existing tokens to avoid conflicts
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("token"); // Clear the "token" key to remove any invalid token
 
     if (!token || typeof token !== "string") {
       setError("Invalid verification link.");
@@ -32,13 +41,24 @@ const VerifyGuideEmailPage = () => {
         );
 
         const data = await response.json();
-        console.log("API Response:", data);
+        console.log("API Response:", JSON.stringify(data, null, 2));
 
         if (response.ok) {
           setMessage(data.message || "Guide account verified successfully!");
           setIsVerified(true);
-          // Redirect to ID upload page after 3 seconds
-          setTimeout(() => router.push("/guides/upload-id"), 3000);
+
+          // Validate and store the JWT token
+          if (data.token && typeof data.token === "string" && data.token.split(".").length === 3) {
+            console.log("Valid JWT token received:", data.token);
+            storeToken(data.token);
+          } else {
+            console.error("Invalid or missing token in response:", data.token);
+            setError("Authentication token is invalid. Please try again.");
+          }
+
+          // Redirect based on requiresIdUpload or redirectUrl
+          const redirectUrl = data.redirectUrl || "/guides/upload-id";
+          setTimeout(() => router.push(redirectUrl), 3000);
         } else {
           setError(data.message || "Guide verification failed.");
         }

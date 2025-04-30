@@ -114,7 +114,7 @@ export default function ProfilePage() {
     try {
       const savedProfile = await ProfileService.saveProfile(
         profile,
-        profilePicFile,
+        profilePicFile ?? null,
         !!profile._id
       );
 

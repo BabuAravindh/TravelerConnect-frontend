@@ -210,7 +210,7 @@ const GuideSignup = () => {
 
             <p className="text-xs text-center text-gray-500 mt-4">
               By signing up, you agree to our{" "}
-              <Link href="#" className="text-button underline">Terms & Privacy Policy</Link>.
+              <Link href="/privacyandpolicy" className="text-button underline">Terms & Privacy Policy</Link>.
             </p>
             <p className="text-sm text-center mt-2">
               Already have an account?{" "}

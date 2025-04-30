@@ -246,7 +246,7 @@ const EditProfilePage = () => {
       toast.success("Profile updated successfully!");
       setProfile((prev) => ({
         ...prev!,
-        profilePic: guideProfile.profilePic || prev!.profilePic,
+        profilePic: guideProfile?.profilePic || prev!.profilePic,
       }));
     } catch (error) {
       console.error("Error updating profile:", error);
