@@ -1,13 +1,13 @@
 "use client";
 
-import AttractionsCarousel from "@/components/Attraction";
+
 import CityInsights from "@/components/ChatBot";
-import DestinationRoutes from "@/components/DestinationRoutes";
 import { Footer } from "@/components/Footer";
 import GuideListing from "@/components/GuideListing";
 import HeroSection from "@/components/Header";
 import { useState, useEffect, useCallback } from "react";
 import { Guide } from "./guides/[id]/GuiteTypes";
+import TravelRoutesAndAttractions from "@/components/TravelRouteAndAttractions";
 
 const Page: React.FC = () => {
   const [searchTerm] = useState(""); // Kept for GuideListing
@@ -17,7 +17,7 @@ const Page: React.FC = () => {
   const [gender, setGender] = useState("");
   const [guides, setGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Function to get city name from coordinates using LocationIQ
   const getCityFromCoordinates = async (lat: number, lon: number) => {
     try {
@@ -37,7 +37,7 @@ const Page: React.FC = () => {
       console.warn("Geolocation is not supported by this browser.");
       return;
     }
-  
+
     try {
       await new Promise<void>((resolve) => {
         navigator.geolocation.getCurrentPosition(
@@ -80,7 +80,7 @@ const Page: React.FC = () => {
       console.error("Geolocation error:", error);
     }
   }, []);
-  
+
   useEffect(() => {
     getUserLocation();
   }, [getUserLocation]);
@@ -128,7 +128,10 @@ const Page: React.FC = () => {
 
       <div className="flex flex-col gap-12 px-6 py-12 lg:px-16 flex-grow">
         <div className="max-w-7xl mx-auto w-full mt-20">
-          <AttractionsCarousel selectedCity={city} />
+          <div className="max-w-7xl mx-auto w-full mt-20">
+          <TravelRoutesAndAttractions selectedCity={city} searchTerm={searchTerm} />
+        
+        </div>
         </div>
 
         <div className="max-w-7xl mx-auto w-full">
@@ -145,9 +148,7 @@ const Page: React.FC = () => {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto w-full">
-          <DestinationRoutes city={city} language={language} activity={activity} searchTerm={searchTerm} />
-        </div>
+        
       </div>
       <CityInsights cityName={city} />
       <Footer />
