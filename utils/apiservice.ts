@@ -1,49 +1,65 @@
+// Add type definitions or import them from your models/types file
 export interface Language {
-    _id: string;
-    languageName: string;
-    languageStatus: 'active' | 'inactive';
-    order: number;
-    createdAt: string;
-    updatedAt: string;
-    __v: number;
-  }
-  
-  export interface Country {
-    _id: string;
-    countryName: string;
-    order?: number;
-    createdAt: string;
-    __v: number;
-  }
-  
-  export interface State {
-    _id: string;
-    stateName: string;
-    order?: number;
-    createdAt: string;
-    __v: number;
-  }
-  
-  interface City {
-    _id: string;
-    cityName: string;
-    order: number;
-    createdAt: string;
-  }
-  export interface ApiResponse<T> {
-    success: boolean;
-    data?: T;
-    message?: string;
-    error?: string;
-  }
-  interface Activity {
-    _id: string;
-    activityName: string;
-    order: number;
-    createdAt: string;
-    updatedAt: string;
-    __v?: number;
-  }
+  _id: string;
+  name: string;
+  code: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+}
+
+export interface Country {
+  _id: string;
+  name: string;
+  code: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+}
+
+export interface State {
+  _id: string;
+  name: string;
+  countryId: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+}
+
+export interface City {
+  _id: string;
+  name: string;
+  stateId: string;
+  countryId: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+}
+
+export interface Question {
+  _id: string;
+  text: string;
+  cityId: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+}
+
+export interface Activity {
+  _id: string;
+  name: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/predefine`;
 
 const handleResponse = async <T>(response: Response): Promise<T> => {
@@ -148,6 +164,7 @@ export const apiService = {
     return handleResponse<{ message: string }>(response);
   },
 
+  // ==================== CITIES ====================
   getCities: async (): Promise<City[]> => {
     const response = await fetch(`${API_BASE_URL}/cities`);
     const result = await handleResponse<{ success: boolean; data: City[] }>(response);
@@ -179,7 +196,51 @@ export const apiService = {
     return handleResponse<{ message: string }>(response);
   },
 
-  // Activities API Methods
+  // ==================== QUESTIONS ====================
+  getQuestions: async (): Promise<Question[]> => {
+    const response = await fetch(`${API_BASE_URL}/questions`);
+    const result = await handleResponse<ApiResponse<Question[]>>(response);
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Failed to fetch questions');
+    }
+    return result.data; // Return the data array directly
+  },
+
+  getQuestionsByCity: async (cityId: string): Promise<Question[]> => {
+    const response = await fetch(`${API_BASE_URL}/questions/city/${cityId}`);
+    const result = await handleResponse<ApiResponse<Question[]>>(response);
+    if (!result.success || !result.data) {
+      throw new Error(result.message || 'Failed to fetch questions');
+    }
+    return result.data; // Return the data array directly
+  },
+
+  createQuestion: async (data: Omit<Question, '_id' | 'createdAt' | 'updatedAt' | '__v'>): Promise<Question> => {
+    const response = await fetch(`${API_BASE_URL}/questions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<Question>(response);
+  },
+
+  updateQuestion: async (id: string, data: Partial<Question>): Promise<Question> => {
+    const response = await fetch(`${API_BASE_URL}/questions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<Question>(response);
+  },
+
+  deleteQuestion: async (id: string): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/questions/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<{ message: string }>(response);
+  },
+
+  // ==================== ACTIVITIES ====================
   getActivities: async (): Promise<Activity[]> => {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/activities`);
     return handleResponse<Activity[]>(response);
@@ -209,5 +270,4 @@ export const apiService = {
     });
     return handleResponse<{ message: string }>(response);
   },
-
-}
+};

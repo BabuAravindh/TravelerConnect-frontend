@@ -43,7 +43,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Admin Sidebar */}
-      <aside className="w-64 bg-indigo-800 text-white shadow-lg">
+      <aside className=" text-white shadow-lg">
       <UserSidebar />
       </aside>
 

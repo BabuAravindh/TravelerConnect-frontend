@@ -29,6 +29,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "picsum.photos",
+        pathname: "/**",
+        // For Pexels images
+      },
+      {
+        protocol: "https",
         hostname: "*.org",
         pathname: "/**",
         // For various tourism sites (e.g., official tourism boards)

@@ -1,54 +1,22 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { apiService } from '@/utils/apiservice';
+import { apiService, Language, Country, State, City, Question, Activity } from '@/utils/apiservice';
 
-// Type Definitions
-interface Language {
-  _id: string;
-  languageName: string;
-  languageStatus: 'active' | 'inactive';
-  order: number;
-  createdAt?: string;
-}
-
-interface Country {
-  _id: string;
-  countryName: string;
-  order?: number;
-  createdAt: string;
-}
-
-interface State {
-  _id: string;
-  stateName: string;
-  order?: number;
-  createdAt: string;
-}
-
-interface City {
-  _id: string;
-  cityName: string;
-  order: number;
-  createdAt: string;
-  __v?: number;
-}
-
-interface Activity {
-  _id: string;
-  activityName: string;
-  order: number;
-  createdAt: string;
-  updatedAt: string;
-  __v?: number;
-}
-
+// Form Interfaces
 interface LanguageForm {
   languageName: string;
   languageStatus: 'active' | 'inactive';
   order: number;
 }
 
-type TabType = 'languages' | 'countries' | 'states' | 'cities' | 'activities';
+interface QuestionForm {
+  questionText: string;
+  cityId: string;
+  status: 'active' | 'inactive';
+  order: number;
+}
+
+type TabType = 'languages' | 'countries' | 'states' | 'cities' | 'questions' | 'activities';
 
 export default function LocationsAdmin() {
   const [activeTab, setActiveTab] = useState<TabType>('languages');
@@ -60,6 +28,7 @@ export default function LocationsAdmin() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [cities, setCities] = useState<City[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
 
   // Form states
@@ -82,6 +51,13 @@ export default function LocationsAdmin() {
   const [cityForm, setCityForm] = useState({
     cityName: '',
     order: 0,
+  });
+
+  const [questionForm, setQuestionForm] = useState<QuestionForm>({
+    questionText: '',
+    cityId: '',
+    status: 'active',
+    order: 1,
   });
 
   const [activityForm, setActivityForm] = useState({
@@ -109,13 +85,21 @@ export default function LocationsAdmin() {
           setStates(Array.isArray(statesData) ? statesData : []);
           break;
         case 'cities':
-          const citiesData = await apiService.getCities();
-          console.log('Cities data from API:', citiesData);
-          setCities(Array.isArray(citiesData) ? citiesData : []);
+          const citiesDataCities = await apiService.getCities();
+          setCities(Array.isArray(citiesDataCities) ? citiesDataCities : []);
+          break;
+        case 'questions':
+          const questionsData = await apiService.getQuestions();
+          // Optional: Stricter validation
+          // const validQuestions = Array.isArray(questionsData)
+          //   ? questionsData.filter((q) => q && q._id && (typeof q.cityId === 'string' || (q.cityId && q.cityId.cityName)))
+          //   : [];
+          setQuestions(Array.isArray(questionsData) ? questionsData : []);
+          const citiesDataQuestions = await apiService.getCities();
+          setCities(Array.isArray(citiesDataQuestions) ? citiesDataQuestions : []);
           break;
         case 'activities':
           const activitiesData = await apiService.getActivities();
-          console.log('Activities data from API:', activitiesData);
           setActivities(Array.isArray(activitiesData) ? activitiesData : []);
           break;
       }
@@ -134,6 +118,9 @@ export default function LocationsAdmin() {
           break;
         case 'cities':
           setCities([]);
+          break;
+        case 'questions':
+          setQuestions([]);
           break;
         case 'activities':
           setActivities([]);
@@ -181,6 +168,19 @@ export default function LocationsAdmin() {
             await apiService.createCity(cityForm);
           }
           break;
+        case 'questions':
+          if (!questionForm.cityId) {
+            throw new Error('City is required');
+          }
+          if (questionForm.order < 1 || questionForm.order > 10) {
+            throw new Error('Order must be between 1 and 10');
+          }
+          if (editingId) {
+            await apiService.updateQuestion(editingId, questionForm);
+          } else {
+            await apiService.createQuestion(questionForm);
+          }
+          break;
         case 'activities':
           if (editingId) {
             await apiService.updateActivity(editingId, activityForm);
@@ -204,10 +204,11 @@ export default function LocationsAdmin() {
     setCountryForm({ countryName: '', order: 0 });
     setStateForm({ stateName: '', order: 0 });
     setCityForm({ cityName: '', order: 0 });
+    setQuestionForm({ questionText: '', cityId: '', status: 'active', order: 1 });
     setActivityForm({ activityName: '', order: 0 });
   };
 
-  const handleEdit = (item: Language | Country | State | City | Activity) => {
+  const handleEdit = (item: Language | Country | State | City | Question | Activity) => {
     switch (activeTab) {
       case 'languages':
         setLanguageForm({
@@ -232,6 +233,14 @@ export default function LocationsAdmin() {
         setCityForm({
           cityName: (item as City).cityName,
           order: (item as City).order,
+        });
+        break;
+      case 'questions':
+        setQuestionForm({
+          questionText: (item as Question).questionText,
+          cityId: typeof (item as Question).cityId === 'string' ? (item as Question).cityId : (item as Question).cityId?._id || '',
+          status: (item as Question).status,
+          order: (item as Question).order,
         });
         break;
       case 'activities':
@@ -261,6 +270,9 @@ export default function LocationsAdmin() {
           break;
         case 'cities':
           await apiService.deleteCity(id);
+          break;
+        case 'questions':
+          await apiService.deleteQuestion(id);
           break;
         case 'activities':
           await apiService.deleteActivity(id);
@@ -508,6 +520,100 @@ export default function LocationsAdmin() {
               <button
                 type="submit"
                 disabled={isLoading}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-blue-300"
+              >
+                {isLoading ? 'Saving...' : editingId ? 'Update' : 'Save'}
+              </button>
+            </div>
+          </form>
+        );
+
+      case 'questions':
+        return (
+          <form onSubmit={handleSubmit} className="bg-white p-4 rounded shadow mb-6">
+            <h3 className="text-lg font-medium mb-4">
+              {editingId ? 'Edit Question' : 'Add New Question'}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Question Text</label>
+                <input
+                  type="text"
+                  value={questionForm.questionText}
+                  onChange={(e) => setQuestionForm({ ...questionForm, questionText: e.target.value })}
+                  className="w-full p-2 border rounded"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">City</label>
+                <select
+                  value={questionForm.cityId}
+                  onChange={(e) => setQuestionForm({ ...questionForm, cityId: e.target.value })}
+                  className="w-full p-2 border rounded"
+                  required
+                >
+                  <option value="">Select a city</option>
+                  {cities.map((city) => (
+                    <option key={city._id} value={city._id}>
+                      {city.cityName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select
+                  value={questionForm.status}
+                  onChange={(e) =>
+                    setQuestionForm({
+                      ...questionForm,
+                      status: e.target.value as 'active' | 'inactive',
+                    })
+                  }
+                  className="w-full p-2 border rounded"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Order (1-10)</label>
+                <input
+                  type="number"
+                  value={questionForm.order}
+                  onChange={(e) =>
+                    setQuestionForm({
+                      ...questionForm,
+                      order: parseInt(e.target.value) || 1,
+                    })
+                  }
+                  min="1"
+                  max="10"
+                  className="w-full p-2 border rounded"
+                  required
+                />
+              </div>
+            </div>
+            {cities.length === 0 && (
+              <p className="text-red-500 text-sm mb-4">Please add cities before creating questions.</p>
+            )}
+            <div className="flex justify-end space-x-2">
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingId(null);
+                    resetForms();
+                  }}
+                  className="px-4 py-2 border rounded"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={isLoading || cities.length === 0}
                 className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-blue-300"
               >
                 {isLoading ? 'Saving...' : editingId ? 'Update' : 'Save'}
@@ -773,6 +879,70 @@ export default function LocationsAdmin() {
           </div>
         );
 
+      case 'questions':
+        return (
+          <div className="bg-white p-4 rounded shadow overflow-x-auto">
+            <h3 className="text-lg font-medium mb-4">Questions</h3>
+            {isLoading && !questions.length ? (
+              <p>Loading questions...</p>
+            ) : !Array.isArray(questions) || questions.length === 0 ? (
+              <p>No questions available</p>
+            ) : (
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="p-2 text-left">Question Text</th>
+                    <th className="p-2 text-left">City</th>
+                    <th className="p-2 text-left">Status</th>
+                    <th className="p-2 text-left">Order</th>
+                    <th className="p-2 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {questions.map((item) => (
+                    <tr key={item._id} className="border-t">
+                      <td className="p-2">{item.questionText}</td>
+                      <td className="p-2">
+                        {item.cityId
+                          ? typeof item.cityId === 'string'
+                            ? item.cityId
+                            : item.cityId.cityName
+                          : 'No City'}
+                      </td>
+                      <td className="p-2">
+                        <span
+                          className={`px-2 py-1 rounded text-xs ${
+                            item.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="p-2">{item.order}</td>
+                      <td className="p-2 space-x-2">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="text-blue-500 hover:text-blue-700"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item._id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+
       case 'activities':
         return (
           <div className="bg-white p-4 rounded shadow overflow-x-auto">
@@ -835,7 +1005,7 @@ export default function LocationsAdmin() {
       )}
 
       <div className="flex border-b mb-6">
-        {(['languages', 'countries', 'states', 'cities', 'activities'] as TabType[]).map((tab) => (
+        {(['languages', 'countries', 'states', 'cities', 'questions', 'activities'] as TabType[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}

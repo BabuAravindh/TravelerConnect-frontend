@@ -8,6 +8,7 @@ import HeroSection from "@/components/Header";
 import { useState, useEffect, useCallback } from "react";
 import { Guide } from "./guides/[id]/GuiteTypes";
 import TravelRoutesAndAttractions from "@/components/TravelRouteAndAttractions";
+import AIRecommendation from "@/components/TravelPlanner";
 
 const Page: React.FC = () => {
   const [searchTerm] = useState(""); // Kept for GuideListing
@@ -130,8 +131,9 @@ const Page: React.FC = () => {
         <div className="max-w-7xl mx-auto w-full mt-20">
           <div className="max-w-7xl mx-auto w-full mt-20">
           <TravelRoutesAndAttractions selectedCity={city} searchTerm={searchTerm} />
-        
+        <AIRecommendation city={city}/>
         </div>
+        
         </div>
 
         <div className="max-w-7xl mx-auto w-full">

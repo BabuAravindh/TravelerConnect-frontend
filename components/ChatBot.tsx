@@ -26,6 +26,11 @@ interface Interaction {
 }
 
 const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
+  // Only render if cityName is a valid, non-empty string
+  if (!cityName || typeof cityName !== 'string' || cityName.trim() === '') {
+    return null;
+  }
+
   const [isOpen, setIsOpen] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id || null;
@@ -59,7 +64,7 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
     try {
       setLoading(true);
       setFetchError(null);
-      
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/${userId}`, {
         method: 'GET',
         headers: {
@@ -99,7 +104,6 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
           },
         ]);
 
-      // Set flag for no responses found
       setNoResponsesFound(interactionMessages.length === 0);
 
       setMessages((prev) => {
@@ -107,7 +111,7 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
           return [
             {
               id: 1,
-              text: `Hello! I'm your travel assistant${cityName ? ` for ${cityName}` : ''}. No previous conversations found. Ask me something to get started!`,
+              text: `Hello! I'm your travel assistant for ${cityName}. No previous conversations found. Ask me something to get started!`,
               sender: 'bot',
               animated: false,
               timestamp: new Date(),
@@ -125,12 +129,11 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
       const errorMessage = error instanceof Error ? error.message : 'Could not load previous responses';
       setFetchError(errorMessage);
       toast.error(errorMessage);
-      
-      // Show a friendly message when fetch fails
+
       setMessages([
         {
           id: 1,
-          text: `Hello! I'm your travel assistant${cityName ? ` for ${cityName}` : ''}. I couldn't retrieve your previous conversations. Feel free to start a new one!`,
+          text: `Hello! I'm your travel assistant for ${cityName}. I couldn't retrieve your previous conversations. Feel free to start a new one!`,
           sender: 'bot',
           animated: false,
           timestamp: new Date(),
@@ -141,13 +144,15 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
     }
   }, [getAuthData, userId, cityName]);
 
-  // Fetch response (supports both general and city-specific queries)
+  // Fetch response (city-specific queries only)
   const fetchResponse = useCallback(async (userQuery: string): Promise<void> => {
     const { token } = getAuthData();
     if (!userId || !token) {
       toast.error('Please login to get AI insights');
       return;
     }
+
+    console.log('fetchResponse: cityName =', cityName, 'userQuery =', userQuery); // Debug log
 
     setLoading(true);
     setInsufficientCredits(false);
@@ -166,16 +171,14 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
     }
 
     try {
-      // Determine which API to use based on cityName
-      const isCityQuery = cityName !== undefined;
+      // Always use city-insights API since cityName is valid
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/ai/city-insights`;
+      const requestBody = { userId, city: cityName };
 
-      const apiUrl = isCityQuery
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/ai/city-insights`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/ai`;
-
-      const requestBody = isCityQuery
-        ? { userId, city: cityName }
-        : { userId, query: userQuery };
+      console.log('API Request:', {
+        url: apiUrl,
+        body: JSON.stringify(requestBody),
+      }); // Debug log
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -202,20 +205,19 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
       const botMessage: Message = {
         id: Date.now() + 1,
         text: '',
-        fullText: isCityQuery ? data.insights : data.response,
+        fullText: data.insights,
         sender: 'bot' as const,
         animated: true,
         timestamp: new Date(),
         userQuery: userQuery || `Insights for ${cityName}`,
-        creditsUsed: isCityQuery ? 1 : undefined,
-        remainingCredits: isCityQuery ? data.remainingCredits : undefined,
+        creditsUsed: 1,
+        remainingCredits: data.remainingCredits,
       };
 
       setMessages((prev) => [...prev, botMessage]);
       setTyping(true);
       setCurrentTypingIndex(0);
-      
-      // If this is the first successful response, clear the noResponsesFound flag
+
       if (noResponsesFound) {
         setNoResponsesFound(false);
       }
@@ -223,8 +225,7 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       setFetchError(errorMessage);
       toast.error(errorMessage);
-      
-      // Add error message to the chat
+
       const errorMsg: Message = {
         id: Date.now() + 1,
         text: "I'm sorry, I couldn't process your request. Please try again later.",
@@ -232,7 +233,7 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
         animated: false,
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMsg]);
+      setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
@@ -274,43 +275,37 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
     fetchPreviousResponses();
   };
 
-  // Initial effect to load messages and fetch previous responses automatically
+  // Initial effect to load messages and fetch city insights when dialog is opened
   useEffect(() => {
-    if (authLoading) return;
+    if (!isOpen || authLoading) return;
 
     if (!userId) {
       setMessages([
         {
           id: 1,
-          text: `Hello! I'm your travel assistant${cityName ? ` for ${cityName}` : ''}. Please log in to view previous messages.`,
+          text: `Hello! I'm your travel assistant for ${cityName}. Please log in to view previous messages.`,
           sender: 'bot',
           animated: false,
           timestamp: new Date(),
         },
       ]);
       setInitialLoad(false);
-      setIsOpen(true);
       return;
     }
+
+    console.log('useEffect: cityName =', cityName); // Debug log
 
     if (!hasMounted.current) {
       hasMounted.current = true;
       setInitialLoad(false);
-      setIsOpen(true);
     }
 
     if (userId && !hasFetchedInitial.current) {
-      // Fetch previous responses
       fetchPreviousResponses();
-
-      // Automatically call city-insights API if cityName exists
-      if (cityName) {
-        fetchResponse(''); // Empty query to trigger city-insights API
-      }
-
+      fetchResponse(''); // Auto-fetch city insights for valid cityName
       hasFetchedInitial.current = true;
     }
-  }, [fetchPreviousResponses, userId, authLoading, cityName, fetchResponse]);
+  }, [isOpen, fetchPreviousResponses, userId, authLoading, cityName, fetchResponse]);
 
   // Scroll to latest message
   useEffect(() => {
@@ -389,9 +384,7 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
         <div className="fixed bottom-[calc(4rem+1.5rem)] right-0 mr-4 bg-white p-6 rounded-lg border border-[#e5e7eb] w-full max-w-[440px] h-[80vh] max-h-[634px] shadow-lg animate-slide-up">
           <div className="flex flex-col space-y-1.5 pb-6">
             <h2 className="font-semibold text-lg tracking-tight">Travel Assistant</h2>
-            <p className="text-sm text-[#6b7280] leading-3">
-              {cityName ? `Insights for ${cityName}` : 'Ask me anything!'}
-            </p>
+            <p className="text-sm text-[#6b7280] leading-3">Insights for {cityName}</p>
           </div>
 
           <div className="pr-4 h-[calc(100%-120px)] overflow-y-auto chat-container" aria-live="polite">
@@ -405,11 +398,11 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
                     <p className="text-sm">Start a new chat below!</p>
                   </div>
                 )}
-                
+
                 {fetchError && (
                   <div className="text-center text-red-500 mb-4 p-2 bg-red-50 rounded-lg">
                     <p>Error retrieving conversations</p>
-                    <button 
+                    <button
                       onClick={retryFetch}
                       className="text-sm text-blue-500 underline mt-1"
                     >
@@ -417,7 +410,7 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
                     </button>
                   </div>
                 )}
-                
+
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -442,17 +435,17 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
                     )}
                   </div>
                 ))}
-                          {insufficientCredits && (
-            <div className="mt-2 text-center text-red-500 text-sm">
-              <p>Not enough credits.</p>
-              <button
-                onClick={requestCredits}
-                className="mt-1 underline text-button"
-              >
-                Request More Credits
-              </button>
-            </div>
-          )}
+                {insufficientCredits && (
+                  <div className="mt-2 text-center text-red-500 text-sm">
+                    <p>Not enough credits.</p>
+                    <button
+                      onClick={requestCredits}
+                      className="mt-1 underline text-button"
+                    >
+                      Request More Credits
+                    </button>
+                  </div>
+                )}
               </>
             )}
             <div ref={messagesEndRef} />
@@ -479,8 +472,6 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
               Send
             </button>
           </form>
-
-
         </div>
       )}
     </>
