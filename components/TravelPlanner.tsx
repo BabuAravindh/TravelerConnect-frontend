@@ -1,8 +1,8 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-// Uncomment the following line if you choose to use ReactMarkdown
-// import ReactMarkdown from 'react-markdown';
+import { jwtDecode } from 'jwt-decode';
 
 // Interfaces
 interface City {
@@ -50,13 +50,26 @@ interface UserResponse {
   response: string;
 }
 
+interface TravelPlanResponse {
+  itinerary: string;
+  planId: string;
+}
+
+interface DecodedToken {
+  id: string;
+  [key: string]: any;
+}
+
 // API Service
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/predefine`;
 
 const handleResponse = async <T,>(response: Response): Promise<T> => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Request failed');
+    const errorMessage = errorData.error || errorData.message || 'Request failed';
+    const error = new Error(errorMessage) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
   return response.json() as Promise<T>;
 };
@@ -77,21 +90,52 @@ const apiService = {
     return result.data;
   },
 
-  createTravelPlan: async (cityName: string, questions: Question[], answers: { response: string }[]): Promise<string> => {
+  createTravelPlan: async (cityName: string, questions: Question[], answers: { response: string }[]): Promise<TravelPlanResponse> => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in again.");
+    }
+
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/travelPlan`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
         cityName,
         questions,
         answers,
       }),
     });
-    const result = await handleResponse<{ success: boolean; data: { itinerary: string }; message?: string }>(response);
+    const result = await handleResponse<{ success: boolean; data: TravelPlanResponse; message?: string }>(response);
     if (!result.success || !result.data?.itinerary) {
       throw new Error(result.message || 'Failed to generate itinerary');
     }
-    return result.data.itinerary;
+    return result.data;
+  },
+
+  requestCredits: async (): Promise<void> => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("Authentication token not found. Please log in again.");
+    }
+
+    const decoded: DecodedToken = jwtDecode(token);
+    const userId = decoded.id;
+
+    const response = await fetch(`http://localhost:5000/api/credit/request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        userId,
+      }),
+    });
+
+    await handleResponse<{ success: boolean; message?: string }>(response);
   },
 };
 
@@ -109,6 +153,9 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
   const [cities, setCities] = useState<City[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [creditRequestStatus, setCreditRequestStatus] = useState<'idle' | 'requesting' | 'success' | 'error'>('idle');
+  const [creditRequestError, setCreditRequestError] = useState<string | null>(null);
+  const [planId, setPlanId] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch cities on mount if no city is provided
@@ -225,6 +272,15 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
     }
   }, [messages]);
 
+  // Reset creditRequestStatus when error changes
+  useEffect(() => {
+    if (error && error.toLowerCase().includes("insufficient credits")) {
+      console.log("Insufficient credits error detected, resetting creditRequestStatus to 'idle'");
+      setCreditRequestStatus('idle');
+      setCreditRequestError(null);
+    }
+  }, [error]);
+
   const handleSendMessage = () => {
     if (!userInput.trim()) return;
 
@@ -292,8 +348,24 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
     setMessages((prev: ChatMessage[]) => [...prev, message]);
   };
 
+  const handleRequestCredits = async () => {
+    setCreditRequestStatus('requesting');
+    setCreditRequestError(null);
+
+    try {
+      await apiService.requestCredits();
+      setCreditRequestStatus('success');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to request credits.';
+      setCreditRequestStatus('error');
+      setCreditRequestError(message);
+    }
+  };
+
   const generateItinerary = async () => {
     setIsLoading(true);
+    setCreditRequestStatus('idle');
+    setCreditRequestError(null);
     addBotMessage({
       sender: 'bot',
       text: "Great! I'm creating your personalized itinerary...",
@@ -322,34 +394,40 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
         return { response: response ? response.response : 'Not provided' };
       });
 
-      let itinerary = await apiService.createTravelPlan(cityName, questionsToSend, answersToSend);
+      const { itinerary, planId: generatedPlanId } = await apiService.createTravelPlan(cityName, questionsToSend, answersToSend);
+      setPlanId(generatedPlanId);
 
       // Strip markdown asterisks for plain text display
-      itinerary = itinerary.replace(/\*\*(.*?)\*\*/g, '$1');
+      const cleanedItinerary = itinerary.replace(/\*\*(.*?)\*\*/g, '$1');
 
       // Add AI-generated notice
-      const finalItinerary = `This itinerary was generated by AI to help you plan your trip to ${cityName}.\n\n${itinerary}`;
+      const finalItinerary = `This itinerary was generated by AI to help you plan your trip to ${cityName}.\n\n${cleanedItinerary}\n\nYour travel plan ID is: ${generatedPlanId}. Save this ID to retrieve your plan later.`;
 
+      setError(null); // Clear any previous errors
       addBotMessage({
         sender: 'bot',
         text: finalItinerary,
         type: 'text',
       });
-
-      // Optional: Use ReactMarkdown for rendering markdown
-      /*
-      addBotMessage({
-        sender: 'bot',
-        text: finalItinerary,
-        type: 'text',
-        // Use this in the JSX below with <ReactMarkdown>{message.text}</ReactMarkdown>
-      });
-      */
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to generate itinerary. Please try again.');
+      const error = err as Error & { status?: number };
+      let errorMessage = error.message || 'Failed to generate itinerary. Please try again.';
+      if (error.status === 403 && error.message.toLowerCase().includes('insufficient credits')) {
+        errorMessage = 'You do not have sufficient credits to generate an itinerary. Please request credits from the admin.';
+        console.log('Setting error for insufficient credits:', errorMessage);
+      } else if (error.status === 401) {
+        errorMessage = 'Your session has expired. Please log in again.';
+      } else if (error.status === 429) {
+        errorMessage = 'Too many requests. Please try again later.';
+      } else if (error.status && error.status >= 500) {
+        errorMessage = 'Server error. Please try again later.';
+      }
+
+      console.log('Error occurred:', errorMessage, 'Status:', error.status);
+      setError(errorMessage);
       addBotMessage({
         sender: 'bot',
-        text: 'Sorry, I couldn’t generate your itinerary at this time. Please try again later.',
+        text: errorMessage,
         type: 'text',
       });
     } finally {
@@ -368,7 +446,25 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
 
       {error && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+          <p>{error}</p>
+          {error.toLowerCase().includes("insufficient credits") ? (
+            <div className="mt-4">
+              {creditRequestStatus === 'idle' ? (
+                <button
+                  onClick={handleRequestCredits}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                >
+                  Request Credits from Admin
+                </button>
+              ) : creditRequestStatus === 'requesting' ? (
+                <p className="text-gray-600">Requesting credits...</p>
+              ) : creditRequestStatus === 'success' ? (
+                <p className="text-green-600">Credit request sent to admin successfully. Please wait for approval.</p>
+              ) : (
+                <p className="text-red-600 mt-2">{creditRequestError}</p>
+              )}
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -390,10 +486,7 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
                     : 'bg-primary text-white'
                 }`}
               >
-                {/* Use ReactMarkdown if you uncomment the import and prefer markdown rendering */}
                 <p className="whitespace-pre-wrap">{message.text}</p>
-                {/* <ReactMarkdown>{message.text}</ReactMarkdown> */}
-
                 {message.options && message.type === 'options' && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {message.options.map((option) => (

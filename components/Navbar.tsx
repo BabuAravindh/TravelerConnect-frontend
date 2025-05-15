@@ -6,6 +6,12 @@ import { useAuth } from "@/context/AuthContext";
 import { Dialog, Transition } from "@headlessui/react";
 import { ChevronDownIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import NotificationBell from "./NotificationBell";
+import { jwtDecode } from 'jwt-decode'; // Import jwt-decode
+
+interface DecodedToken {
+  id: string;
+  [key: string]: any;
+}
 
 const Navbar = () => {
   const { user } = useAuth();
@@ -18,6 +24,49 @@ const Navbar = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     window.location.href = "/login";
+  };
+
+  const handleRequestCredits = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication token not found. Please log in again.");
+      }
+
+      const decoded: DecodedToken = jwtDecode(token);
+      const userId = decoded.id;
+
+      const response = await fetch(`http://localhost:5000/api/credit/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to request credits');
+      }
+
+      const result = await response.json();
+      alert(result.message || "Credit request sent to admin successfully. Please wait for approval.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to request credits.';
+      if (message.includes("already have a pending credit request")) {
+        alert("You already have a pending credit request. Please wait for admin approval.");
+      } else if (message.includes("token")) {
+        alert("Your session has expired. Please log in again.");
+        handleLogout();
+      } else {
+        alert(message);
+      }
+    } finally {
+      setDropdownOpen(false);
+    }
   };
 
   const getDashboardPath = () => {
@@ -105,7 +154,12 @@ const Navbar = () => {
                           >
                             Dashboard
                           </Link>
-                         
+                          <button
+                            onClick={handleRequestCredits}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          >
+                            Request Credits
+                          </button>
                           <button
                             onClick={handleLogout}
                             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -165,7 +219,7 @@ const Navbar = () => {
                 href={link.href}
                 className={`block px-3 py-2 rounded-md text-base font-medium ${
                   pathname === link.href
-                    ? "text-whhite bg-blue-50"
+                    ? "text-white bg-blue-50"
                     : "text-gray-600 hover:text-opacity-90 hover:bg-gray-50"
                 }`}
                 onClick={() => setDropdownOpen(false)}
@@ -186,7 +240,12 @@ const Navbar = () => {
                 >
                   Dashboard
                 </Link>
-              
+                <button
+                  onClick={handleRequestCredits}
+                  className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-black hover:bg-gray-50"
+                >
+                  Request Credits
+                </button>
                 <button
                   onClick={handleLogout}
                   className="w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-black hover:bg-gray-50"
@@ -257,7 +316,7 @@ const Navbar = () => {
                   
                   <div className="mt-6 text-center">
                     <p className="text-sm text-gray-500">
-                    Don&apos;t have an account?
+                      Don't have an account?
                       <Link 
                         href="/signup" 
                         className="text-opacity-90 font-medium transition-colors"

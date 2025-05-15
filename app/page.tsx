@@ -1,6 +1,5 @@
 "use client";
 
-
 import CityInsights from "@/components/ChatBot";
 import { Footer } from "@/components/Footer";
 import GuideListing from "@/components/GuideListing";
@@ -11,7 +10,7 @@ import TravelRoutesAndAttractions from "@/components/TravelRouteAndAttractions";
 import AIRecommendation from "@/components/TravelPlanner";
 
 const Page: React.FC = () => {
-  const [searchTerm] = useState(""); // Kept for GuideListing
+  const [searchTerm] = useState("");
   const [city, setCity] = useState("");
   const [language, setLanguage] = useState("");
   const [activity, setActivity] = useState("");
@@ -19,7 +18,6 @@ const Page: React.FC = () => {
   const [guides, setGuides] = useState<Guide[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Function to get city name from coordinates using LocationIQ
   const getCityFromCoordinates = async (lat: number, lon: number) => {
     try {
       const response = await fetch(
@@ -47,28 +45,12 @@ const Page: React.FC = () => {
             const detectedCity = await getCityFromCoordinates(latitude, longitude);
             if (detectedCity) {
               setCity(detectedCity);
-            } else {
-              console.warn("Could not determine city from coordinates.");
             }
             resolve();
           },
           (error) => {
-            let errorMessage = "Unable to retrieve your location";
-            switch (error.code) {
-              case error.PERMISSION_DENIED:
-                errorMessage = "Location access was denied";
-                break;
-              case error.POSITION_UNAVAILABLE:
-                errorMessage = "Location information is unavailable";
-                break;
-              case error.TIMEOUT:
-                errorMessage = "The request to get location timed out";
-                break;
-              default:
-                errorMessage = "An unknown error occurred while getting location";
-            }
-            console.warn(errorMessage);
-            resolve(); // Resolve instead of reject to prevent unhandled rejection
+            console.warn("Location access error:", error.message);
+            resolve();
           },
           {
             enableHighAccuracy: true,
@@ -96,14 +78,10 @@ const Page: React.FC = () => {
       if (gender) params.append("gender", gender);
       if (searchTerm) params.append("searchTerm", searchTerm);
 
-      console.log("Fetching guides with params:", params.toString());
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/search/guides?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch guides");
 
       const data = await response.json();
-      console.log("API response:", data);
-
       setGuides(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching guides:", error);
@@ -127,32 +105,35 @@ const Page: React.FC = () => {
         onSearch={fetchGuides}
       />
 
-      <div className="flex flex-col gap-12 px-6 py-12 lg:px-16 flex-grow">
-        <div className="max-w-7xl mx-auto w-full mt-20">
-          <div className="max-w-7xl mx-auto w-full mt-20">
+      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+        {/* AI Recommendation Section */}
+        <section className="bg-white rounded-lg shadow p-6">
+          <AIRecommendation city={city} />
+        </section>
+
+        {/* Travel Routes Section */}
+        <section className="bg-white rounded-lg shadow p-6">
           <TravelRoutesAndAttractions selectedCity={city} searchTerm={searchTerm} />
-        <AIRecommendation city={city}/>
-        </div>
-        
-        </div>
+        </section>
 
-        <div className="max-w-7xl mx-auto w-full">
-          <div className="p-4">
-            <GuideListing
-              searchTerm={searchTerm}
-              city={city}
-              language={language}
-              activity={activity}
-              gender={gender}
-              guides={guides}
-              loading={loading}
-            />
-          </div>
-        </div>
+        {/* Guides Listing Section */}
+        <section className="bg-white rounded-lg shadow p-6">
+          <GuideListing
+            searchTerm={searchTerm}
+            city={city}
+            language={language}
+            activity={activity}
+            gender={gender}
+            guides={guides}
+            loading={loading}
+          />
+        </section>
+      </main>
 
-        
-      </div>
+      {/* Chat Bot */}
       <CityInsights cityName={city} />
+      
+      {/* Footer */}
       <Footer />
     </div>
   );

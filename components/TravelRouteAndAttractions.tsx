@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Bus, Train, Plane, Ship, Bike, Car } from 'lucide-react';
@@ -61,28 +62,59 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
   const [attractionsLoading, setAttractionsLoading] = useState(false);
   const [routesError, setRoutesError] = useState<string | null>(null);
   const [attractionsError, setAttractionsError] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
   // Fetch routes
   const fetchRoutes = async (fromCity: string) => {
-    if (!user) return;
+    if (!user) {
+      setRoutesError("You must be logged in to fetch travel routes.");
+      return;
+    }
 
     setRoutesLoading(true);
     setRoutesError(null);
 
     try {
+      if (!navigator.onLine) {
+        throw new Error("You are offline. Please check your internet connection and try again.");
+      }
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication token not found. Please log in again.");
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/routes/generate/${fromCity}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch routes');
+        const statusText = response.statusText || "Unknown error";
+        if (response.status === 401) {
+          throw new Error("Your session has expired. Please log in again.");
+        } else if (response.status === 403) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "You do not have sufficient credits to fetch routes. Please request credits from the admin via the navbar.");
+        } else if (response.status === 429) {
+          throw new Error("Too many requests. Please try again later.");
+        } else if (response.status >= 500) {
+          throw new Error("Server error while fetching routes. Please try again later.");
+        } else {
+          throw new Error(`Failed to fetch routes: ${statusText}`);
+        }
       }
 
-      const newRoutes = await response.json();
+      let newRoutes;
+      try {
+        newRoutes = await response.json();
+      } catch (parseErr) {
+        throw new Error("Failed to parse route data from the server. Please try again.");
+      }
+
       console.log('Routes API Response:', newRoutes);
 
       let routesToAdd: Route[];
@@ -95,9 +127,14 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
         routesToAdd = [newRoutes].filter(Boolean);
       }
 
+      if (!routesToAdd.every(route => route.from && route.to && Array.isArray(route.transports))) {
+        throw new Error("Received invalid route data from the server. Please try again.");
+      }
+
       setRoutes(routesToAdd);
     } catch (err) {
-      setRoutesError(err instanceof Error ? err.message : 'An unknown error occurred');
+      const message = err instanceof Error ? err.message : 'An unknown error occurred while fetching routes.';
+      setRoutesError(message);
     } finally {
       setRoutesLoading(false);
     }
@@ -105,29 +142,68 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
 
   // Fetch attractions
   const fetchAttractions = async () => {
-    if (!selectedCity || !user) return;
+    if (!selectedCity || !user) {
+      setAttractionsError("You must be logged in and select a city to fetch attractions.");
+      return;
+    }
 
     setAttractionsLoading(true);
     setAttractionsError(null);
 
     try {
+      if (!navigator.onLine) {
+        throw new Error("You are offline. Please check your internet connection and try again.");
+      }
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Authentication token not found. Please log in again.");
+      }
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/attractions?cityName=${encodeURIComponent(selectedCity)}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch attractions: ${response.statusText}`);
+        const statusText = response.statusText || "Unknown error";
+        if (response.status === 401) {
+          throw new Error("Your session has expired. Please log in again.");
+        } else if (response.status === 403) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || "You do not have sufficient credits to fetch attractions. Please request credits from the admin via the navbar.");
+        } else if (response.status === 404) {
+          throw new Error("No attractions found for this city.");
+        } else if (response.status === 429) {
+          throw new Error("Too many requests. Please try again later.");
+        } else if (response.status >= 500) {
+          throw new Error("Server error while fetching attractions. Please try again later.");
+        } else {
+          throw new Error(`Failed to fetch attractions: ${statusText}`);
+        }
       }
-      const data = await response.json();
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        throw new Error("Failed to parse attractions data from the server. Please try again.");
+      }
+
       console.log("Fetched attractions:", data);
+
+      if (!Array.isArray(data) || !data.every(attr => attr.name && attr.city && Array.isArray(attr.images))) {
+        throw new Error("Received invalid attractions data from the server. Please try again.");
+      }
+
       setAttractions(data);
     } catch (err) {
-      console.error("Error fetching attractions:", err);
-      setAttractionsError("Failed to load attractions. Please try again.");
+      const message = err instanceof Error ? err.message : 'An unknown error occurred while fetching attractions.';
+      setAttractionsError(message);
     } finally {
       setAttractionsLoading(false);
     }
@@ -135,10 +211,24 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
 
   // Fetch data when selectedCity or user changes
   useEffect(() => {
-    if (selectedCity && user && !authLoading) {
-      fetchRoutes(selectedCity);
-      fetchAttractions();
+    if (!selectedCity) {
+      setGeneralError("Please select a city to view travel routes and attractions.");
+      return;
     }
+
+    if (authLoading || !user) return;
+
+    const fetchData = async () => {
+      try {
+        setGeneralError(null);
+        await Promise.all([fetchRoutes(selectedCity), fetchAttractions()]);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'An unexpected error occurred while fetching data.';
+        setGeneralError(message);
+      }
+    };
+
+    fetchData();
   }, [selectedCity, user, authLoading]);
 
   // If still loading authentication state
@@ -146,12 +236,12 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-        <p className="mt-2 text-gray-600">Loading...</p>
+        <p className="mt-2 text-gray-600">Loading authentication...</p>
       </div>
     );
   }
 
-  // If user is not logged in, show login prompt only
+  // If user is not logged in, show login prompt
   if (!user) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
@@ -180,6 +270,22 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
     );
   }
 
+  // Display general errors from useEffect
+  if (generalError) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <div className="text-red-500 text-center py-8 bg-red-50 rounded-lg">
+          {generalError}
+        </div>
+      </div>
+    );
+  }
+
+  // Check if either error is due to insufficient credits
+  const hasInsufficientCreditsError =
+    (routesError && routesError.toLowerCase().includes("insufficient credits")) ||
+    (attractionsError && attractionsError.toLowerCase().includes("insufficient credits"));
+
   // Filter routes based on search term
   const filteredRoutes = routes.filter((route) => {
     const matchesCity = !selectedCity || route.from.toLowerCase() === selectedCity.toLowerCase();
@@ -198,7 +304,7 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
       </h2>
       {attractionsError ? (
         <div className="text-red-500 text-center py-8 bg-red-50 rounded-lg">
-          {attractionsError}
+          <p>{attractionsError}</p>
         </div>
       ) : attractions.length === 0 ? (
         <div className="text-gray-600 text-center py-8 bg-gray-100 rounded-lg">
@@ -220,8 +326,8 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
           {attractions.map((attraction) => {
             const cacheKey = attraction.cacheKey || `${selectedCity}:${attraction.name.replace(/\s+/g, "_")}`;
             return (
-              <SwiperSlide key={attraction.cacheKey || `${selectedCity}:${attraction.name.replace(/\s+/g, "_")}`}>
-                <Link href={`/guides/attraction/${encodeURIComponent(attraction.cacheKey || `${selectedCity}:${attraction.name.replace(/\s+/g, "_")}`)}`} className="block h-full">
+              <SwiperSlide key={cacheKey}>
+                <Link href={`/guides/attraction/${encodeURIComponent(cacheKey)}`} className="block h-full">
                   <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                     <div className="relative h-48 w-full">
                       <Image
@@ -255,7 +361,7 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
       </h2>
       {routesError ? (
         <div className="text-red-500 text-center py-8 bg-red-50 rounded-lg">
-          {routesError}
+          <p>{routesError}</p>
         </div>
       ) : filteredRoutes.length > 0 ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -1,6 +1,7 @@
+
 "use client";
 import { useAuth } from '@/context/AuthContext';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 
@@ -16,266 +17,20 @@ interface Message {
   remainingCredits?: number;
 }
 
-interface Interaction {
-  _id: string;
-  userId: string;
-  query: string;
-  response: string;
-  responseStatus: string;
-  createdAt: string;
-}
-
-const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
-  // Only render if cityName is a valid, non-empty string
-  if (!cityName || typeof cityName !== 'string' || cityName.trim() === '') {
+const CityInsights: React.FC<{ cityName: string }> = ({ cityName }) => {
+  // Do not render if a valid city is selected
+  if (cityName && typeof cityName === 'string' && cityName.trim() !== '') {
     return null;
   }
 
-  const [isOpen, setIsOpen] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id || null;
+  const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [typing, setTyping] = useState(false);
-  const [currentTypingIndex, setCurrentTypingIndex] = useState(0);
-  const [initialLoad, setInitialLoad] = useState(true);
-  const [insufficientCredits, setInsufficientCredits] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [noResponsesFound, setNoResponsesFound] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const hasMounted = useRef(false);
-  const hasFetchedInitial = useRef(false);
 
-  // Get token from localStorage
-  const getAuthData = useCallback(() => {
-    const token = localStorage.getItem('token');
-    return { token };
-  }, []);
-
-  // Fetch previous responses
-  const fetchPreviousResponses = useCallback(async (): Promise<void> => {
-    const { token } = getAuthData();
-    if (!userId || !token) {
-      toast.error('Please log in to view previous messages');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setFetchError(null);
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch previous responses');
-      }
-
-      const interactions: Interaction[] = await response.json();
-      if (!Array.isArray(interactions)) {
-        throw new Error('Invalid API response: Expected an array');
-      }
-
-      const interactionMessages = interactions
-        .filter((int) => int.responseStatus === 'success')
-        .flatMap((int) => [
-          {
-            id: `${int._id}-query`,
-            text: int.query,
-            sender: 'user' as const,
-            animated: false,
-            timestamp: new Date(int.createdAt),
-          },
-          {
-            id: int._id,
-            text: int.response,
-            fullText: int.response,
-            sender: 'bot' as const,
-            animated: false,
-            timestamp: new Date(int.createdAt),
-            userQuery: int.query,
-          },
-        ]);
-
-      setNoResponsesFound(interactionMessages.length === 0);
-
-      setMessages((prev) => {
-        if (interactionMessages.length === 0 && prev.length === 0) {
-          return [
-            {
-              id: 1,
-              text: `Hello! I'm your travel assistant for ${cityName}. No previous conversations found. Ask me something to get started!`,
-              sender: 'bot',
-              animated: false,
-              timestamp: new Date(),
-            },
-          ];
-        }
-        const existingIds = new Set(prev.map((msg) => msg.id));
-        const newMessages = interactionMessages.filter((msg) => !existingIds.has(msg.id));
-        const updatedMessages = [...prev, ...newMessages].sort(
-          (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-        );
-        return updatedMessages;
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Could not load previous responses';
-      setFetchError(errorMessage);
-      toast.error(errorMessage);
-
-      setMessages([
-        {
-          id: 1,
-          text: `Hello! I'm your travel assistant for ${cityName}. I couldn't retrieve your previous conversations. Feel free to start a new one!`,
-          sender: 'bot',
-          animated: false,
-          timestamp: new Date(),
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }, [getAuthData, userId, cityName]);
-
-  // Fetch response (city-specific queries only)
-  const fetchResponse = useCallback(async (userQuery: string): Promise<void> => {
-    const { token } = getAuthData();
-    if (!userId || !token) {
-      toast.error('Please login to get AI insights');
-      return;
-    }
-
-    console.log('fetchResponse: cityName =', cityName, 'userQuery =', userQuery); // Debug log
-
-    setLoading(true);
-    setInsufficientCredits(false);
-    setFetchError(null);
-
-    // Add user query to messages (skip if empty for city-insights auto-call)
-    if (userQuery) {
-      const queryMessage: Message = {
-        id: Date.now(),
-        text: userQuery,
-        sender: 'user' as const,
-        animated: false,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, queryMessage]);
-    }
-
-    try {
-      // Always use city-insights API since cityName is valid
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/ai/city-insights`;
-      const requestBody = { userId, city: cityName };
-
-      console.log('API Request:', {
-        url: apiUrl,
-        body: JSON.stringify(requestBody),
-      }); // Debug log
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 402) {
-          setInsufficientCredits(true);
-          toast.error(data.message || 'You need more credits to get insights');
-        } else {
-          toast.error(data.error || 'Failed to get insights');
-          setFetchError(data.error || 'Failed to get insights');
-        }
-        return;
-      }
-
-      const botMessage: Message = {
-        id: Date.now() + 1,
-        text: '',
-        fullText: data.insights,
-        sender: 'bot' as const,
-        animated: true,
-        timestamp: new Date(),
-        userQuery: userQuery || `Insights for ${cityName}`,
-        creditsUsed: 1,
-        remainingCredits: data.remainingCredits,
-      };
-
-      setMessages((prev) => [...prev, botMessage]);
-      setTyping(true);
-      setCurrentTypingIndex(0);
-
-      if (noResponsesFound) {
-        setNoResponsesFound(false);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      setFetchError(errorMessage);
-      toast.error(errorMessage);
-
-      const errorMsg: Message = {
-        id: Date.now() + 1,
-        text: "I'm sorry, I couldn't process your request. Please try again later.",
-        sender: 'bot',
-        animated: false,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
-    } finally {
-      setLoading(false);
-    }
-  }, [getAuthData, cityName, userId, noResponsesFound]);
-
-  // Request credits
-  const requestCredits = async (): Promise<void> => {
-    const { token } = getAuthData();
-    if (!userId || !token) {
-      toast.error('Please login to request credits');
-      return;
-    }
-
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/credit/request`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ userId }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to request credits');
-      }
-
-      toast.success(data.message || 'Credit request submitted successfully');
-      setInsufficientCredits(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
-    }
-  };
-
-  // Retry fetching responses
-  const retryFetch = () => {
-    setFetchError(null);
-    fetchPreviousResponses();
-  };
-
-  // Initial effect to load messages and fetch city insights when dialog is opened
+  // Set default message when no city is selected
   useEffect(() => {
     if (!isOpen || authLoading) return;
 
@@ -283,86 +38,46 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
       setMessages([
         {
           id: 1,
-          text: `Hello! I'm your travel assistant for ${cityName}. Please log in to view previous messages.`,
+          text: 'Please log in to use the travel assistant.',
           sender: 'bot',
           animated: false,
           timestamp: new Date(),
         },
       ]);
-      setInitialLoad(false);
       return;
     }
 
-    console.log('useEffect: cityName =', cityName); // Debug log
-
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      setInitialLoad(false);
-    }
-
-    if (userId && !hasFetchedInitial.current) {
-      fetchPreviousResponses();
-      fetchResponse(''); // Auto-fetch city insights for valid cityName
-      hasFetchedInitial.current = true;
-    }
-  }, [isOpen, fetchPreviousResponses, userId, authLoading, cityName, fetchResponse]);
+    setMessages([
+      {
+        id: 1,
+        text: 'Please select a city to get insights.',
+        sender: 'bot',
+        animated: false,
+        timestamp: new Date(),
+      },
+    ]);
+  }, [isOpen, authLoading, userId]);
 
   // Scroll to latest message
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, typing]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  // Typing animation effect
-  useEffect(() => {
-    if (typing) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.animated && lastMessage.fullText && currentTypingIndex < lastMessage.fullText.length) {
-        const batchSize = 5;
-        const timer = setTimeout(() => {
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1] = {
-              ...newMessages[newMessages.length - 1],
-              text: (lastMessage.fullText ?? '').substring(0, currentTypingIndex + batchSize),
-            };
-            return newMessages;
-          });
-          setCurrentTypingIndex(currentTypingIndex + batchSize);
-        }, 100);
-        return () => clearTimeout(timer);
-      } else {
-        setTyping(false);
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = {
-            ...newMessages[newMessages.length - 1],
-            animated: false,
-          };
-          return newMessages;
-        });
-      }
-    }
-  }, [typing, currentTypingIndex, messages]);
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // Handle form submission (disabled in default state)
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && !loading) {
-      fetchResponse(input);
-      setInput('');
-    }
+    toast.error('Please select a city to send messages.');
   };
 
   return (
     <>
+      {/* Chat Icon Button */}
       <button
-        className={`fixed bottom-4 right-4 inline-flex items-center justify-center text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border rounded-full w-16 h-16 bg-primary hover:bg-gray-700 m-0 cursor-pointer border-gray-200 p-0 normal-case leading-5 hover:text-gray-900 ${
-          initialLoad ? '' : 'animate-pulse'
-        }`}
+        className="fixed bottom-4 right-4 inline-flex items-center justify-center text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border rounded-full w-16 h-16 bg-primary hover:bg-gray-700 m-0 cursor-pointer border-gray-200 p-0 normal-case leading-5 hover:text-gray-900"
         onClick={() => setIsOpen(!isOpen)}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
+        data-state={isOpen ? "open" : "closed"}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -380,98 +95,99 @@ const CityInsights: React.FC<{ cityName?: string }> = ({ cityName }) => {
         </svg>
       </button>
 
+      {/* Chat Dialog */}
       {isOpen && (
-        <div className="fixed bottom-[calc(4rem+1.5rem)] right-0 mr-4 bg-white p-6 rounded-lg border border-[#e5e7eb] w-full max-w-[440px] h-[80vh] max-h-[634px] shadow-lg animate-slide-up">
+        <div
+          style={{
+            boxShadow: '0 0 #0000, 0 0 #0000, 0 1px 2px 0 rgb(0 0 0 / 0.05)',
+          }}
+          className="fixed bottom-[calc(4rem+1.5rem)] right-0 mr-4 bg-white p-6 rounded-lg border border-[#e5e7eb] w-[440px] h-[634px]"
+        >
+          {/* Heading */}
           <div className="flex flex-col space-y-1.5 pb-6">
             <h2 className="font-semibold text-lg tracking-tight">Travel Assistant</h2>
-            <p className="text-sm text-[#6b7280] leading-3">Insights for {cityName}</p>
+            <p className="text-sm text-[#6b7280] leading-3">No city selected</p>
           </div>
 
-          <div className="pr-4 h-[calc(100%-120px)] overflow-y-auto chat-container" aria-live="polite">
-            {messages.length === 0 ? (
-              <div className="text-center text-gray-500">Loading conversations...</div>
-            ) : (
-              <>
-                {noResponsesFound && messages.length === 1 && (
-                  <div className="text-center text-gray-500 mb-4 p-2 bg-gray-100 rounded-lg">
-                    <p>No previous conversations found</p>
-                    <p className="text-sm">Start a new chat below!</p>
-                  </div>
-                )}
-
-                {fetchError && (
-                  <div className="text-center text-red-500 mb-4 p-2 bg-red-50 rounded-lg">
-                    <p>Error retrieving conversations</p>
-                    <button
-                      onClick={retryFetch}
-                      className="text-sm text-blue-500 underline mt-1"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                )}
-
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`mb-4 ${message.sender === 'user' ? 'text-right' : 'text-left'}`}
-                  >
-                    <div
-                      className={`inline-block px-4 py-2 rounded-lg ${
-                        message.sender === 'user' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-900'
-                      } max-w-[80%] break-words`}
-                    >
-                      <ReactMarkdown>{message.text}</ReactMarkdown>
-                    </div>
-                    {message.userQuery && message.sender === 'bot' && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Response to: {message.userQuery}
-                      </div>
-                    )}
-                    {message.creditsUsed && message.remainingCredits !== undefined && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Credits used: {message.creditsUsed}, Remaining: {message.remainingCredits}
-                      </div>
+          {/* Chat Container */}
+          <div
+            className="pr-4 h-[474px] overflow-y-auto"
+            style={{ minWidth: '100%', display: 'table' }}
+            aria-live="polite"
+          >
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className="flex gap-3 my-4 text-gray-600 text-sm flex-1"
+              >
+                <span className="relative flex shrink-0 overflow-hidden rounded-full w-8 h-8">
+                  <div className="rounded-full bg-gray-100 border p-1">
+                    {message.sender === 'user' ? (
+                      <svg
+                        stroke="none"
+                        fill="black"
+                        strokeWidth="0"
+                        viewBox="0 0 16 16"
+                        height="20"
+                        width="20"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4Zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10Z" />
+                      </svg>
+                    ) : (
+                      <svg
+                        stroke="none"
+                        fill="black"
+                        strokeWidth="1.5"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        height="20"
+                        width="20"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
+                        />
+                      </svg>
                     )}
                   </div>
-                ))}
-                {insufficientCredits && (
-                  <div className="mt-2 text-center text-red-500 text-sm">
-                    <p>Not enough credits.</p>
-                    <button
-                      onClick={requestCredits}
-                      className="mt-1 underline text-button"
-                    >
-                      Request More Credits
-                    </button>
+                </span>
+                <div className="leading-relaxed">
+                  <span className="block font-bold text-gray-700">
+                    {message.sender === 'user' ? 'You' : 'AI'}{' '}
+                  </span>
+                  <div className="prose prose-sm max-w-none">
+                    <ReactMarkdown>{message.text}</ReactMarkdown>
                   </div>
-                )}
-              </>
-            )}
+                </div>
+              </div>
+            ))}
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSubmit} className="flex mt-4">
-            <label htmlFor="chat-input" className="sr-only">
-              Ask a question
-            </label>
-            <input
-              id="chat-input"
-              type="text"
-              placeholder="Ask something..."
-              className="flex-1 rounded-l-lg border border-gray-300 p-2 focus:outline-none focus:ring focus:border-blue-300"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              className="bg-button text-white p-2 rounded-r-lg disabled:opacity-90"
-              disabled={loading || input.trim() === ''}
-            >
-              Send
-            </button>
-          </form>
+          {/* Input Form (Disabled) */}
+          <div className="flex items-center pt-0">
+            <form onSubmit={handleSubmit} className="flex items-center justify-center w-full space-x-2">
+              <input
+                id="chat-input"
+                type="text"
+                placeholder="Type your message"
+                className="flex h-10 w-full rounded-md border border-[#e5e7eb] px-3 py-2 text-sm placeholder-[#6b7280] focus:outline-none focus:ring-2 focus:ring-[#9ca3af] disabled:cursor-not-allowed disabled:opacity-50 text-[#030712] focus-visible:ring-offset-2"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={true}
+              />
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium text-[#f9fafb] disabled:pointer-events-none disabled:opacity-50 bg-black hover:bg-[#111827E6] h-10 px-4 py-2"
+                disabled={true}
+              >
+                Send
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </>
