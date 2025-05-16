@@ -6,7 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { Dialog, Transition } from "@headlessui/react";
 import { ChevronDownIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import NotificationBell from "./NotificationBell";
-import { jwtDecode } from 'jwt-decode'; // Import jwt-decode
+import { jwtDecode } from "jwt-decode";
+import { toast } from "react-toastify"; // Import react-hot-toast
 
 interface DecodedToken {
   id: string;
@@ -37,9 +38,10 @@ const Navbar = () => {
       const userId = decoded.id;
 
       const response = await fetch(`http://localhost:5000/api/credit/request`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
@@ -47,22 +49,33 @@ const Navbar = () => {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to request credits');
-      }
-
       const result = await response.json();
-      alert(result.message || "Credit request sent to admin successfully. Please wait for approval.");
+      if (!response.ok) {
+        // Handle the specific case of a pending credit request
+        if (result.success(false)) {
+          toast.info(result.message, {
+            style: { background: "#e0f2fe", color: "#1e40af" },
+          });
+        } else {
+          throw new Error(result.error || "Failed to request credits");
+        }
+      } else {
+        // Success case
+        toast.success(result.message || "Credit request sent to admin successfully. Please wait for approval.", {
+          style: { background: "#d1fae5", color: "#065f46" },
+        });
+      }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to request credits.';
-      if (message.includes("already have a pending credit request")) {
-        alert("You already have a pending credit request. Please wait for admin approval.");
-      } else if (message.includes("token")) {
-        alert("Your session has expired. Please log in again.");
+      const message = err instanceof Error ? err.message : "Failed to request credits.";
+      if (message.includes("token")) {
+        toast.error("Your session has expired. Please log in again.", {
+          style: { background: "#fee2e2", color: "#b91c1c" },
+        });
         handleLogout();
       } else {
-        alert(message);
+        toast.error(message, {
+          style: { background: "#fee2e2", color: "#b91c1c" },
+        });
       }
     } finally {
       setDropdownOpen(false);
@@ -71,10 +84,14 @@ const Navbar = () => {
 
   const getDashboardPath = () => {
     switch (user?.role) {
-      case "admin": return "/admin/";
-      case "user": return "/user/dashboard";
-      case "guide": return "/guides/dashboard";
-      default: return "/dashboard";
+      case "admin":
+        return "/admin/";
+      case "user":
+        return "/user/dashboard";
+      case "guide":
+        return "/guides/dashboard";
+      default:
+        return "/dashboard";
     }
   };
 
@@ -296,7 +313,7 @@ const Navbar = () => {
                       <XMarkIcon className="h-6 w-6" />
                     </button>
                   </div>
-                  
+
                   <div className="mt-6 space-y-4">
                     <Link
                       href="/login"
@@ -313,12 +330,12 @@ const Navbar = () => {
                       Sign in as Guide
                     </Link>
                   </div>
-                  
+
                   <div className="mt-6 text-center">
                     <p className="text-sm text-gray-500">
-                      Don't have an account?
-                      <Link 
-                        href="/signup" 
+                      Don't have an account?{" "}
+                      <Link
+                        href="/signup"
                         className="text-opacity-90 font-medium transition-colors"
                         onClick={() => setIsModalOpen(false)}
                       >

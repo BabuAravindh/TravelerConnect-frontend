@@ -65,6 +65,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         // Fetch cities with guides
         const citiesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/cities_with_guides`);
         const citiesData = await citiesRes.json();
+        console.log(citiesData)
         setCitiesWithGuides(citiesData);
         setFilteredCities(citiesData);
 
