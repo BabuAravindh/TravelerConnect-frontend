@@ -28,12 +28,12 @@ const VerifyGuideEmailPage = () => {
       return;
     }
 
-    console.log(`Fetching: ${process.env.NEXT_PUBLIC_API_URL}/auth/verify-guide-email/${token}`);
+    console.log(`Fetching: ${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email/${token}`);
 
     const verifyEmail = async () => {
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/auth/verify-guide-email/${token}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email/${token}`,
           {
             method: "GET",
             headers: { "Content-Type": "application/json" },

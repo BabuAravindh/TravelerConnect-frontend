@@ -1,21 +1,12 @@
-
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
-// Interfaces
 interface City {
   _id: string;
   cityName: string;
   order: number;
   createdAt: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
 }
 
 interface Question {
@@ -42,6 +33,7 @@ interface ChatMessage {
   text: string;
   options?: string[];
   type?: 'text' | 'options' | 'number' | 'date';
+  isError?: boolean;
 }
 
 interface UserResponse {
@@ -59,34 +51,87 @@ interface DecodedToken {
   [key: string]: any;
 }
 
-// API Service
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/predefine`;
+interface ApiError extends Error {
+  status?: number;
+}
 
-const handleResponse = async <T,>(response: Response): Promise<T> => {
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const errorMessage = errorData.error || errorData.message || 'Request failed';
-    const error = new Error(errorMessage) as Error & { status?: number };
-    error.status = response.status;
-    throw error;
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/predefine`;
+const TRAVEL_PLAN_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/travelPlan`;
+
+const handleApiError = async (response: Response): Promise<never> => {
+  let errorData: any;
+  try {
+    errorData = await response.json();
+  } catch {
+    errorData = {};
   }
-  return response.json() as Promise<T>;
+
+  const errorMessage = errorData.error || errorData.message || 'Request failed';
+  const error: ApiError = new Error(errorMessage);
+  error.status = response.status;
+  throw error;
 };
 
 const apiService = {
   getCities: async (): Promise<City[]> => {
     const response = await fetch(`${API_BASE_URL}/cities`);
-    const result = await handleResponse<{ success: boolean; data: City[] }>(response);
-    return result.data;
+    if (!response.ok) await handleApiError(response);
+    const result = await response.json();
+    return result.data || [];
   },
 
   getQuestionsByCity: async (cityId: string): Promise<Question[]> => {
     const response = await fetch(`${API_BASE_URL}/questions/city/${cityId}`);
-    const result = await handleResponse<ApiResponse<Question[]>>(response);
+    if (!response.ok) await handleApiError(response);
+    const result = await response.json();
+    
     if (!result.success || !result.data) {
       throw new Error(result.message || 'Failed to fetch questions');
     }
-    return result.data;
+    
+    // Return default questions if none available
+    if (result.data.length === 0) {
+      return [
+        {
+          _id: 'default-1',
+          questionText: 'What type of experience are you looking for? (e.g., adventure, relaxation, cultural)',
+          cityId: { _id: cityId, cityName: '', order: 0, createdAt: '', __v: 0 },
+          status: 'active',
+          order: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          __v: 0,
+          type: 'text'
+        },
+        {
+          _id: 'default-2',
+          questionText: 'What is your budget range?',
+          cityId: { _id: cityId, cityName: '', order: 0, createdAt: '', __v: 0 },
+          status: 'active',
+          order: 2,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          __v: 0,
+          type: 'options',
+          options: ['Budget', 'Mid-range', 'Luxury']
+        },
+        {
+          _id: 'default-3',
+          questionText: 'How many days are you planning to stay?',
+          cityId: { _id: cityId, cityName: '', order: 0, createdAt: '', __v: 0 },
+          status: 'active',
+          order: 3,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          __v: 0,
+          type: 'number'
+        }
+      ];
+    }
+    
+    return result.data
+      .filter((q: Question) => q.status.toLowerCase() === 'active')
+      .sort((a: Question, b: Question) => a.order - b.order);
   },
 
   createTravelPlan: async (cityName: string, questions: Question[], answers: { response: string }[]): Promise<TravelPlanResponse> => {
@@ -95,11 +140,11 @@ const apiService = {
       throw new Error("Authentication token not found. Please log in again.");
     }
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/travelPlan`, {
+    const response = await fetch(TRAVEL_PLAN_URL, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({
         cityName,
@@ -107,10 +152,14 @@ const apiService = {
         answers,
       }),
     });
-    const result = await handleResponse<{ success: boolean; data: TravelPlanResponse; message?: string }>(response);
+
+    if (!response.ok) await handleApiError(response);
+    
+    const result = await response.json();
     if (!result.success || !result.data?.itinerary) {
       throw new Error(result.message || 'Failed to generate itinerary');
     }
+    
     return result.data;
   },
 
@@ -127,23 +176,23 @@ const apiService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({
         userId,
       }),
     });
 
-    await handleResponse<{ success: boolean; message?: string }>(response);
+    if (!response.ok) await handleApiError(response);
+    
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to request credits');
+    }
   },
 };
 
-// AIRecommendation Component
-interface AIRecommendationProps {
-  city?: string;
-}
-
-const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
+const AIRecommendation = ({ city }: { city?: string }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [userResponses, setUserResponses] = useState<UserResponse[]>([]);
@@ -153,267 +202,243 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [creditRequestStatus, setCreditRequestStatus] = useState<'idle' | 'requesting' | 'success' | 'error'>('idle');
-  const [creditRequestError, setCreditRequestError] = useState<string | null>(null);
   const [planId, setPlanId] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch cities on mount if no city is provided
+  // Add message with error handling
+  const addMessage = (message: ChatMessage) => {
+    setMessages(prev => [...prev, message]);
+  };
+
+  // Add error message
+  const addErrorMessage = (text: string) => {
+    addMessage({
+      sender: 'bot',
+      text,
+      isError: true
+    });
+  };
+
+  // Initialize chat
   useEffect(() => {
-    if (!city) {
-      const fetchCities = async () => {
+    const initChat = async () => {
+      try {
         setIsLoading(true);
-        try {
+        
+        if (!city) {
           const citiesData = await apiService.getCities();
-          setCities(Array.isArray(citiesData) ? citiesData : []);
-          setError(null);
-        } catch (err: unknown) {
-          setError(err instanceof Error ? err.message : 'Failed to load cities. Please try again.');
-          setCities([]);
+          setCities(citiesData);
+          
+          if (citiesData.length > 0) {
+            addMessage({
+              sender: 'bot',
+              text: 'Please select a city to start planning your trip.',
+              type: 'options',
+              options: citiesData.map(c => c.cityName),
+            });
+          } else {
+            addErrorMessage('No cities available. Please try again later.');
+          }
+        } else {
+          // Handle pre-selected city
+          setUserResponses([{
+            questionId: 'initial-city-selection',
+            response: city
+          }]);
+        }
+      } catch (err) {
+        const error = err as ApiError;
+        const errorMessage = error.status === 401 
+          ? 'Your session has expired. Please log in again.'
+          : error.message || 'Failed to initialize chat.';
+          
+        addErrorMessage(errorMessage);
+        setError(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initChat();
+  }, [city]);
+
+  // Handle questions loading when city is selected
+  useEffect(() => {
+    const loadQuestions = async () => {
+      if ((city || currentStep > 0) && questions.length === 0) {
+        try {
+          setIsLoading(true);
+          const cityResponse = city 
+            ? { questionId: 'initial-city-selection', response: city }
+            : userResponses.find(res => res.questionId === 'initial-city-selection');
+            
+          if (!cityResponse) return;
+
+          const selectedCity = cities.find(c => c.cityName.toLowerCase() === cityResponse.response.toLowerCase());
+          const cityId = selectedCity?._id || (await apiService.getCities())
+            .find(c => c.cityName.toLowerCase() === city?.toLowerCase())?._id;
+            
+          if (!cityId) throw new Error('City not found');
+
+          const questionsData = await apiService.getQuestionsByCity(cityId);
+          if (questionsData.some(q => q._id.startsWith('default'))) {
+            addMessage({
+              sender: 'bot',
+              text: 'No specific questions available for this city. Let’s gather some basic preferences to plan your trip!',
+            });
+          }
+          setQuestions(questionsData);
+
+          // Always ask the first question (default or otherwise)
+          if (questionsData.length > 0) {
+            const firstQuestion = questionsData[0];
+            addMessage({
+              sender: 'bot',
+              text: firstQuestion.questionText,
+              type: firstQuestion.type || 'text',
+              options: firstQuestion.options,
+            });
+          } else {
+            // This should never happen due to default questions, but handle gracefully
+            addErrorMessage('No questions available for this city. Generating a basic itinerary...');
+            generateItinerary();
+          }
+        } catch (err) {
+          const error = err as ApiError;
+          const errorMessage = error.message || 'Failed to load questions.';
+          addErrorMessage(errorMessage);
+          setError(errorMessage);
+          // Try to generate itinerary anyway with basic info
+          generateItinerary();
         } finally {
           setIsLoading(false);
         }
-      };
-      fetchCities();
-    }
-  }, [city]);
-
-  // Prompt user to select a city if no city is provided
-  useEffect(() => {
-    if (!city && cities.length > 0 && messages.length === 0) {
-      setMessages([
-        {
-          sender: 'bot',
-          text: 'Please select a city to start planning your trip.',
-          type: 'options',
-          options: cities.map((c: City) => c.cityName),
-        },
-      ]);
-    }
-  }, [cities, messages.length, city]);
-
-  // Handle pre-selected city or fetch questions after city selection
-  useEffect(() => {
-    if ((city && messages.length === 0) || (currentStep > 0 && questions.length === 0)) {
-      const cityResponse = city
-        ? { questionId: 'initial-city-selection', response: city }
-        : userResponses.find((res: UserResponse) => res.questionId === 'initial-city-selection');
-      if (cityResponse) {
-        const selectedCity = cities.find((c: City) => c.cityName.toLowerCase() === cityResponse.response.toLowerCase());
-        if (selectedCity || city) {
-          const fetchQuestions = async () => {
-            setIsLoading(true);
-            try {
-              const cityId = selectedCity?._id || (await apiService.getCities()).find(c => c.cityName.toLowerCase() === city?.toLowerCase())?._id;
-              if (!cityId) throw new Error('City not found');
-              const questionsData = await apiService.getQuestionsByCity(cityId);
-              const filteredQuestions = questionsData
-                .filter((q: Question) => q.status.toLowerCase() === 'active')
-                .sort((a: Question, b: Question) => a.order - b.order);
-              setQuestions(filteredQuestions);
-              if (filteredQuestions.length > 0) {
-                const firstNonCityQuestion = filteredQuestions.find(
-                  (q: Question) => !q.questionText.toLowerCase().includes('city')
-                );
-                const startIndex = filteredQuestions.findIndex(
-                  (q: Question) => q._id === firstNonCityQuestion?._id
-                );
-                setCurrentStep(startIndex >= 0 ? startIndex : 0);
-                if (firstNonCityQuestion) {
-                  setMessages((prev: ChatMessage[]) => [
-                    ...prev,
-                    {
-                      sender: 'bot',
-                      text: firstNonCityQuestion.questionText,
-                      type: firstNonCityQuestion.type || 'text',
-                      options: firstNonCityQuestion.options,
-                    },
-                  ]);
-                } else {
-                  addBotMessage({
-                    sender: 'bot',
-                    text: 'No further questions available. Generating your itinerary...',
-                    type: 'text',
-                  });
-                  setTimeout(() => generateItinerary(), 1000);
-                }
-              } else {
-                addBotMessage({
-                  sender: 'bot',
-                  text: 'No questions available for this city. Generating your itinerary...',
-                  type: 'text',
-                });
-                setTimeout(() => generateItinerary(), 1000);
-              }
-              setError(null);
-            } catch (err: unknown) {
-              setError(err instanceof Error ? err.message : 'Failed to load questions for this city.');
-              setQuestions([]);
-              addBotMessage({
-                sender: 'bot',
-                text: 'Unable to load questions for this city. Generating itinerary anyway...',
-                type: 'text',
-              });
-              setTimeout(() => generateItinerary(), 1000);
-            } finally {
-              setIsLoading(false);
-            }
-          };
-          fetchQuestions();
-        }
       }
-    }
-  }, [userResponses, cities, currentStep, questions.length, city, messages.length]);
+    };
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [messages]);
+    loadQuestions();
+  }, [userResponses, cities, currentStep, city, questions.length]);
 
-  // Reset creditRequestStatus when error changes
-  useEffect(() => {
-    if (error && error.toLowerCase().includes("insufficient credits")) {
-      console.log("Insufficient credits error detected, resetting creditRequestStatus to 'idle'");
-      setCreditRequestStatus('idle');
-      setCreditRequestError(null);
-    }
-  }, [error]);
+  // Handle sending messages
+  const handleSendMessage = async () => {
+    if (!userInput.trim() || isLoading) return;
 
-  const handleSendMessage = () => {
-    if (!userInput.trim()) return;
-
-    const newMessages: ChatMessage[] = [...messages, { sender: 'user', text: userInput }];
-    setMessages(newMessages);
+    // Add user message
+    addMessage({ sender: 'user', text: userInput });
     setUserInput('');
 
-    processUserResponse(userInput);
-  };
-
-  const processUserResponse = (response: string) => {
-    setIsLoading(true);
-
-    setTimeout(() => {
-      if (!city && currentStep === 0 && messages[0].text === 'Please select a city to start planning your trip.') {
-        const selectedCity = cities.find((c: City) => c.cityName.toLowerCase() === response.toLowerCase());
-        if (selectedCity) {
-          setUserResponses([{ questionId: 'initial-city-selection', response: selectedCity.cityName }]);
-          setCurrentStep(1);
-        } else {
-          addBotMessage({
+    try {
+      setIsLoading(true);
+      
+      if (!city && currentStep === 0 && messages[0]?.text === 'Please select a city to start planning your trip.') {
+        // Handle city selection
+        const selectedCity = cities.find(c => c.cityName.toLowerCase() === userInput.toLowerCase());
+        if (!selectedCity) {
+          addErrorMessage('Please select a valid city from the options provided.');
+          addMessage({
             sender: 'bot',
-            text: 'Please select a valid city from the options provided.',
+            text: 'Please select a city to start planning your trip.',
             type: 'options',
-            options: cities.map((c: City) => c.cityName),
+            options: cities.map(c => c.cityName),
           });
-          setIsLoading(false);
+          return;
         }
+
+        setUserResponses([{ questionId: 'initial-city-selection', response: selectedCity.cityName }]);
+        setCurrentStep(1);
       } else if (currentStep < questions.length) {
+        // Handle question responses
         const currentQuestion = questions[currentStep];
-        if (currentQuestion.type === 'options' && currentQuestion.options && !currentQuestion.options.includes(response)) {
-          addBotMessage({
+        
+        // Validate options if question has them
+        if (currentQuestion.type === 'options' && currentQuestion.options && 
+            !currentQuestion.options.includes(userInput)) {
+          addErrorMessage('Please select a valid option.');
+          addMessage({
             sender: 'bot',
-            text: 'Please select a valid option.',
-            type: 'options',
+            text: currentQuestion.questionText,
+            type: currentQuestion.type,
             options: currentQuestion.options,
           });
-        } else {
-          setUserResponses((prev: UserResponse[]) => [
-            ...prev,
-            { questionId: currentQuestion._id, response },
-          ]);
+          return;
+        }
+
+        // Save response
+        setUserResponses(prev => [
+          ...prev,
+          { questionId: currentQuestion._id, response: userInput }
+        ]);
+
+        // Move to next question or generate itinerary
+        if (currentStep + 1 < questions.length) {
+          const nextQuestion = questions[currentStep + 1];
+          addMessage({
+            sender: 'bot',
+            text: nextQuestion.questionText,
+            type: nextQuestion.type,
+            options: nextQuestion.options,
+          });
           setCurrentStep(currentStep + 1);
-          if (currentStep + 1 < questions.length) {
-            const nextQuestion = questions[currentStep + 1];
-            addBotMessage({
-              sender: 'bot',
-              text: nextQuestion.questionText,
-              type: nextQuestion.type || 'text',
-              options: nextQuestion.options,
-            });
-          } else {
-            generateItinerary();
-          }
+        } else {
+          await generateItinerary();
         }
       } else {
-        generateItinerary();
+        // Handle additional user input after questions are complete
+        addMessage({
+          sender: 'bot',
+          text: 'All questions have been answered. Would you like to generate a new itinerary or modify your preferences?',
+        });
       }
-
+    } catch (err) {
+      const error = err as Error;
+      addErrorMessage(error.message || 'An error occurred while processing your response.');
+    } finally {
       setIsLoading(false);
-    }, 500);
-  };
-
-  const addBotMessage = (message: ChatMessage) => {
-    setMessages((prev: ChatMessage[]) => [...prev, message]);
-  };
-
-  const handleRequestCredits = async () => {
-    setCreditRequestStatus('requesting');
-    setCreditRequestError(null);
-
-    try {
-      await apiService.requestCredits();
-      setCreditRequestStatus('success');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to request credits.';
-      setCreditRequestStatus('error');
-      setCreditRequestError(message);
     }
   };
 
+  // Generate itinerary
   const generateItinerary = async () => {
-    setIsLoading(true);
-    setCreditRequestStatus('idle');
-    setCreditRequestError(null);
-    addBotMessage({
-      sender: 'bot',
-      text: "Great! I'm creating your personalized itinerary...",
-      type: 'text',
-    });
-
     try {
-      const cityResponse = userResponses.find((res: UserResponse) => res.questionId === 'initial-city-selection');
-      const cityName = cityResponse ? cityResponse.response : city || 'your selected city';
-
-      const questionsToSend = questions.map((q) => ({
-        _id: q._id,
-        questionText: q.questionText,
-        cityId: q.cityId,
-        status: q.status,
-        order: q.order,
-        createdAt: q.createdAt,
-        updatedAt: q.updatedAt,
-        __v: q.__v,
-        type: q.type,
-        options: q.options,
-      }));
-
-      const answersToSend = questionsToSend.map((q) => {
-        const response = userResponses.find((res) => res.questionId === q._id);
-        return { response: response ? response.response : 'Not provided' };
-      });
-
-      const { itinerary, planId: generatedPlanId } = await apiService.createTravelPlan(cityName, questionsToSend, answersToSend);
-      setPlanId(generatedPlanId);
-
-      // Strip markdown asterisks for plain text display
-      const cleanedItinerary = itinerary.replace(/\*\*(.*?)\*\*/g, '$1');
-
-      // Add AI-generated notice
-      const finalItinerary = `This itinerary was generated by AI to help you plan your trip to ${cityName}.\n\n${cleanedItinerary}\n\nYour travel plan ID is: ${generatedPlanId}. Save this ID to retrieve your plan later.`;
-
-      setError(null); // Clear any previous errors
-      addBotMessage({
+      setIsLoading(true);
+      setError(null);
+      addMessage({
         sender: 'bot',
-        text: finalItinerary,
-        type: 'text',
+        text: "Great! I'm creating your personalized itinerary...",
       });
-    } catch (err: unknown) {
-      const error = err as Error & { status?: number };
+
+      const cityResponse = userResponses.find(res => res.questionId === 'initial-city-selection');
+      const cityName = cityResponse?.response || city || 'your selected city';
+
+      const { itinerary, planId: generatedPlanId } = await apiService.createTravelPlan(
+        cityName,
+        questions,
+        questions.map(q => {
+          const response = userResponses.find(res => res.questionId === q._id);
+          return { response: response?.response || 'Not provided' };
+        })
+      );
+
+      setPlanId(generatedPlanId);
+      
+      // Format itinerary with disclaimer if minimal input
+      const isMinimalInput = questions.length === 0 || userResponses.length <= 1;
+      const disclaimer = isMinimalInput 
+        ? "\n\nNote: This itinerary is based on limited preferences. For a more tailored plan, please provide additional details or contact support."
+        : "";
+      
+      const formattedItinerary = `This itinerary was generated by AI to help you plan your trip to ${cityName}.\n\n${itinerary}${disclaimer}\n\nYour travel plan ID is: ${generatedPlanId}. Save this ID to retrieve your plan later.`;
+
+      addMessage({
+        sender: 'bot',
+        text: formattedItinerary,
+      });
+    } catch (err) {
+      const error = err as ApiError;
       let errorMessage = error.message || 'Failed to generate itinerary. Please try again.';
+      
       if (error.status === 403 && error.message.toLowerCase().includes('insufficient credits')) {
         errorMessage = 'You do not have sufficient credits to generate an itinerary. Please request credits from the admin.';
-        console.log('Setting error for insufficient credits:', errorMessage);
       } else if (error.status === 401) {
         errorMessage = 'Your session has expired. Please log in again.';
       } else if (error.status === 429) {
@@ -422,26 +447,47 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
         errorMessage = 'Server error. Please try again later.';
       }
 
-      console.log('Error occurred:', errorMessage, 'Status:', error.status);
       setError(errorMessage);
-      addBotMessage({
-        sender: 'bot',
-        text: errorMessage,
-        type: 'text',
-      });
+      addErrorMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Handle credit request
+  const handleRequestCredits = async () => {
+    try {
+      setCreditRequestStatus('requesting');
+      await apiService.requestCredits();
+      setCreditRequestStatus('success');
+      setError(null);
+      addMessage({
+        sender: 'bot',
+        text: 'Credit request submitted successfully. Please wait for admin approval.',
+      });
+    } catch (err) {
+      const error = err as ApiError;
+      setCreditRequestStatus('error');
+      setError(error.message || 'Failed to request credits.');
+    }
+  };
+
+  // Handle option selection
   const handleOptionSelect = (option: string) => {
     setUserInput(option);
     handleSendMessage();
   };
 
+  // Auto-scroll to bottom
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   return (
-   <div className="max-w-4xl mx-auto p-4">
-      <div className="flex items-center justify-center mb-6">
+    <div className="max-w-full mx-auto p-4">
+      <div className="flex items-center justify-center mb-6 ">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 640 512"
@@ -453,75 +499,8 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
         <h1 className="text-3xl font-bold text-button">TripPlanner AI</h1>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6 flex items-start">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-              clipRule="evenodd"
-            />
-          </svg>
-          <div>
-            <p className="font-medium">{error}</p>
-            {error.toLowerCase().includes("insufficient credits") && (
-              <div className="mt-2">
-                {creditRequestStatus === 'idle' ? (
-                  <button
-                    onClick={handleRequestCredits}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 mr-1"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    Request Credits
-                  </button>
-                ) : creditRequestStatus === 'requesting' ? (
-                  <div className="flex items-center text-gray-600">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600 mr-2"></div>
-                    Processing request...
-                  </div>
-                ) : creditRequestStatus === 'success' ? (
-                  <div className="flex items-center text-green-600">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 mr-1"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    Request sent successfully!
-                  </div>
-                ) : (
-                  <p className="text-red-600">{creditRequestError}</p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-        <div className="bg-primary px-6 py-4 flex items-center">
+      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 ">
+        <div className="bg-primary px-6 W py-4 flex items-center">
           <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mr-3">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -558,7 +537,9 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
               <div
                 className={`max-w-xs md:max-w-md rounded-lg px-4 py-3 ${
                   message.sender === 'bot'
-                    ? 'bg-white text-gray-800 border border-gray-200 shadow-sm'
+                    ? message.isError
+                      ? 'bg-red-50 text-red-800 border border-red-200'
+                      : 'bg-white text-gray-800 border border-gray-200 shadow-sm'
                     : 'bg-primary text-white'
                 }`}
               >
@@ -596,6 +577,72 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
         </div>
 
         <div className="border-t border-gray-200 p-4 bg-white">
+          {error && error.toLowerCase().includes("insufficient credits") && (
+            <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-100 flex items-start">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 text-red-600 mr-2 mt-0.5 flex-shrink-0"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <div>
+                <p className="text-sm text-red-800">{error}</p>
+                <div className="mt-2">
+                  {creditRequestStatus === 'idle' ? (
+                    <button
+                      onClick={handleRequestCredits}
+                      disabled={isLoading}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center disabled:opacity-50"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 mr-1"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      Request Credits
+                    </button>
+                  ) : creditRequestStatus === 'requesting' ? (
+                    <div className="flex items-center text-gray-600">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600 mr-2"></div>
+                      Processing request...
+                    </div>
+                  ) : creditRequestStatus === 'success' ? (
+                    <div className="flex items-center text-green-600">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 mr-1"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      Request sent successfully!
+                    </div>
+                  ) : (
+                    <p className="text-red-600">Failed to request credits. Please try again.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {(!questions.length || currentStep < questions.length) && !isLoading && (
             <div className="flex gap-3">
               <input
@@ -630,7 +677,7 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
           )}
 
           {planId && (
-            <div className="mt-4 p-3 bg-primary rounded-lg border border-green-100 flex items-start">
+            <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-100 flex items-start">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5 text-green-600 mr-2 mt-0.5 flex-shrink-0"
@@ -639,7 +686,7 @@ const AIRecommendation: React.FC<AIRecommendationProps> = ({ city }) => {
               >
                 <path
                   fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2 fondh-1V9z"
                   clipRule="evenodd"
                 />
               </svg>

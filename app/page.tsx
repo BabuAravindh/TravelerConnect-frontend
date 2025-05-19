@@ -107,7 +107,7 @@ const Page: React.FC = () => {
 
       <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
         {/* AI Recommendation Section */}
-        <section className="bg-white rounded-lg shadow p-6">
+        <section className="bg-white rounded-lg shadow p-6  mt-20">
           <AIRecommendation city={city} />
         </section>
 

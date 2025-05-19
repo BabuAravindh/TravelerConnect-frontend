@@ -1,11 +1,11 @@
 "use client";
-import { useAuth } from "@/context/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "react-toastify";
 import ReactMarkdown from "react-markdown";
+import { useAuth } from "@/context/AuthContext";
 
 interface Message {
-  id: number | string;
+  id: string | number;
   text: string;
   sender: "user" | "bot";
   timestamp: Date;
@@ -20,14 +20,37 @@ interface CityInsightsProps {
 }
 
 const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred }) => {
-  const { user, loading: authLoading } = useAuth();
-  const userId = user?.id || null;
+  const {user} = useAuth()
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize userId and token from localStorage
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    const storedUserId = user?.id;
+   console.log(storedUserId)
+    setToken(storedToken);
+    setUserId(storedUserId);
+    setIsAuthLoading(false);
+
+    if (isOpen && (!storedToken || !storedUserId)) {
+      setMessages([
+        {
+          id: Date.now(),
+          text: "Please log in to use the travel assistant.",
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  }, [isOpen]);
 
   const detectCityFromQuery = (query: string): string | null => {
     const cities = ["chennai", "mumbai", "delhi", "bangalore", "jaipur"];
@@ -45,17 +68,7 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
 
   // Fetch previous responses when chat opens
   useEffect(() => {
-    if (!isOpen || authLoading || !userId) {
-      if (!userId && isOpen) {
-        setMessages([
-          {
-            id: Date.now(),
-            text: "Please log in to use the travel assistant.",
-            sender: "bot",
-            timestamp: new Date(),
-          },
-        ]);
-      }
+    if (!isOpen || isAuthLoading || !userId || !token) {
       return;
     }
 
@@ -64,12 +77,15 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/${userId}`, {
           method: "GET",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         const data = await response.json();
         if (!response.ok) {
-          if (response.status === 404 && data.message === "No AI chat responses found for this user.") {
+          if (response.status === 404 && data.error === "No AI chat responses found for this user") {
             setMessages([
               {
                 id: Date.now(),
@@ -80,10 +96,10 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
             ]);
             return;
           }
-          throw new Error(data.message || data.error || "Failed to fetch previous responses");
+          throw new Error(data.error || "Failed to fetch previous responses");
         }
 
-        const responses = Array.isArray(data.responses) ? data.responses : [];
+        const responses = Array.isArray(data.data?.responses) ? data.data.responses : [];
         if (responses.length === 0) {
           setMessages([
             {
@@ -135,11 +151,13 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
     };
 
     fetchPreviousResponses();
-  }, [isOpen, authLoading, userId]);
+  }, [isOpen, isAuthLoading, userId, token]);
 
   // Prompt for city insights confirmation
   useEffect(() => {
-    if (!isOpen || authLoading || !userId || !cityName || cityName.trim() === "" || awaitingConfirmation) return;
+    if (!isOpen || isAuthLoading || !userId || !token || !cityName || cityName.trim() === "" || awaitingConfirmation) {
+      return;
+    }
 
     const promptMessage: Message = {
       id: Date.now(),
@@ -151,44 +169,64 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
 
     setMessages((prev) => [...prev, promptMessage]);
     setAwaitingConfirmation(true);
-  }, [isOpen, authLoading, userId, cityName, awaitingConfirmation]);
+  }, [isOpen, isAuthLoading, userId, token, cityName, awaitingConfirmation]);
 
   // Fetch city insights after confirmation
   const fetchCityInsights = async () => {
+    if (!token || !userId) {
+      toast.error("Authentication token or user ID missing. Please log in again.", {
+        style: { background: "#fee2e2", color: "#b91c1c" },
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai//city-insights`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/city-insights`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ userId, city: cityName }),
       });
 
       const data = await response.json();
       if (!response.ok) {
+        if (response.status === 401 || response.status === 400) {
+          toast.error(data.message || "Authentication failed. Please log in again.", {
+            style: { background: "#fee2e2", color: "#b91c1c" },
+          });
+          localStorage.removeItem("token");
+          localStorage.removeItem("userId");
+          setToken(null);
+          setUserId(null);
+          return;
+        }
         if (response.status === 402) {
-          toast.info(data.message || "You need at least 1 credit to fetch city insights. Please request more credits.", {
+          toast.info(data.error || "You need at least 1 credit to fetch city insights.", {
             style: { background: "#e0f2fe", color: "#1e40af" },
           });
           setMessages((prev) => [
             ...prev,
             {
               id: Date.now(),
-              text: data.message || "You need at least 1 credit to fetch city insights. Please request more credits.",
+              text: data.error || "You need at least 1 credit to fetch city insights. Please request more credits.",
               sender: "bot",
               timestamp: new Date(),
             },
           ]);
           return;
         }
-        throw new Error(data.message || data.error || "Failed to fetch city insights");
+        throw new Error(data.error || "Failed to fetch city insights");
       }
 
       const botMessage: Message = {
-        id: data.interactionId || Date.now(),
-        text: data.insights || data.response || "No insights available",
+        id: data.data?.interactionId || Date.now(),
+        text: data.data?.insights || "No insights available",
         sender: "bot",
-        timestamp: new Date(data.timestamp || Date.now()),
-        remainingCredits: data.remainingCredits,
+        timestamp: new Date(data.data?.timestamp || Date.now()),
+        remainingCredits: data.data?.remainingCredits,
       };
 
       setMessages((prev) => [...prev, botMessage]);
@@ -220,7 +258,7 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    if (!userId) {
+    if (!userId || !token) {
       toast.info("Please log in to send messages.", {
         style: { background: "#e0f2fe", color: "#1e40af" },
       });
@@ -286,42 +324,51 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
 
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(body),
       });
 
       const data = await response.json();
       if (!response.ok) {
+        if (response.status === 401 || response.status === 400) {
+          toast.error(data.message || "Authentication failed. Please log in again.", {
+            style: { background: "#fee2e2", color: "#b91c1c" },
+          });
+          localStorage.removeItem("token");
+          localStorage.removeItem("userId");
+          setToken(null);
+          setUserId(null);
+          return;
+        }
         if (response.status === 402) {
-          toast.info(data.message || "You need at least 1 credit to process this query. Please request more credits.", {
+          toast.info(data.error || "You need at least 1 credit to process this query.", {
             style: { background: "#e0f2fe", color: "#1e40af" },
           });
           setMessages((prev) => [
             ...prev,
             {
               id: Date.now(),
-              text: data.message || "You need at least 1 credit to process this query. Please request more credits.",
+              text: data.error || "You need at least 1 credit to process this query. Please request more credits.",
               sender: "bot",
               timestamp: new Date(),
             },
           ]);
           return;
         }
-        throw new Error(data.message || data.error || "Failed to fetch response");
+        throw new Error(data.error || "Failed to fetch response");
       }
 
       const botMessage: Message = {
-        id: data.interactionId || Date.now(),
-        text: data.insights || data.response || "No response available",
+        id: data.data?.interactionId || Date.now(),
+        text: data.data?.insights || data.data?.response || "No response available",
         sender: "bot",
-        timestamp: new Date(data.timestamp || Date.now()),
-        userQuery: data.query,
-        remainingCredits: data.remainingCredits,
+        timestamp: new Date(data.data?.timestamp || Date.now()),
+        userQuery: data.data?.query,
+        remainingCredits: data.data?.remainingCredits,
       };
-
-      if (data.responseStatus === "error" || data.responseStatus === "timeout") {
-        throw new Error(data.response || "Sorry, there was an issue processing your query.");
-      }
 
       setMessages((prev) => [...prev, botMessage]);
 
@@ -351,7 +398,7 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
     <>
       {/* Floating Action Button */}
       <button
-        className="fixed bottom-6 right-6 w-14 h-14 bg-primary hover:bg-opacity-90 text-white rounded-full shadow-lg transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-primary hover:bg-opacity-90 text-white rounded-full shadow-lg transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-button focus:ring-offset-2"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Toggle chat"
       >
@@ -378,7 +425,7 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
           <div className="bg-primary px-4 py-3 flex justify-between items-center">
             <div>
               <h2 className="text-lg font-semibold text-white">Travel Assistant</h2>
-              <p className="text-xs text-blue-100">
+              <p className="text-xs text-white">
                 {cityName ? `Exploring ${cityName}` : "Ask me anything about travel"}
                 {messages.some((msg) => msg.remainingCredits !== undefined) && (
                   <span className="ml-2">• Credits: {messages[messages.length - 1].remainingCredits}</span>
@@ -387,7 +434,7 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-blue-100 hover:text-white focus:outline-none"
+              className="text-white hover:text-white focus:outline-none"
               aria-label="Close chat"
             >
               <svg
@@ -401,8 +448,8 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
@@ -417,12 +464,12 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
                 <div
                   className={`max-w-[80%] rounded-lg px-4 py-2 ${
                     message.sender === "user"
-                      ? "bg-button text-white rounded-br-none"
+                      ? "bg-primary text-white rounded-br-none"
                       : "bg-white border border-gray-200 rounded-bl-none shadow-sm"
                   }`}
                 >
                   <ReactMarkdown>{message.text}</ReactMarkdown>
-                  <div className={`text-xs mt-1 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
+                  <div className={`text-xs mt-1 ${message.sender === "user" ? "text-white" : "text-gray-500"}`}>
                     {formatTimestamp(message.timestamp)}
                   </div>
                 </div>
@@ -432,9 +479,9 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
               <div className="flex justify-start">
                 <div className="bg-white border border-gray-200 rounded-lg rounded-bl-none px-4 py-2 shadow-sm max-w-[80%]">
                   <div className="flex space-x-2 items-center">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:75ms]" />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
                   </div>
                 </div>
               </div>
@@ -450,14 +497,14 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={awaitingConfirmation ? "Type 'yes' or 'no'..." : cityName ? `Ask about ${cityName}...` : "Ask something..."}
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                disabled={isLoading || !userId}
+                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-button focus:border-transparent disabled:opacity-50"
+                disabled={isLoading || !userId || !token}
                 aria-label="Type your message"
               />
               <button
                 type="submit"
-                className="bg-button hover:bg-opacity-90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2"
-                disabled={isLoading || !userId}
+                className="bg-primary hover:bg-opacity-90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-button focus:ring-offset-2"
+                disabled={isLoading || !userId || !token}
               >
                 Send
               </button>

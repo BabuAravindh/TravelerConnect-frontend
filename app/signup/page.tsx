@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
@@ -28,7 +28,8 @@ const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(""); // Kept for rendering
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false); // New state for success
 
   const validateForm = useCallback(() => {
     const newErrors = { name: "", email: "", password: "", confirmPassword: "" };
@@ -118,7 +119,7 @@ const SignupPage = () => {
         }
 
         toast.success("Verification mail sent successfully!");
-      
+        setSuccess(true); // Set success state to true
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : "Registration failed";
         setError(errorMessage);
@@ -132,6 +133,16 @@ const SignupPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setErrors({ ...errors, [e.target.name]: "" });
   };
+
+  // Optional: Auto-redirect to login page after 5 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        router.push("/login");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success, router]);
 
   return (
     <>
@@ -148,150 +159,172 @@ const SignupPage = () => {
                 </p>
               </div>
 
-              {error && (
-                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-                  {error}
+              {success ? (
+                <div className="text-center p-6 bg-green-100 rounded-lg">
+                  <h2 className="text-2xl font-semibold text-green-800 mb-4">
+                    Account Created Successfully!
+                  </h2>
+                  <p className="text-green-700 mb-4">
+                    A verification email has been sent to {formData.email}. Please check your inbox (and spam folder) to verify your account.
+                  </p>
+                  <p className="text-green-600 mb-6">
+                    You will be redirected to the login page in a few seconds, or click below to log in now.
+                  </p>
+                  <Link
+                    href="/login"
+                    className="inline-block px-6 py-3 bg-button text-white font-semibold rounded-lg hover:bg-opacity-90 transition"
+                  >
+                    Go to Login
+                  </Link>
                 </div>
+              ) : (
+                <>
+                  {error && (
+                    <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                      {error}
+                    </div>
+                  )}
+
+                  <form className="space-y-5" onSubmit={handleSubmit}>
+                    <div>
+                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        id="name"
+                        type="text"
+                        name="name"
+                        placeholder="John Doe"
+                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
+                          errors.name
+                            ? "border-red-500 focus:ring-red-400"
+                            : "border-gray-300 focus:ring-button"
+                        }`}
+                        value={formData.name}
+                        onChange={handleChange}
+                        disabled={loading}
+                      />
+                      {errors.name && (
+                        <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                        Email Address
+                      </label>
+                      <input
+                        id="email"
+                        type="email"
+                        name="email"
+                        placeholder="john@example.com"
+                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
+                          errors.email
+                            ? "border-red-500 focus:ring-red-400"
+                            : "border-gray-300 focus:ring-button"
+                        }`}
+                        value={formData.email}
+                        onChange={handleChange}
+                        disabled={loading}
+                      />
+                      {errors.email && (
+                        <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          name="password"
+                          placeholder="••••••••"
+                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
+                            errors.password
+                              ? "border-red-500 focus:ring-red-400"
+                              : "border-gray-300 focus:ring-button"
+                          }`}
+                          value={formData.password}
+                          onChange={handleChange}
+                          disabled={loading}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-3 flex items-center text-gray-500"
+                          disabled={loading}
+                        >
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
+                      {errors.password && (
+                        <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                        Confirm Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="confirmPassword"
+                          type={showConfirmPassword ? "text" : "password"}
+                          name="confirmPassword"
+                          placeholder="••••••••"
+                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
+                            errors.confirmPassword
+                              ? "border-red-500 focus:ring-red-400"
+                              : "border-gray-300 focus:ring-button"
+                          }`}
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                          disabled={loading}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute inset-y-0 right-3 flex items-center text-gray-500"
+                          disabled={loading}
+                        >
+                          {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
+                      {errors.confirmPassword && (
+                        <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className={`w-full py-3 bg-button text-white font-semibold rounded-lg transition ${
+                        loading ? "opacity-70 cursor-not-allowed" : "hover:bg-opacity-90"
+                      }`}
+                    >
+                      {loading ? "Creating Account..." : "Sign Up"}
+                    </button>
+                  </form>
+
+                  <div className="mt-6 text-center text-sm text-gray-600">
+                    <p>
+                      By signing up, you agree to our{" "}
+                      <Link href="/privacyandpolicy" className="text-button underline">
+                        Terms & Privacy Policy
+                      </Link>
+                    </p>
+                    <p className="mt-2">
+                      Already have an account?{" "}
+                      <Link href="/login" className="text-button font-medium underline">
+                        Log in
+                      </Link>
+                    </p>
+                  </div>
+                </>
               )}
-
-              <form className="space-y-5" onSubmit={handleSubmit}>
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    name="name"
-                    placeholder="John Doe"
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errors.name
-                        ? "border-red-500 focus:ring-red-400"
-                        : "border-gray-300 focus:ring-button"
-                    }`}
-                    value={formData.name}
-                    onChange={handleChange}
-                    disabled={loading}
-                  />
-                  {errors.name && (
-                    <p className="text-red-500 text-sm mt-1">{errors.name}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    name="email"
-                    placeholder="john@example.com"
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errors.email
-                        ? "border-red-500 focus:ring-red-400"
-                        : "border-gray-300 focus:ring-button"
-                    }`}
-                    value={formData.email}
-                    onChange={handleChange}
-                    disabled={loading}
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      placeholder="••••••••"
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                        errors.password
-                          ? "border-red-500 focus:ring-red-400"
-                          : "border-gray-300 focus:ring-button"
-                      }`}
-                      value={formData.password}
-                      onChange={handleChange}
-                      disabled={loading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-3 flex items-center text-gray-500"
-                      disabled={loading}
-                    >
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-                  {errors.password && (
-                    <p className="text-red-500 text-sm mt-1">{errors.password}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      placeholder="••••••••"
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                        errors.confirmPassword
-                          ? "border-red-500 focus:ring-red-400"
-                          : "border-gray-300 focus:ring-button"
-                      }`}
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      disabled={loading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-3 flex items-center text-gray-500"
-                      disabled={loading}
-                    >
-                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-                  {errors.confirmPassword && (
-                    <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`w-full py-3 bg-button text-white font-semibold rounded-lg transition ${
-                    loading ? "opacity-70 cursor-not-allowed" : "hover:bg-opacity-90"
-                  }`}
-                >
-                  {loading ? "Creating Account..." : "Sign Up"}
-                </button>
-              </form>
-
-              <div className="mt-6 text-center text-sm text-gray-600">
-                <p>
-                  By signing up, you agree to our{" "}
-                  <Link href="/privacyandpolicy" className="text-button underline">
-                    Terms & Privacy Policy
-                  </Link>
-                </p>
-                <p className="mt-2">
-                  Already have an account?{" "}
-                  <Link href="/login" className="text-button font-medium underline">
-                    Log in
-                  </Link>
-                </p>
-              </div>
             </div>
 
             {/* Illustration Section */}
