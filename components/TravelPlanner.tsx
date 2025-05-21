@@ -18,13 +18,13 @@ interface Question {
     order: number;
     createdAt: string;
     __v: number;
-  };
+  } | null;
   status: string;
   order: number;
   createdAt: string;
   updatedAt: string;
   __v: number;
-  type?: 'text' | 'options' | 'number' | 'date';
+  type: 'text' | 'options' | 'number' | 'date' | 'common';
   options?: string[];
 }
 
@@ -32,7 +32,7 @@ interface ChatMessage {
   sender: 'bot' | 'user';
   text: string;
   options?: string[];
-  type?: 'text' | 'options' | 'number' | 'date';
+  type?: 'text' | 'options' | 'number' | 'date' | 'common';
   isError?: boolean;
 }
 
@@ -87,46 +87,6 @@ const apiService = {
     
     if (!result.success || !result.data) {
       throw new Error(result.message || 'Failed to fetch questions');
-    }
-    
-    // Return default questions if none available
-    if (result.data.length === 0) {
-      return [
-        {
-          _id: 'default-1',
-          questionText: 'What type of experience are you looking for? (e.g., adventure, relaxation, cultural)',
-          cityId: { _id: cityId, cityName: '', order: 0, createdAt: '', __v: 0 },
-          status: 'active',
-          order: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          __v: 0,
-          type: 'text'
-        },
-        {
-          _id: 'default-2',
-          questionText: 'What is your budget range?',
-          cityId: { _id: cityId, cityName: '', order: 0, createdAt: '', __v: 0 },
-          status: 'active',
-          order: 2,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          __v: 0,
-          type: 'options',
-          options: ['Budget', 'Mid-range', 'Luxury']
-        },
-        {
-          _id: 'default-3',
-          questionText: 'How many days are you planning to stay?',
-          cityId: { _id: cityId, cityName: '', order: 0, createdAt: '', __v: 0 },
-          status: 'active',
-          order: 3,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          __v: 0,
-          type: 'number'
-        }
-      ];
     }
     
     return result.data
@@ -205,12 +165,11 @@ const AIRecommendation = ({ city }: { city?: string }) => {
   const [planId, setPlanId] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Add message with error handling
   const addMessage = (message: ChatMessage) => {
+    console.log('Adding message:', message); // Debug: Log message content
     setMessages(prev => [...prev, message]);
   };
 
-  // Add error message
   const addErrorMessage = (text: string) => {
     addMessage({
       sender: 'bot',
@@ -219,39 +178,61 @@ const AIRecommendation = ({ city }: { city?: string }) => {
     });
   };
 
-  // Initialize chat
+  const resetChat = () => {
+    setMessages([]);
+    setCurrentStep(0);
+    setUserResponses([]);
+    setUserInput('');
+    setQuestions([]);
+    setError(null);
+    setPlanId(null);
+    setCreditRequestStatus('idle');
+  };
+
   useEffect(() => {
     const initChat = async () => {
       try {
         setIsLoading(true);
         
+        const citiesData = await apiService.getCities();
+        console.log('Loaded cities:', citiesData);
+        if (!citiesData.length) {
+          addErrorMessage('No cities are available. Please contact support.');
+          setError('No cities available');
+          return;
+        }
+        setCities(citiesData);
+        
         if (!city) {
-          const citiesData = await apiService.getCities();
-          setCities(citiesData);
-          
-          if (citiesData.length > 0) {
+          addMessage({
+            sender: 'bot',
+            text: `Please select a city to start planning your trip. Available cities: ${citiesData.map(c => c.cityName).join(', ')}.`,
+            type: 'options',
+            options: citiesData.map(c => c.cityName),
+          });
+        } else {
+          const selectedCity = citiesData.find(c => c.cityName.toLowerCase() === city.toLowerCase());
+          if (!selectedCity) {
+            addErrorMessage(`City "${city}" is not available. Available cities: ${citiesData.map(c => c.cityName).join(', ')}.`);
             addMessage({
               sender: 'bot',
-              text: 'Please select a city to start planning your trip.',
+              text: `Please select a valid city. Available cities: ${citiesData.map(c => c.cityName).join(', ')}.`,
               type: 'options',
               options: citiesData.map(c => c.cityName),
             });
-          } else {
-            addErrorMessage('No cities available. Please try again later.');
+            return;
           }
-        } else {
-          // Handle pre-selected city
           setUserResponses([{
             questionId: 'initial-city-selection',
-            response: city
+            response: selectedCity.cityName
           }]);
+          setCurrentStep(0);
         }
       } catch (err) {
         const error = err as ApiError;
         const errorMessage = error.status === 401 
           ? 'Your session has expired. Please log in again.'
-          : error.message || 'Failed to initialize chat.';
-          
+          : `Failed to load cities: ${error.message || 'Unknown error'}.`;
         addErrorMessage(errorMessage);
         setError(errorMessage);
       } finally {
@@ -262,10 +243,9 @@ const AIRecommendation = ({ city }: { city?: string }) => {
     initChat();
   }, [city]);
 
-  // Handle questions loading when city is selected
   useEffect(() => {
     const loadQuestions = async () => {
-      if ((city || currentStep > 0) && questions.length === 0) {
+      if ((city || userResponses.some(res => res.questionId === 'initial-city-selection')) && questions.length === 0) {
         try {
           setIsLoading(true);
           const cityResponse = city 
@@ -276,31 +256,44 @@ const AIRecommendation = ({ city }: { city?: string }) => {
 
           const selectedCity = cities.find(c => c.cityName.toLowerCase() === cityResponse.response.toLowerCase());
           const cityId = selectedCity?._id || (await apiService.getCities())
-            .find(c => c.cityName.toLowerCase() === city?.toLowerCase())?._id;
+            .find(c => c.cityName.toLowerCase() === cityResponse.response.toLowerCase())?._id;
             
-          if (!cityId) throw new Error('City not found');
+          if (!cityId) throw new Error(`City "${cityResponse.response}" not found`);
 
           const questionsData = await apiService.getQuestionsByCity(cityId);
-          if (questionsData.some(q => q._id.startsWith('default'))) {
+          console.log('Loaded questions:', questionsData);
+          if (questionsData.some(q => !q.cityId)) {
             addMessage({
               sender: 'bot',
-              text: 'No specific questions available for this city. Let’s gather some basic preferences to plan your trip!',
+              text: 'Using common questions to plan your trip, as no specific questions are available for this city.',
             });
           }
           setQuestions(questionsData);
+          setCurrentStep(0);
 
-          // Always ask the first question (default or otherwise)
           if (questionsData.length > 0) {
             const firstQuestion = questionsData[0];
+            console.log('Displaying first question:', {
+              _id: firstQuestion._id,
+              questionText: firstQuestion.questionText,
+              type: firstQuestion.type,
+              options: firstQuestion.options
+            });
+            if (firstQuestion.type === 'options' || firstQuestion.type === 'common') {
+              if (!firstQuestion.options || !firstQuestion.options.length) {
+                addErrorMessage(`No options available for question: "${firstQuestion.questionText}". Proceeding with default itinerary.`);
+                generateItinerary();
+                return;
+              }
+            }
             addMessage({
               sender: 'bot',
               text: firstQuestion.questionText,
-              type: firstQuestion.type || 'text',
-              options: firstQuestion.options,
+              type: firstQuestion.type === 'common' ? 'options' : firstQuestion.type,
+              options: firstQuestion.options || [],
             });
           } else {
-            // This should never happen due to default questions, but handle gracefully
-            addErrorMessage('No questions available for this city. Generating a basic itinerary...');
+            addErrorMessage('No questions available. Generating a basic itinerary...');
             generateItinerary();
           }
         } catch (err) {
@@ -308,7 +301,6 @@ const AIRecommendation = ({ city }: { city?: string }) => {
           const errorMessage = error.message || 'Failed to load questions.';
           addErrorMessage(errorMessage);
           setError(errorMessage);
-          // Try to generate itinerary anyway with basic info
           generateItinerary();
         } finally {
           setIsLoading(false);
@@ -317,27 +309,26 @@ const AIRecommendation = ({ city }: { city?: string }) => {
     };
 
     loadQuestions();
-  }, [userResponses, cities, currentStep, city, questions.length]);
+  }, [city, userResponses, cities, questions.length]);
 
-  // Handle sending messages
   const handleSendMessage = async () => {
     if (!userInput.trim() || isLoading) return;
 
-    // Add user message
     addMessage({ sender: 'user', text: userInput });
     setUserInput('');
 
     try {
       setIsLoading(true);
       
-      if (!city && currentStep === 0 && messages[0]?.text === 'Please select a city to start planning your trip.') {
-        // Handle city selection
-        const selectedCity = cities.find(c => c.cityName.toLowerCase() === userInput.toLowerCase());
+      if (!city && currentStep === 0 && messages[0]?.text.includes('Please select a city to start planning your trip')) {
+        const normalizedInput = userInput.trim().toLowerCase();
+        console.log('City selection:', { userInput, normalizedInput, cities });
+        const selectedCity = cities.find(c => c.cityName.toLowerCase() === normalizedInput);
         if (!selectedCity) {
-          addErrorMessage('Please select a valid city from the options provided.');
+          addErrorMessage(`"${userInput}" is not a valid city. Available cities: ${cities.map(c => c.cityName).join(', ')}.`);
           addMessage({
             sender: 'bot',
-            text: 'Please select a city to start planning your trip.',
+            text: `Please select a valid city. Available cities: ${cities.map(c => c.cityName).join(', ')}.`,
             type: 'options',
             options: cities.map(c => c.cityName),
           });
@@ -345,49 +336,103 @@ const AIRecommendation = ({ city }: { city?: string }) => {
         }
 
         setUserResponses([{ questionId: 'initial-city-selection', response: selectedCity.cityName }]);
-        setCurrentStep(1);
-      } else if (currentStep < questions.length) {
-        // Handle question responses
+        setCurrentStep(0);
+        return;
+      }
+
+      if (currentStep < questions.length) {
         const currentQuestion = questions[currentStep];
+        if (!currentQuestion) {
+          throw new Error('No question available at current step.');
+        }
+        console.log('Validating question:', { 
+          currentStep, 
+          questionId: currentQuestion._id, 
+          questionText: currentQuestion.questionText,
+          type: currentQuestion.type,
+          options: currentQuestion.options
+        });
         
-        // Validate options if question has them
-        if (currentQuestion.type === 'options' && currentQuestion.options && 
-            !currentQuestion.options.includes(userInput)) {
-          addErrorMessage('Please select a valid option.');
+        const effectiveType = currentQuestion.type === 'common' ? 'options' : currentQuestion.type;
+        
+        if (effectiveType === 'options' && currentQuestion.options) {
+          const normalizedInput = userInput.trim().toLowerCase();
+          const normalizedOptions = currentQuestion.options.map(opt => opt.trim().toLowerCase());
+          
+          console.log('Validation details:', {
+            userInput,
+            normalizedInput,
+            currentQuestionOptions: currentQuestion.options,
+            normalizedOptions,
+            isValidOption: normalizedOptions.includes(normalizedInput)
+          });
+          
+          if (!normalizedOptions.includes(normalizedInput)) {
+            addErrorMessage('Please select a valid option from the provided choices.');
+            addMessage({
+              sender: 'bot',
+              text: currentQuestion.questionText,
+              type: effectiveType,
+              options: currentQuestion.options,
+            });
+            return;
+          }
+        } else if (effectiveType === 'number' && isNaN(Number(userInput))) {
+          addErrorMessage('Please enter a valid number.');
           addMessage({
             sender: 'bot',
             text: currentQuestion.questionText,
-            type: currentQuestion.type,
-            options: currentQuestion.options,
+            type: effectiveType,
+          });
+          return;
+        } else if (effectiveType === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(userInput)) {
+          addErrorMessage('Please enter a valid date in YYYY-MM-DD format.');
+          addMessage({
+            sender: 'bot',
+            text: currentQuestion.questionText,
+            type: effectiveType,
           });
           return;
         }
 
-        // Save response
         setUserResponses(prev => [
           ...prev,
           { questionId: currentQuestion._id, response: userInput }
         ]);
 
-        // Move to next question or generate itinerary
         if (currentStep + 1 < questions.length) {
           const nextQuestion = questions[currentStep + 1];
+          console.log('Displaying next question:', {
+            _id: nextQuestion._id,
+            questionText: nextQuestion.questionText,
+            type: nextQuestion.type,
+            options: nextQuestion.options
+          });
+          if (nextQuestion.type === 'options' || nextQuestion.type === 'common') {
+            if (!nextQuestion.options || !nextQuestion.options.length) {
+              addErrorMessage(`No options available for question: "${nextQuestion.questionText}". Proceeding with default itinerary.`);
+              generateItinerary();
+              return;
+            }
+          }
           addMessage({
             sender: 'bot',
             text: nextQuestion.questionText,
-            type: nextQuestion.type,
-            options: nextQuestion.options,
+            type: nextQuestion.type === 'common' ? 'options' : nextQuestion.type,
+            options: nextQuestion.options || [],
           });
           setCurrentStep(currentStep + 1);
         } else {
           await generateItinerary();
         }
       } else {
-        // Handle additional user input after questions are complete
         addMessage({
           sender: 'bot',
-          text: 'All questions have been answered. Would you like to generate a new itinerary or modify your preferences?',
+          text: 'You’ve answered all questions. Would you like to generate a new itinerary or modify your preferences?',
+          type: 'options',
+          options: ['Generate New Itinerary', 'Modify Preferences'],
         });
+        setCurrentStep(questions.length);
       }
     } catch (err) {
       const error = err as Error;
@@ -397,7 +442,6 @@ const AIRecommendation = ({ city }: { city?: string }) => {
     }
   };
 
-  // Generate itinerary
   const generateItinerary = async () => {
     try {
       setIsLoading(true);
@@ -421,7 +465,6 @@ const AIRecommendation = ({ city }: { city?: string }) => {
 
       setPlanId(generatedPlanId);
       
-      // Format itinerary with disclaimer if minimal input
       const isMinimalInput = questions.length === 0 || userResponses.length <= 1;
       const disclaimer = isMinimalInput 
         ? "\n\nNote: This itinerary is based on limited preferences. For a more tailored plan, please provide additional details or contact support."
@@ -454,7 +497,6 @@ const AIRecommendation = ({ city }: { city?: string }) => {
     }
   };
 
-  // Handle credit request
   const handleRequestCredits = async () => {
     try {
       setCreditRequestStatus('requesting');
@@ -472,13 +514,30 @@ const AIRecommendation = ({ city }: { city?: string }) => {
     }
   };
 
-  // Handle option selection
   const handleOptionSelect = (option: string) => {
+    console.log('Option selected:', option); // Debug: Log selected option
     setUserInput(option);
     handleSendMessage();
   };
 
-  // Auto-scroll to bottom
+  const handlePostItineraryAction = (option: string) => {
+    if (option === 'Generate New Itinerary') {
+      generateItinerary();
+    } else if (option === 'Modify Preferences') {
+      resetChat();
+      if (city) {
+        setUserResponses([{ questionId: 'initial-city-selection', response: city }]);
+      } else {
+        addMessage({
+          sender: 'bot',
+          text: `Please select a city to start planning your trip. Available cities: ${cities.map(c => c.cityName).join(', ')}.`,
+          type: 'options',
+          options: cities.map(c => c.cityName),
+        });
+      }
+    }
+  };
+
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -487,7 +546,7 @@ const AIRecommendation = ({ city }: { city?: string }) => {
 
   return (
     <div className="max-w-full mx-auto p-4">
-      <div className="flex items-center justify-center mb-6 ">
+      <div className="flex items-center justify-center mb-6">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 640 512"
@@ -499,8 +558,8 @@ const AIRecommendation = ({ city }: { city?: string }) => {
         <h1 className="text-3xl font-bold text-button">TripPlanner AI</h1>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 ">
-        <div className="bg-primary px-6 W py-4 flex items-center">
+      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+        <div className="bg-primary px-6 py-4 flex items-center">
           <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mr-3">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -544,18 +603,25 @@ const AIRecommendation = ({ city }: { city?: string }) => {
                 }`}
               >
                 <p className="whitespace-pre-wrap">{message.text}</p>
-                {message.options && message.type === 'options' && (
+                {message.options && (message.type === 'options' || message.type === 'common') && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {message.options.map((option) => (
                       <button
                         key={option}
-                        onClick={() => handleOptionSelect(option)}
+                        onClick={() => {
+                          if (message.text.includes('Would you like to generate')) {
+                            handlePostItineraryAction(option);
+                          } else {
+                            handleOptionSelect(option);
+                          }
+                        }}
                         disabled={isLoading}
                         className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
                           userInput === option
                             ? 'bg-primary text-white'
-                            : 'bg-white text-green border border-green-200 hover:bg-green-50'
+                            : 'bg-white text-green-600 border border-green-200 hover:bg-green-50'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        aria-label={`Select ${option}`}
                       >
                         {option}
                       </button>
@@ -570,7 +636,7 @@ const AIRecommendation = ({ city }: { city?: string }) => {
             <div className="flex justify-start">
               <div className="bg-white text-gray-800 rounded-lg px-4 py-3 border border-gray-200 shadow-sm flex items-center">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600 mr-3"></div>
-                <span className="text-gray-600">Creating your perfect itinerary...</span>
+                <span className="text-gray-600">Processing your request...</span>
               </div>
             </div>
           )}
@@ -599,6 +665,7 @@ const AIRecommendation = ({ city }: { city?: string }) => {
                       onClick={handleRequestCredits}
                       disabled={isLoading}
                       className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center disabled:opacity-50"
+                      aria-label="Request credits"
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -646,18 +713,26 @@ const AIRecommendation = ({ city }: { city?: string }) => {
           {(!questions.length || currentStep < questions.length) && !isLoading && (
             <div className="flex gap-3">
               <input
-                type="text"
+                type={questions[currentStep]?.type === 'date' ? 'date' : 'text'}
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
-                placeholder="Type your response..."
+                placeholder={
+                  questions[currentStep]?.type === 'options' || questions[currentStep]?.type === 'common' 
+                    ? 'Select an option above or type here' :
+                  questions[currentStep]?.type === 'date' ? 'Enter date (YYYY-MM-DD)' :
+                  questions[currentStep]?.type === 'number' ? 'Enter a number' :
+                  'Type your response...'
+                }
                 className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent shadow-sm"
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 disabled={isLoading}
+                aria-label="Enter your response"
               />
               <button
                 onClick={handleSendMessage}
                 disabled={!userInput.trim() || isLoading}
                 className="bg-primary hover:bg-opacity-90 text-white px-5 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center"
+                aria-label="Send response"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -686,7 +761,7 @@ const AIRecommendation = ({ city }: { city?: string }) => {
               >
                 <path
                   fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2 fondh-1V9z"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z"
                   clipRule="evenodd"
                 />
               </svg>
@@ -697,6 +772,13 @@ const AIRecommendation = ({ city }: { city?: string }) => {
                 <p className="text-xs text-green-600 mt-1">
                   Save this ID to retrieve your travel plan later.
                 </p>
+                <button
+                  onClick={resetChat}
+                  className="mt-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 transition"
+                  aria-label="Start a new trip plan"
+                >
+                  Start New Plan
+                </button>
               </div>
             </div>
           )}

@@ -1,3 +1,5 @@
+
+// Updated apiService to include getCityDetails
 export interface Language {
   _id: string;
   name: string;
@@ -9,8 +11,8 @@ export interface Language {
 
 export interface Country {
   _id: string;
-  name: string;
-  code: string;
+  countryName: string;
+  order?: number;
   createdAt?: string;
   updatedAt?: string;
   __v?: number;
@@ -18,8 +20,8 @@ export interface Country {
 
 export interface State {
   _id: string;
-  name: string;
-  countryId: string;
+  stateName: string;
+  order?: number;
   createdAt?: string;
   updatedAt?: string;
   __v?: number;
@@ -27,9 +29,13 @@ export interface State {
 
 export interface City {
   _id: string;
-  name: string;
-  stateId: string;
-  countryId: string;
+  cityName: string;
+  order?: number;
+  latitude?: number;
+  longitude?: number;
+  country?: string;
+  population?: number;
+  description?: string;
   createdAt?: string;
   updatedAt?: string;
   __v?: number;
@@ -37,8 +43,12 @@ export interface City {
 
 export interface Question {
   _id: string;
-  text: string;
-  cityId: string;
+  questionText: string;
+  cityId: string | { _id: string; cityName: string };
+  type: 'specific' | 'common';
+  options?: string[];
+  status: 'active' | 'inactive';
+  order: number;
   createdAt?: string;
   updatedAt?: string;
   __v?: number;
@@ -121,7 +131,7 @@ export const apiService = {
     return handleResponse<Country[]>(response);
   },
 
-  createCountry: async (data: Omit<Country, '_id' | 'createdAt' | '__v'>): Promise<Country> => {
+  createCountry: async (data: Omit<Country, '_id' | 'createdAt' | 'updatedAt' | '__v'>): Promise<Country> => {
     const response = await fetch(`${API_BASE_URL}/predefine/countries`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -151,7 +161,7 @@ export const apiService = {
     return handleResponse<State[]>(response);
   },
 
-  createState: async (data: Omit<State, '_id' | 'createdAt' | '__v'>): Promise<State> => {
+  createState: async (data: Omit<State, '_id' | 'createdAt' | 'updatedAt' | '__v'>): Promise<State> => {
     const response = await fetch(`${API_BASE_URL}/predefine/states`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -182,13 +192,14 @@ export const apiService = {
     return result.data;
   },
 
-  createCity: async (data: Omit<City, '_id' | 'createdAt' | '__v'>): Promise<City> => {
+  createCity: async (data: Omit<City, '_id' | 'createdAt' | 'updatedAt' | '__v'>): Promise<City> => {
     const response = await fetch(`${API_BASE_URL}/predefine/cities`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return handleResponse<City>(response);
+    const result = await handleResponse<{ success: boolean; data: City }>(response);
+    return result.data;
   },
 
   updateCity: async (id: string, data: Partial<City>): Promise<City> => {
@@ -197,19 +208,32 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return handleResponse<City>(response);
+    const result = await handleResponse<{ success: boolean; data: City }>(response);
+    return result.data;
   },
 
   deleteCity: async (id: string): Promise<{ message: string }> => {
     const response = await fetch(`${API_BASE_URL}/predefine/cities/${id}`, {
       method: 'DELETE',
     });
-    return handleResponse<{ message: string }>(response);
+    const result = await handleResponse<{ success: boolean; message: string }>(response);
+    return { message: result.message };
+  },
+
+  // New method to fetch city details and items
+  getCityDetails: async (cityName: string): Promise<{ cityDetails: CityProfile; items: Item[] }> => {
+    const response = await fetch(`${API_BASE_URL}/attractions?cityName=${encodeURIComponent(cityName)}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+    const result = await handleResponse<{ cityDetails: CityProfile; items: Item[] }>(response);
+    return result;
   },
 
   getQuestions: async (): Promise<Question[]> => {
     const response = await fetch(`${API_BASE_URL}/predefine/questions`);
-    const result = await handleResponse<ApiResponse<Question[]>>(response);
+    const result = await handleResponse<{ success: boolean; data: Question[] }>(response);
     if (!result.success || !result.data) {
       throw new Error(result.message || 'Failed to fetch questions');
     }
@@ -218,7 +242,7 @@ export const apiService = {
 
   getQuestionsByCity: async (cityId: string): Promise<Question[]> => {
     const response = await fetch(`${API_BASE_URL}/predefine/questions/city/${cityId}`);
-    const result = await handleResponse<ApiResponse<Question[]>>(response);
+    const result = await handleResponse<{ success: boolean; data: Question[] }>(response);
     if (!result.success || !result.data) {
       throw new Error(result.message || 'Failed to fetch questions');
     }
@@ -231,7 +255,8 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return handleResponse<Question>(response);
+    const result = await handleResponse<{ success: boolean; data: Question }>(response);
+    return result.data;
   },
 
   updateQuestion: async (id: string, data: Partial<Question>): Promise<Question> => {
@@ -240,14 +265,16 @@ export const apiService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return handleResponse<Question>(response);
+    const result = await handleResponse<{ success: boolean; data: Question }>(response);
+    return result.data;
   },
 
   deleteQuestion: async (id: string): Promise<{ message: string }> => {
     const response = await fetch(`${API_BASE_URL}/predefine/questions/${id}`, {
       method: 'DELETE',
     });
-    return handleResponse<{ message: string }>(response);
+    const result = await handleResponse<{ success: boolean; message: string }>(response);
+    return { message: result.message };
   },
 
   getActivities: async (): Promise<Activity[]> => {
