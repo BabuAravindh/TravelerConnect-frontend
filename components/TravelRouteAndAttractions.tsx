@@ -1,6 +1,6 @@
 "use client";
 
-import { Bus, Train, Plane, Ship, Bike, Car, Star, MapPin, Clock, ChevronRight,Calendar,Compass,Utensils } from 'lucide-react';
+import { Bus, Train, Plane, Ship, Bike, Car, Star, MapPin, Clock, ChevronRight, Calendar, Compass, Utensils, Users, Briefcase, Paintbrush, Building2 } from 'lucide-react';
 import { useState, useEffect, JSX } from 'react';
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
@@ -36,6 +36,50 @@ type Item = {
   cacheKey?: string;
 };
 
+type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
+type PoliticalContext = {
+  MP: {
+    name: string;
+    constituency: string;
+    party: string;
+  };
+  MLA: {
+    name: string;
+    constituency: string;
+    party: string;
+  }[];
+};
+
+type Personality = {
+  name: string;
+  description: string;
+};
+
+type PopularFor = {
+  business: string;
+  craft: string;
+  events: string;
+};
+
+type CityDetails = {
+  city: string;
+  latitude?: number;
+  longitude?: number;
+  country?: string;
+  population?: number;
+  description?: string;
+  cityMap?: string;
+  capital?: string;
+  politicalContext?: PoliticalContext;
+  historicalImportance?: string;
+  topPersonalities?: Personality[];
+  popularFor?: PopularFor;
+};
+
 interface TravelRoutesAndAttractionsProps {
   selectedCity: string;
   searchTerm?: string;
@@ -55,6 +99,7 @@ const transportIcons: Record<string, JSX.Element> = {
 export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }: TravelRoutesAndAttractionsProps) {
   const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
+  const [cityDetails, setCityDetails] = useState<CityDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'attractions' | 'routes'>('attractions');
@@ -107,12 +152,13 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
         }
       }
 
-      const data: Item[] = await response.json();
-      if (!Array.isArray(data)) {
-        throw new Error("Received invalid items data from the server. Please try again.");
+      const data = await response.json();
+      if (!data.cityDetails || !Array.isArray(data.items)) {
+        throw new Error("Received invalid data from the server. Please try again.");
       }
 
-      return data;
+      setCityDetails(data.cityDetails);
+      return data.items;
     } catch (err) {
       return err instanceof Error ? err.message : 'An unknown error occurred while fetching items.';
     }
@@ -183,6 +229,7 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+      setCityDetails(null);
 
       const [itemsResult, routesResult] = await Promise.all([fetchCityItems(), fetchRoutes()]);
 
@@ -304,8 +351,183 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
   // Separate routes
   const routes = filteredItems.filter((item) => item.type === 'travelRoutes');
 
+  const renderCityOverview = () => (
+    <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+      <div className="p-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">
+          About {selectedCity}
+        </h2>
+        {cityDetails ? (
+          <div className="space-y-4">
+            {cityDetails.description && (
+              <p className="text-gray-600 leading-relaxed">
+                {cityDetails.description}
+              </p>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center">
+                <MapPin size={20} className="text-primary mr-2" />
+                <span className="text-gray-700">
+                  Capital: {cityDetails.capital || 'N/A'}
+                </span>
+              </div>
+              <div className="flex items-center">
+                <Users size={20} className="text-primary mr-2" />
+                <span className="text-gray-700">
+                  Population: {cityDetails.population?.toLocaleString() || 'N/A'}
+                </span>
+              </div>
+              {cityDetails.cityMap && (
+                <div className="flex items-center">
+                  <MapPin size={20} className="text-primary mr-2" />
+                  <a
+                    href={cityDetails.cityMap}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    View City Map
+                  </a>
+                </div>
+              )}
+            </div>
+            {cityDetails.historicalImportance && (
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">Historical Importance</h3>
+                <p className="text-gray-600 leading-relaxed">
+                  {cityDetails.historicalImportance}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-gray-500">No overview available for this city.</p>
+        )}
+      </div>
+    </section>
+  );
+
+  const renderFamousPersonalities = () => (
+    <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+      <div className="p-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+          Famous Personalities from {selectedCity}
+        </h2>
+        {cityDetails?.topPersonalities && cityDetails.topPersonalities.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {cityDetails.topPersonalities.map((personality, index) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users size={24} className="text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">{personality.name}</h3>
+                    <p className="text-sm text-gray-600">{personality.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-gray-50 text-gray-600 p-8 rounded-lg text-center border border-gray-200">
+            <Users size={48} className="mx-auto text-gray-400 mb-4" />
+            <p>No famous personalities listed for this city yet.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  const renderPoliticalContext = () => (
+    <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+      <div className="p-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+          Political Leadership in {selectedCity}
+        </h2>
+        {cityDetails?.politicalContext ? (
+          <div className="space-y-6">
+            {cityDetails.politicalContext.MP && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">Member of Parliament (MP)</h3>
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <p className="text-gray-800 font-medium">{cityDetails.politicalContext.MP.name}</p>
+                  <p className="text-gray-600 text-sm">Constituency: {cityDetails.politicalContext.MP.constituency}</p>
+                  <p className="text-gray-600 text-sm">Party: {cityDetails.politicalContext.MP.party}</p>
+                </div>
+              </div>
+            )}
+            {cityDetails.politicalContext.MLA && cityDetails.politicalContext.MLA.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">Members of Legislative Assembly (MLA)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {cityDetails.politicalContext.MLA.map((mla, index) => (
+                    <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <p className="text-gray-800 font-medium">{mla.name}</p>
+                      <p className="text-gray-600 text-sm">Constituency: {mla.constituency}</p>
+                      <p className="text-gray-600 text-sm">Party: {mla.party}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-gray-50 text-gray-600 p-8 rounded-lg text-center border border-gray-200">
+            <Building2 size={48} className="mx-auto text-gray-400 mb-4" />
+            <p>No political information available for this city yet.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  const renderWhatKnownFor = () => (
+    <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+      <div className="p-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+          What {selectedCity} is Known For
+        </h2>
+        {cityDetails?.popularFor ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center gap-3 mb-2">
+                <Briefcase size={24} className="text-primary" />
+                <h3 className="text-lg font-semibold text-gray-700">Business</h3>
+              </div>
+              <p className="text-gray-600 text-sm">{cityDetails.popularFor.business}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center gap-3 mb-2">
+                <Paintbrush size={24} className="text-primary" />
+                <h3 className="text-lg font-semibold text-gray-700">Craft</h3>
+              </div>
+              <p className="text-gray-600 text-sm">{cityDetails.popularFor.craft}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center gap-3 mb-2">
+                <Calendar size={24} className="text-primary" />
+                <h3 className="text-lg font-semibold text-gray-700">Events</h3>
+              </div>
+              <p className="text-gray-600 text-sm">{cityDetails.popularFor.events}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gray-50 text-gray-600 p-8 rounded-lg text-center border border-gray-200">
+            <p>No information available about what this city is known for.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
   const renderAttractionsTab = () => (
     <div className="space-y-8">
+      {renderCityOverview()}
+      {renderWhatKnownFor()}
+      {renderFamousPersonalities()}
+      {renderPoliticalContext()}
+
       {/* Attractions Section */}
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6">
@@ -433,7 +655,7 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
                             <Clock size={14} className="mr-1" />
                             <span>Upcoming event</span>
                           </div>
-                          <p className="text-gray-500 text-sm line-clamp-2 mb-3">
+                          <p className="text-gray-600 text-sm line-clamp-2 mb-3">
                             {item.description || 'No description available.'}
                           </p>
                         </div>
