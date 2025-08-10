@@ -176,9 +176,9 @@ const BecomeAGuide = () => {
         formDataToSend.append("aadharCardPhoto", formData.aadharCardPhoto);
       }
 
-      console.log("FormData contents:");
+      ("FormData contents:");
       for (const [key, value] of formDataToSend.entries()) {
-        console.log(`${key}: ${value}`);
+        (`${key}: ${value}`);
       }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/become-guide`, {

@@ -59,7 +59,7 @@ const ChatMessageArea = ({ guideId }: { guideId: string }) => {
       try {
         const res = await fetchWithAuth(`${API_BASE_URL}/api/chats/${conversationId}`);
         const data = await res.json();
-        console.log("messages:",data)
+        ("messages:",data)
         setMessages(data);
       } catch (error) {
         console.error("❌ Error fetching messages:", error);
@@ -125,7 +125,7 @@ const ChatMessageArea = ({ guideId }: { guideId: string }) => {
       });
   
       const response = await res.json();
-      console.log(response)
+      (response)
       if (!res.ok) {
         console.error("❌ Message sending failed:", response);
         return;

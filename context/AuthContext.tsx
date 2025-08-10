@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const decoded: DecodedToken = jwtDecode(token);
-        console.log("✅ Decoded Token:", decoded);
+        ("✅ Decoded Token:", decoded);
 
         if (decoded.exp * 1000 < Date.now()) {
           console.warn("⚠ Token expired, clearing localStorage");

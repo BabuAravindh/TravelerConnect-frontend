@@ -5,6 +5,17 @@ import Image from "next/image";
 import { TypeAnimation } from "react-type-animation";
 import Navbar from "@/components/Navbar";
 import { Search } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface HeroSectionProps {
   city: string;
@@ -65,7 +76,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         // Fetch cities with guides
         const citiesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/guide/cities_with_guides`);
         const citiesData = await citiesRes.json();
-        console.log(citiesData)
         setCitiesWithGuides(citiesData);
         setFilteredCities(citiesData);
 
@@ -106,8 +116,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
       setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
     }, 3000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [images.length]);
 
   // Get city names for the TypeAnimation (only cities with guides)
   const citiesWithGuidesNames = citiesWithGuides
@@ -117,13 +126,13 @@ const HeroSection: React.FC<HeroSectionProps> = ({
   return (
     <>
       <Navbar />
-      <div className="hero bg-[#6899ab] pt-20 pb-16">
+      <div className="hero bg-primary pt-20 pb-16">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col-reverse lg:flex-row items-center justify-between">
+          <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-8">
             <div className="lg:w-7/12 mt-28 text-center lg:text-left">
-              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-5 lg:relative lg:top-40 lg:left-64">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-5 lg:relative lg:top-40 lg:left-64 text-white">
                 Let&apos;s Enjoy Your <br /> Trip In{" "}
-                <span className="text-white underline">
+                <span className="text-secondary underline">
                   {citiesWithGuidesNames.length > 0 ? (
                     <TypeAnimation
                       sequence={citiesWithGuidesNames.flatMap((city) => [city, 2000])}
@@ -137,111 +146,137 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                 </span>
               </h1>
 
-              <form
-                className="form bg-white p-5 rounded-lg shadow-lg mb-10 z-20 w-full max-w-xl flex flex-col gap-6 mx-auto lg:relative lg:left-52 lg:top-40 lg:max-w-6xl"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  onSearch();
-                }}
-              >
-                {/* City search input */}
-                <div className="relative">
-                  <div className="flex items-center border border-gray-300 rounded">
-                    <input
-                      type="text"
-                      className="form-control flex-1 p-2 text-black rounded"
-                      placeholder="Search for a city..."
-                      value={citySearchTerm}
-                      onChange={(e) => setCitySearchTerm(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="px-4 py-2 bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      onClick={() => setCitySearchTerm("")}
-                    >
-                      <Search size={18} />
-                    </button>
-                  </div>
-                  {citySearchTerm && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto">
-                      {filteredCities.length > 0 ? (
-                        filteredCities.map((cityOption) => (
-                          <div
-                            key={cityOption.cityName}
-                            className="p-2 hover:bg-gray-100 cursor-pointer"
-                            onClick={() => {
-                              setCity(cityOption.cityName);
-                              setCitySearchTerm(cityOption.cityName);
-                            }}
-                          >
-                            {cityOption.cityName} {cityOption.guideCount > 0 && `(${cityOption.guideCount})`}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-2 text-gray-500">No cities found</div>
-                      )}
+              <Card className="p-6 shadow-lg mb-10 z-20 w-full max-w-xl mx-auto lg:relative lg:left-52 lg:top-40 lg:max-w-6xl">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onSearch();
+                  }}
+                  className="flex flex-col gap-6"
+                >
+                  {/* City search input */}
+                  <div className="relative">
+                    <div className="flex items-center">
+                      <Input
+                        type="text"
+                        className="flex-1 pr-10"
+                        placeholder="Search for a city..."
+                        value={citySearchTerm}
+                        onChange={(e) => setCitySearchTerm(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0"
+                        onClick={() => setCitySearchTerm("")}
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
-                </div>
+                    {citySearchTerm && (
+                      <Card className="absolute z-10 mt-1 w-full border shadow-lg max-h-60 overflow-hidden">
+                        <ScrollArea className="h-full">
+                          {filteredCities.length > 0 ? (
+                            filteredCities.map((cityOption) => (
+                              <div
+                                key={cityOption.cityName}
+                                className="p-2 hover:bg-accent cursor-pointer"
+                                onClick={() => {
+                                  setCity(cityOption.cityName);
+                                  setCitySearchTerm(cityOption.cityName);
+                                }}
+                              >
+                                {cityOption.cityName} {cityOption.guideCount > 0 && (
+                                  <span className="text-muted-foreground">({cityOption.guideCount})</span>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="p-2 text-muted-foreground">No cities found</div>
+                          )}
+                        </ScrollArea>
+                      </Card>
+                    )}
+                  </div>
 
-                {/* Advanced filters */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <select
-                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    disabled={isLoadingData}
-                  >
-                    <option value="">Select City</option>
-                    {filteredCities.map((cityOption) => (
-                      <option key={cityOption.cityName} value={cityOption.cityName}>
-                        {cityOption.cityName} {cityOption.guideCount > 0 && `(${cityOption.guideCount})`}
-                      </option>
-                    ))}
-                  </select>
+                  {/* Advanced filters */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Select
+                      value={city}
+                      onValueChange={setCity}
+                      disabled={isLoadingData}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select City" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredCities.map((cityOption) => (
+                          <SelectItem key={cityOption.cityName} value={cityOption.cityName}>
+                            {cityOption.cityName} {cityOption.guideCount > 0 && (
+                              <span className="text-muted-foreground">({cityOption.guideCount})</span>
+                            )}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                  <select
-                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    disabled={isLoadingData}
-                  >
-                    <option value="">Select Language</option>
-                    {languages.map((lang) => (
-                      <option key={lang._id} value={lang.languageName}>
-                        {lang.languageName}
-                      </option>
-                    ))}
-                  </select>
+                    <Select
+                      value={language}
+                      onValueChange={setLanguage}
+                      disabled={isLoadingData}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Language" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {languages.map((lang) => (
+                          <SelectItem key={lang._id} value={lang.languageName}>
+                            {lang.languageName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                  <select
-                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                    value={activity}
-                    onChange={(e) => setActivity(e.target.value)}
-                    disabled={isLoadingData}
-                  >
-                    <option value="">Select Activity</option>
-                    {activities.map((act) => (
-                      <option key={act._id} value={act.activityName}>
-                        {act.activityName}
-                      </option>
-                    ))}
-                  </select>
+                    <Select
+                      value={activity}
+                      onValueChange={setActivity}
+                      disabled={isLoadingData}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Activity" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activities.map((act) => (
+                          <SelectItem key={act._id} value={act.activityName}>
+                            {act.activityName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
 
-                  <select
-                    className="form-control flex-1 p-2 border text-black border-gray-300 rounded"
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                  >
-                    <option value="">Select Gender</option>
-                    {genders.map((gen) => (
-                      <option key={gen} value={gen}>
-                        {gen}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </form>
+                    <Select
+                      value={gender}
+                      onValueChange={setGender}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {genders.map((gen) => (
+                          <SelectItem key={gen} value={gen}>
+                            {gen}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button type="submit" className="w-full sm:w-auto sm:ml-auto">
+                    Search Guides
+                  </Button>
+                </form>
+              </Card>
             </div>
 
             <div className="lg:w-5/12 flex justify-center mt-10 lg:mt-0">
@@ -253,7 +288,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     alt={`Travel destination ${index + 1}`}
                     width={600}
                     height={600}
-                    className={`rounded-full object-cover absolute transition-all duration-1000 ease-in-out ${currentImageIndex === index ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
+                    className={`rounded-full object-cover absolute transition-all duration-1000 ease-in-out ${
+                      currentImageIndex === index ? "opacity-100 scale-100" : "opacity-0 scale-95"
+                    }`}
                   />
                 ))}
               </div>

@@ -32,7 +32,7 @@ export const attractionService = {
     );
     if (!response.ok) throw new Error('Failed to fetch feedback');
     const data = await response.json();
-    console.log(data)
+    (data)
     return data.feedback || [];
 
   },

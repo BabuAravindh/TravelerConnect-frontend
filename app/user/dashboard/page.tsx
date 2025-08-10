@@ -9,6 +9,11 @@ import { ProfileService } from "@/services/user/profile/profile.service";
 import { DropdownService } from "@/services/user/profile/dropdown.service";
 import type { Profile } from "@/services/types/user/profile.type";
 import type { Country, State } from "@/services/types/user/dropdown.types";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -59,9 +64,7 @@ export default function ProfilePage() {
     setErrors({});
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-
+  const handleChange = (name: string, value: string) => {
     if (name.startsWith("address.")) {
       const field = name.split(".")[1];
       setProfile((prev) => ({
@@ -132,181 +135,196 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#6999aa]">
-        <div className="text-white text-2xl">Loading profile...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-foreground text-2xl">Loading profile...</div>
       </div>
     );
   }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#6999aa] p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-5xl flex flex-col md:flex-row gap-6">
         {/* Profile Picture Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 w-full md:w-1/3 flex flex-col items-center">
-          <h2 className="text-xl font-semibold text-[#1b374c] mb-4">Profile Picture</h2>
-          <div className="relative w-32 h-32">
-            <Image
-              src={profile.profilePicture || "/default-profile.png"}
-              alt="Profile"
-              width={128}
-              height={128}
-              className="rounded-full object-cover border-4 border-[#6999aa]"
-              priority
-            />
-            <label className="absolute bottom-0 right-0 bg-[#1b374c] p-2 rounded-full cursor-pointer">
-              <Camera size={16} className="text-white" />
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleProfilePicChange}
-                className="hidden"
+        <Card className="w-full md:w-1/3 flex flex-col items-center">
+          <CardHeader>
+            <CardTitle>Profile Picture</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center">
+            <div className="relative w-32 h-32">
+              <Image
+                src={profile.profilePicture || "/default-profile.png"}
+                alt="Profile"
+                width={128}
+                height={128}
+                className="rounded-full object-cover border-4 border-primary"
+                priority
               />
-            </label>
-          </div>
-        </div>
+              <label className="absolute bottom-0 right-0 bg-primary p-2 rounded-full cursor-pointer text-primary-foreground">
+                <Camera size={16} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePicChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Profile Details Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 w-full md:w-2/3">
-          <h2 className="text-2xl font-semibold text-[#1b374c] text-center mb-6">
-            {profile._id ? "Edit Profile" : "Create Your Profile"}
-          </h2>
+        <Card className="w-full md:w-2/3">
+          <CardHeader>
+            <CardTitle className="text-center">
+              {profile._id ? "Edit Profile" : "Create Your Profile"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={handleSave}>
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  name="firstName"
+                  value={profile.firstName}
+                  onChange={(e) => handleChange(e.target.name, e.target.value)}
+                  placeholder="Enter first name"
+                />
+                {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
+              </div>
 
-          <form className="space-y-4" onSubmit={handleSave}>
-            <div>
-              <label className="block text-sm font-medium text-[#1b374c]">First Name</label>
-              <input
-                type="text"
-                name="firstName"
-                value={profile.firstName}
-                onChange={handleChange}
-                className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-                placeholder="Enter first name"
-              />
-              {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  value={profile.lastName}
+                  onChange={(e) => handleChange(e.target.name, e.target.value)}
+                  placeholder="Enter last name"
+                />
+                {errors.lastName && <p className="text-xs text-destructive">{errors.lastName}</p>}
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#1b374c]">Last Name</label>
-              <input
-                type="text"
-                name="lastName"
-                value={profile.lastName}
-                onChange={handleChange}
-                className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-                placeholder="Enter last name"
-              />
-              {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#1b374c]">Phone Number</label>
-              <input
-                type="text"
-                name="phoneNumber"
-                value={profile.phoneNumber}
-                onChange={handleChange}
-                className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-                placeholder="e.g., +1234567890"
-              />
-              {errors.phoneNumber && (
-                <p className="text-xs text-red-500 mt-1">{errors.phoneNumber}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#1b374c]">Date of Birth</label>
-              <input
-                type="date"
-                name="dateOfBirth"
-                value={profile.dateOfBirth || ""} // Ensure valid string for date input
-                onChange={handleChange}
-                className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-              />
-              {errors.dateOfBirth && (
-                <p className="text-xs text-red-500 mt-1">{errors.dateOfBirth}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#1b374c]">Gender</label>
-              <select
-                name="gender"
-                value={profile.gender || "male"} // Default to "male" if undefined
-                onChange={handleChange}
-                className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-              >
-                <option value="">Select Gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="others">Others</option>
-              </select>
-              {errors.gender && <p className="text-xs text-red-500 mt-1">{errors.gender}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#1b374c]">Country</label>
-              <select
-                name="address.countryId"
-                value={profile.address?.countryId || ""}
-                onChange={handleChange}
-                className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-              >
-                <option value="">Select Country</option>
-                {countries.map((country) => (
-                  <option key={country._id} value={country._id}>
-                    {country.countryName}
-                  </option>
-                ))}
-              </select>
-              {errors["address.countryId"] && (
-                <p className="text-xs text-red-500 mt-1">{errors["address.countryId"]}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#1b374c]">State</label>
-              <select
-                name="address.stateId"
-                value={profile.address?.stateId || ""}
-                onChange={handleChange}
-                className="mt-1 w-full p-2 border border-[#6999aa] rounded-lg focus:ring-2 focus:ring-[#1b374c] focus:border-transparent"
-              >
-                <option value="">Select State</option>
-                {states.map((state) => (
-                  <option key={state._id} value={state._id}>
-                    {state.stateName}
-                  </option>
-                ))}
-              </select>
-              {errors["address.stateId"] && (
-                <p className="text-xs text-red-500 mt-1">{errors["address.stateId"]}</p>
-              )}
-            </div>
-
-            <div className="flex gap-4">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={`flex-1 py-2 bg-[#1b374c] text-white rounded-lg flex items-center justify-center gap-2 hover:bg-[#2a4a6a] transition-colors ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                {isSubmitting ? (
-                  "Saving..."
-                ) : (
-                  <>
-                    <Save size={16} /> {profile._id ? "Save" : "Create Profile"}
-                  </>
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  value={profile.phoneNumber}
+                  onChange={(e) => handleChange(e.target.name, e.target.value)}
+                  placeholder="e.g., +1234567890"
+                />
+                {errors.phoneNumber && (
+                  <p className="text-xs text-destructive">{errors.phoneNumber}</p>
                 )}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={isSubmitting}
-                className="flex-1 py-2 bg-gray-500 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-gray-600 transition-colors"
-              >
-                <X size={16} /> Cancel
-              </button>
-            </div>
-          </form>
-        </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                <Input
+                  id="dateOfBirth"
+                  type="date"
+                  name="dateOfBirth"
+                  value={profile.dateOfBirth || ""}
+                  onChange={(e) => handleChange(e.target.name, e.target.value)}
+                />
+                {errors.dateOfBirth && (
+                  <p className="text-xs text-destructive">{errors.dateOfBirth}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender</Label>
+                <Select
+                  name="gender"
+                  value={profile.gender || "male"}
+                  onValueChange={(value) => handleChange("gender", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="others">Others</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.gender && <p className="text-xs text-destructive">{errors.gender}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="countryId">Country</Label>
+                <Select
+                  name="address.countryId"
+                  value={profile.address?.countryId || ""}
+                  onValueChange={(value) => handleChange("address.countryId", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map((country) => (
+                      <SelectItem key={country._id} value={country._id}>
+                        {country.countryName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors["address.countryId"] && (
+                  <p className="text-xs text-destructive">{errors["address.countryId"]}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="stateId">State</Label>
+                <Select
+                  name="address.stateId"
+                  value={profile.address?.stateId || ""}
+                  onValueChange={(value) => handleChange("address.stateId", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {states.map((state) => (
+                      <SelectItem key={state._id} value={state._id}>
+                        {state.stateName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors["address.stateId"] && (
+                  <p className="text-xs text-destructive">{errors["address.stateId"]}</p>
+                )}
+              </div>
+
+              <div className="flex gap-4">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1"
+                >
+                  {isSubmitting ? (
+                    "Saving..."
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" /> {profile._id ? "Save" : "Create Profile"}
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleCancel}
+                  disabled={isSubmitting}
+                  className="flex-1"
+                >
+                  <X className="mr-2 h-4 w-4" /> Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

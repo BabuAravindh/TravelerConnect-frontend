@@ -55,7 +55,7 @@ export default function DestinationRoutes({ city, searchTerm }: DestinationRoute
       }
 
       const newRoutes = await response.json();
-      console.log('API Response:', newRoutes);
+      ('API Response:', newRoutes);
 
       let routesToAdd: Route[];
       if (Array.isArray(newRoutes) && newRoutes.length === 1 && Array.isArray(newRoutes[0].routes)) {

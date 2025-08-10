@@ -35,7 +35,7 @@ const CityInsights: React.FC<CityInsightsProps> = ({ cityName, onCityInferred })
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     const storedUserId = user?.id;
-   console.log(storedUserId)
+   (storedUserId)
     setToken(storedToken);
     setUserId(storedUserId);
     setIsAuthLoading(false);

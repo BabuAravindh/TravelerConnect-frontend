@@ -10,6 +10,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { useAuth } from "../context/AuthContext";
+import { divIcon } from 'leaflet';
 
 type TransportMode = {
   mode: string;
@@ -158,6 +159,7 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
       }
 
       setCityDetails(data.cityDetails);
+      (data.cityDetails.politicalContext)
       return data.items;
     } catch (err) {
       return err instanceof Error ? err.message : 'An unknown error occurred while fetching items.';
@@ -457,20 +459,31 @@ export default function TravelRoutesAndAttractions({ selectedCity, searchTerm }:
                 </div>
               </div>
             )}
-            {cityDetails.politicalContext.MLA && cityDetails.politicalContext.MLA.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Members of Legislative Assembly (MLA)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {cityDetails.politicalContext.MLA.map((mla, index) => (
-                    <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <p className="text-gray-800 font-medium">{mla.name}</p>
-                      <p className="text-gray-600 text-sm">Constituency: {mla.constituency}</p>
-                      <p className="text-gray-600 text-sm">Party: {mla.party}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+          {cityDetails.politicalContext.MLA && (
+  <div>
+    <h3 className="text-lg font-semibold text-gray-700 mb-2">
+      Members of Legislative Assembly (MLA)
+    </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {Array.isArray(cityDetails.politicalContext.MLA)
+        ? cityDetails.politicalContext.MLA.map((mla, index) => (
+            <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <p className="text-gray-800 font-medium">{mla.name}</p>
+              <p className="text-gray-600 text-sm">Constituency: {mla.constituency}</p>
+              <p className="text-gray-600 text-sm">Party: {mla.party}</p>
+            </div>
+          ))
+        : (
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <p className="text-gray-800 font-medium">{cityDetails.politicalContext.MLA.name || 'N/A'}</p>
+              <p className="text-gray-600 text-sm">Constituency: {cityDetails.politicalContext.MLA.constituency || 'N/A'}</p>
+              <p className="text-gray-600 text-sm">Party: {cityDetails.politicalContext.MLA.party || 'N/A'}</p>
+            </div>
+          )}
+    </div>
+  </div>
+)}
+
           </div>
         ) : (
           <div className="bg-gray-50 text-gray-600 p-8 rounded-lg text-center border border-gray-200">

@@ -1,13 +1,17 @@
 "use client";
-
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import Navbar from "@/components/Navbar";
-import toast from "react-hot-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "sonner";
 import Link from "next/link";
+import Image from "next/image";
 
 const SignupPage = () => {
   const router = useRouter();
@@ -28,48 +32,45 @@ const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false); // New state for success
+  const [success, setSuccess] = useState(false);
 
   const validateForm = useCallback(() => {
     const newErrors = { name: "", email: "", password: "", confirmPassword: "" };
     let isValid = true;
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required.";
+      newErrors.name = "Name is required";
       isValid = false;
     } else if (formData.name.length < 2) {
-      newErrors.name = "Name must be at least 2 characters.";
+      newErrors.name = "Name must be at least 2 characters";
       isValid = false;
     }
 
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required.";
+      newErrors.email = "Email is required";
       isValid = false;
     } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
-      newErrors.email = "Enter a valid email address.";
+      newErrors.email = "Please enter a valid email";
       isValid = false;
     }
 
     if (!formData.password.trim()) {
-      newErrors.password = "Password is required.";
+      newErrors.password = "Password is required";
       isValid = false;
     } else {
       const strongPasswordRegex =
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-
       if (!strongPasswordRegex.test(formData.password)) {
-        newErrors.password =
-          "Password must be at least 8 characters with uppercase, lowercase, number, and special character.";
+        newErrors.password = "Must be 8+ chars with uppercase, lowercase, number & special char";
         isValid = false;
       }
     }
 
     if (!formData.confirmPassword.trim()) {
-      newErrors.confirmPassword = "Please confirm your password.";
+      newErrors.confirmPassword = "Please confirm your password";
       isValid = false;
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match.";
+      newErrors.confirmPassword = "Passwords don't match";
       isValid = false;
     }
 
@@ -79,53 +80,35 @@ const SignupPage = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError("");
+    
+    if (!validateForm()) return;
+    
+    setLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-    if (validateForm()) {
-      setLoading(true);
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: formData.name,
-            email: formData.email,
-            password: formData.password,
-            confirmPassword: formData.confirmPassword,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          if (data.errors && data.errors.length > 0) {
-            const newErrors = data.errors.reduce(
-              (
-                acc: { name: string; email: string; password: string; confirmPassword: string },
-                err: { field: string; message: string }
-              ) => {
-                acc[err.field as keyof typeof acc] = err.message;
-                return acc;
-              },
-              { name: "", email: "", password: "", confirmPassword: "" }
-            );
-            setErrors(newErrors);
-            if (newErrors.email === "This email is already registered") {
-              setError("This email is already in use.");
-            }
-          } else {
-            throw new Error(data.message || "Registration failed");
-          }
-          return;
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.errors) {
+          const newErrors = data.errors.reduce((acc: any, err: any) => {
+            acc[err.field] = err.message;
+            return acc;
+          }, { ...errors });
+          setErrors(newErrors);
         }
-
-        toast.success("Verification mail sent successfully!");
-        setSuccess(true); // Set success state to true
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : "Registration failed";
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
+        throw new Error(data.message || "Registration failed");
       }
+
+      toast.success("Verification email sent!");
+      setSuccess(true);
+    } catch (error: any) {
+      toast.error(error.message || "Registration failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -134,12 +117,9 @@ const SignupPage = () => {
     setErrors({ ...errors, [e.target.name]: "" });
   };
 
-  // Optional: Auto-redirect to login page after 5 seconds
   useEffect(() => {
     if (success) {
-      const timer = setTimeout(() => {
-        router.push("/login");
-      }, 5000);
+      const timer = setTimeout(() => router.push("/login"), 5000);
       return () => clearTimeout(timer);
     }
   }, [success, router]);
@@ -147,190 +127,165 @@ const SignupPage = () => {
   return (
     <>
       <Navbar />
-      <section className="min-h-screen bg-primary flex items-center justify-center p-4">
-        <div className="max-w-6xl w-full bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="flex flex-col md:flex-row">
+      <section className="min-h-screen bg-primary/10 flex items-center justify-center p-4">
+        <Card className="w-full max-w-4xl overflow-hidden">
+          <div className="grid md:grid-cols-2">
             {/* Form Section */}
-            <div className="w-full md:w-1/2 p-8 md:p-12">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-800">Create Account</h1>
-                <p className="text-gray-600 mt-2">
+            <div className="p-8">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl">Create Account</CardTitle>
+                <CardDescription>
                   Join TravelerConnect to start your journey
-                </p>
-              </div>
+                </CardDescription>
+              </CardHeader>
 
-              {success ? (
-                <div className="text-center p-6 bg-green-100 rounded-lg">
-                  <h2 className="text-2xl font-semibold text-green-800 mb-4">
-                    Account Created Successfully!
-                  </h2>
-                  <p className="text-green-700 mb-4">
-                    A verification email has been sent to {formData.email}. Please check your inbox (and spam folder) to verify your account.
-                  </p>
-                  <p className="text-green-600 mb-6">
-                    You will be redirected to the login page in a few seconds, or click below to log in now.
-                  </p>
-                  <Link
-                    href="/login"
-                    className="inline-block px-6 py-3 bg-button text-white font-semibold rounded-lg hover:bg-opacity-90 transition"
-                  >
-                    Go to Login
-                  </Link>
-                </div>
-              ) : (
-                <>
-                  {error && (
-                    <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-                      {error}
-                    </div>
-                  )}
-
-                  <form className="space-y-5" onSubmit={handleSubmit}>
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name
-                      </label>
-                      <input
+              <CardContent>
+                {success ? (
+                  <Alert className="mb-6">
+                    <AlertTitle className="text-lg">Success!</AlertTitle>
+                    <AlertDescription>
+                      <p className="mb-2">
+                        Verification email sent to <span className="font-medium">{formData.email}</span>.
+                        Please check your inbox (and spam folder).
+                      </p>
+                      <p className="mb-4">
+                        You'll be redirected to login shortly, or click below to go now.
+                      </p>
+                      <Button asChild className="w-full">
+                        <Link href="/login">
+                          Go to Login <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
                         id="name"
-                        type="text"
                         name="name"
                         placeholder="John Doe"
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                          errors.name
-                            ? "border-red-500 focus:ring-red-400"
-                            : "border-gray-300 focus:ring-button"
-                        }`}
                         value={formData.name}
                         onChange={handleChange}
                         disabled={loading}
+                        className={errors.name ? "border-destructive" : ""}
                       />
                       {errors.name && (
-                        <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                        <p className="text-sm text-destructive">{errors.name}</p>
                       )}
                     </div>
 
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                        Email Address
-                      </label>
-                      <input
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
                         id="email"
                         type="email"
                         name="email"
                         placeholder="john@example.com"
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                          errors.email
-                            ? "border-red-500 focus:ring-red-400"
-                            : "border-gray-300 focus:ring-button"
-                        }`}
                         value={formData.email}
                         onChange={handleChange}
                         disabled={loading}
+                        className={errors.email ? "border-destructive" : ""}
                       />
                       {errors.email && (
-                        <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                        <p className="text-sm text-destructive">{errors.email}</p>
                       )}
                     </div>
 
-                    <div>
-                      <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                        Password
-                      </label>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
                       <div className="relative">
-                        <input
+                        <Input
                           id="password"
                           type={showPassword ? "text" : "password"}
                           name="password"
                           placeholder="••••••••"
-                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                            errors.password
-                              ? "border-red-500 focus:ring-red-400"
-                              : "border-gray-300 focus:ring-button"
-                          }`}
                           value={formData.password}
                           onChange={handleChange}
                           disabled={loading}
+                          className={errors.password ? "border-destructive" : ""}
                         />
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-3 flex items-center text-gray-500"
                           disabled={loading}
                         >
-                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
                       </div>
                       {errors.password && (
-                        <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+                        <p className="text-sm text-destructive">{errors.password}</p>
                       )}
                     </div>
 
-                    <div>
-                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                        Confirm Password
-                      </label>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm Password</Label>
                       <div className="relative">
-                        <input
+                        <Input
                           id="confirmPassword"
                           type={showConfirmPassword ? "text" : "password"}
                           name="confirmPassword"
                           placeholder="••••••••"
-                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 ${
-                            errors.confirmPassword
-                              ? "border-red-500 focus:ring-red-400"
-                              : "border-gray-300 focus:ring-button"
-                          }`}
                           value={formData.confirmPassword}
                           onChange={handleChange}
                           disabled={loading}
+                          className={errors.confirmPassword ? "border-destructive" : ""}
                         />
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute inset-y-0 right-3 flex items-center text-gray-500"
                           disabled={loading}
                         >
-                          {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
                       </div>
                       {errors.confirmPassword && (
-                        <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
+                        <p className="text-sm text-destructive">{errors.confirmPassword}</p>
                       )}
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className={`w-full py-3 bg-button text-white font-semibold rounded-lg transition ${
-                        loading ? "opacity-70 cursor-not-allowed" : "hover:bg-opacity-90"
-                      }`}
-                    >
-                      {loading ? "Creating Account..." : "Sign Up"}
-                    </button>
-                  </form>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? (
+                        <span className="flex items-center justify-center">
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating Account...
+                        </span>
+                      ) : (
+                        "Sign Up"
+                      )}
+                    </Button>
 
-                  <div className="mt-6 text-center text-sm text-gray-600">
-                    <p>
+                    <div className="text-center text-sm text-muted-foreground">
                       By signing up, you agree to our{" "}
-                      <Link href="/privacyandpolicy" className="text-button underline">
+                      <Link href="/privacyandpolicy" className="underline underline-offset-4 hover:text-primary">
                         Terms & Privacy Policy
                       </Link>
-                    </p>
-                    <p className="mt-2">
-                      Already have an account?{" "}
-                      <Link href="/login" className="text-button font-medium underline">
-                        Log in
-                      </Link>
-                    </p>
+                    </div>
+                  </form>
+                )}
+
+                {!success && (
+                  <div className="mt-4 text-center text-sm">
+                    Already have an account?{" "}
+                    <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+                      Log in
+                    </Link>
                   </div>
-                </>
-              )}
+                )}
+              </CardContent>
             </div>
 
             {/* Illustration Section */}
-            <div className="hidden md:block w-1/2 bg-gray-100">
+            <div className="hidden md:block bg-muted">
               <div className="h-full flex items-center justify-center p-8">
-                <Image
+                 <Image
                   src="https://storage.googleapis.com/devitary-image-host.appspot.com/15848031292911696601-undraw_designer_life_w96d.svg"
                   alt="Traveler Illustration"
                   width={500}
@@ -341,7 +296,7 @@ const SignupPage = () => {
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       </section>
       <Footer />
     </>

@@ -77,11 +77,11 @@ export const openRazorpayCheckout = (
       color: "#4f46e5",
     },
     modal: {
-      ondismiss: () => console.log("Checkout form closed"),
+      ondismiss: () => ("Checkout form closed"),
       escape: false,
     },
   };
 
-  console.log("➡️ Razorpay prefill:", options.prefill);
+  ("➡️ Razorpay prefill:", options.prefill);
   new window.Razorpay(options).open();
 };

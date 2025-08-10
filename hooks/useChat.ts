@@ -73,7 +73,7 @@ const fetchData = async <T>(
     }
 
     const data: T = await response.json();
-    console.log(`✅ API Response from ${url}:`, data);
+    (`✅ API Response from ${url}:`, data);
     return data;
   } catch (error) {
     console.error(`❌ Fetch error on ${url}:`, error);
@@ -170,7 +170,7 @@ const useChat = () => {
     // Subscribe to notification channel
     const notificationChannel = pusher.subscribe(`notifications-${userId}`);
     notificationChannel.bind("new-notification", (data: Notification) => {
-      console.log("📩 New notification received:", data);
+      ("📩 New notification received:", data);
       setNotifications((prev) => [data, ...prev]);
       if (!data.isRead) {
         setUnreadCount((prev) => prev + 1);
@@ -184,7 +184,7 @@ const useChat = () => {
     });
 
     notificationChannel.bind("notifications-read", (data: { notificationIds: string[] }) => {
-      console.log("✅ Notifications marked as read:", data.notificationIds);
+      ("✅ Notifications marked as read:", data.notificationIds);
       setNotifications((prev) =>
         prev.map((n) => (data.notificationIds.includes(n._id) ? { ...n, isRead: true } : n))
       );
@@ -195,10 +195,10 @@ const useChat = () => {
     let channel: Channel | null = null;
     if (selectedConversation) {
       const channelName = `chat-${selectedConversation._id}`;
-      console.log(`📢 Subscribing to Pusher channel: ${channelName}`);
+      (`📢 Subscribing to Pusher channel: ${channelName}`);
       channel = pusher.subscribe(channelName);
       channel.bind("new-message", (newMessage: Message) => {
-        console.log("📩 New message received:", newMessage);
+        ("📩 New message received:", newMessage);
         setMessages((prev) => [...prev, newMessage]);
       });
     }
@@ -238,8 +238,8 @@ const useChat = () => {
     const receiver = selectedConversation.participants.find((p) => p._id !== userId);
     if (!receiver) return;
 
-    console.log("📤 Sending message to:", receiver._id);
-    console.log("📨 Message Payload:", { senderId: userId, message: newMessage });
+    ("📤 Sending message to:", receiver._id);
+    ("📨 Message Payload:", { senderId: userId, message: newMessage });
 
     const data = await fetchData<{ success: boolean }>(
       `${API_BASE_URL}/chats/send/${receiver._id}`,
@@ -262,7 +262,7 @@ const useChat = () => {
     );
 
     if (!conversation) {
-      console.log("➕ No existing conversation, creating a new one...");
+      ("➕ No existing conversation, creating a new one...");
       const response = await fetchData<{ conversation: Conversation }>(
         `${API_BASE_URL}/chats/startConversation`,
         token,
@@ -279,7 +279,7 @@ const useChat = () => {
       }
 
       conversation = response.conversation;
-      console.log("✅ Created new conversation:", conversation);
+      ("✅ Created new conversation:", conversation);
       if (conversation) {
         setConversations((prev) => [...prev, conversation as Conversation]);
       }
@@ -309,7 +309,7 @@ const useChat = () => {
     if (!userId || !token) return null;
 
     try {
-      console.log(`Fetching conversation: ${API_BASE_URL}/chats/conversation/${userId}/${guideId}`);
+      (`Fetching conversation: ${API_BASE_URL}/chats/conversation/${userId}/${guideId}`);
       const response = await fetch(`${API_BASE_URL}/chats/conversation/${userId}/${guideId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -378,11 +378,11 @@ const useChat = () => {
 
   // Debugging Logs
   useEffect(() => {
-    console.log("🗂 Conversations:", conversations);
-    console.log("🔔 Notifications:", notifications);
-    console.log("🔢 Unread Count:", unreadCount);
-    console.log("👤 Role:", role);
-    console.log("🔑 Token:", token);
+    ("🗂 Conversations:", conversations);
+    ("🔔 Notifications:", notifications);
+    ("🔢 Unread Count:", unreadCount);
+    ("👤 Role:", role);
+    ("🔑 Token:", token);
   }, [conversations, notifications, unreadCount, role, token]);
 
   return {

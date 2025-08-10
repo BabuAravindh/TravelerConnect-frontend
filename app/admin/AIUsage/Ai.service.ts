@@ -3,7 +3,7 @@ import { CreditRecord, CreditRequest, AIInteraction } from './AiTypes';
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export const fetchCreditRecords = async (): Promise<CreditRecord[]> => {
-  console.log((`${BASE_URL}/api/admin/credit-records`))
+  ((`${BASE_URL}/api/admin/credit-records`))
   const response = await fetch(`${BASE_URL}/api/admin/credit-records`, {
     headers: {
       Authorization: `Bearer ${localStorage.getItem('token') || ''}`,

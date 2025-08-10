@@ -70,7 +70,7 @@ const GuideListing: React.FC<GuideListingProps> = ({
         if (!response.ok) throw new Error('Failed to fetch guides');
 
         const data = await response.json();
-        console.log('Fetched guides:', data);
+        ('Fetched guides:', data);
         setGuides(data);
       } catch (error) {
         console.error('Error fetching guides:', error);

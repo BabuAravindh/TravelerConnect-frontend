@@ -207,7 +207,7 @@ const apiService = {
   if (!token) {
     throw new Error("Authentication token not found. Please log in again.");
   }
-  console.log((`http://localhost:5000/api/search/guides?destination=${encodeURIComponent(cityName)}`))
+  ((`http://localhost:5000/api/search/guides?destination=${encodeURIComponent(cityName)}`))
   const response = await fetch(`http://localhost:5000/api/search/guides/city?city=${encodeURIComponent(cityName)}`, {
     headers: { 'Authorization': `Bearer ${token}` },
   });
@@ -216,7 +216,7 @@ const apiService = {
   const result = await response.json();
    
   const guides = Array.isArray(result.data) ? result.data : [];
-  console.log('Fetched guides:', guides);
+  ('Fetched guides:', guides);
   return guides
     .filter((guide: Guide) => guide.active)
     .sort((a: Guide, b: Guide) => (a.name || '').localeCompare(b.name || '')); // ✅ Sort by name

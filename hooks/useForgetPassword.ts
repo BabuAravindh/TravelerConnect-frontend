@@ -30,7 +30,7 @@ const useForgotPassword = () => {
         throw new Error(data.message || "Something went wrong");
       }
 
-      console.log("✅ Reset password email sent:", email);
+      ("✅ Reset password email sent:", email);
       router.push("/verify/code");
     } catch (err: any) {
       setError(err.message || "Failed to send reset email.");

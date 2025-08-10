@@ -39,7 +39,7 @@ const useAuth = () => {
         setUserRole(null);
       }
     };
-    console.log(userId,userName,userRole)
+    (userId,userName,userRole)
     fetchUserData();
     const handleStorageChange = () => fetchUserData();
     window.addEventListener("storage", handleStorageChange);

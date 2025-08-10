@@ -1,9 +1,14 @@
 "use client";
-
 import { useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 import useLogin from "@/hooks/useLogin";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
@@ -11,25 +16,25 @@ const SignInPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({ email: "", password: "" });
-  const { error, isUnverified, handleLogin } = useLogin();
+  const { error, isUnverified, handleLogin, isLoading } = useLogin();
 
   const validateForm = () => {
-    const newErrors = { email: "", password: "" }; // ✅ Changed `let` to `const`
+    const newErrors = { email: "", password: "" };
     let isValid = true;
 
     if (!email.trim()) {
-      newErrors.email = "Email is required.";
+      newErrors.email = "Email is required";
       isValid = false;
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = "Enter a valid email address.";
+      newErrors.email = "Please enter a valid email";
       isValid = false;
     }
 
     if (!password.trim()) {
-      newErrors.password = "Password is required.";
+      newErrors.password = "Password is required";
       isValid = false;
-    } else if (password.length < 4) { // ✅ Fixed password length check (previously < 4)
-      newErrors.password = "Password must be at least 6 characters.";
+    } else if (password.length > 6) {
+      newErrors.password = "Password must be at least 6 characters";
       isValid = false;
     }
 
@@ -57,101 +62,114 @@ const SignInPage = () => {
       if (response.ok) {
         toast.success("Verification email sent! Check your inbox.");
       } else {
-        toast.error(data.error || "Failed to resend verification email.");
+        toast.error(data.error || "Failed to resend verification email");
       }
     } catch {
-      toast.error("Something went wrong. Please try again."); // ✅ Removed unused `err`
+      toast.error("Something went wrong. Please try again.");
     }
   };
 
   return (
     <>
-    <Navbar/>
-    <div className="flex justify-center items-center min-h-screen bg-primary p-6">
-      <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-2xl border border-gray-200">
-        <h1 className="text-3xl font-bold text-gray-900 text-center mb-6">Sign In</h1>
+      <Navbar />
+      <div className="min-h-screen bg-primary flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Sign In</CardTitle>
+            <CardDescription>
+              Welcome back to TravelerConnect
+            </CardDescription>
+          </CardHeader>
 
-        {/* Display error messages */}
-        {error && (
-          <p
-            className={`p-2 text-center rounded-md mb-4 ${
-              isUnverified ? "bg-yellow-500 text-gray-900" : "bg-red-500 text-white"
-            }`}
-          >
-            {error}
-          </p>
-        )}
+          <CardContent>
+            {/* Error Messages */}
+            {error && (
+              <Alert variant={isUnverified ? "default" : "destructive"} className="mb-4">
+                <AlertTitle>{isUnverified ? "Account Not Verified" : "Error"}</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-        {/* Resend Verification Email Button */}
-        {isUnverified && (
-          <div className="flex justify-center">
-            <button
-              onClick={resendVerificationEmail}
-              className="mt-3 px-4 py-2 bg-button text-white font-semibold rounded-lg hover:bg-opacity-90 transition-all"
-            >
-              Resend Verification Email
-            </button>
-          </div>
-        )}
+            {/* Resend Verification Button */}
+            {isUnverified && (
+              <div className="mb-4 flex justify-center">
+                <Button
+                  onClick={resendVerificationEmail}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Resend Verification Email
+                </Button>
+              </div>
+            )}
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setErrors((prev) => ({ ...prev, email: "" })); // ✅ Used functional update for `setErrors`
-              }}
-              placeholder="Enter your email"
-              className={`mt-2 w-full p-3 border rounded-lg focus:ring-blue-500 shadow-sm ${
-                errors.email ? "border-red-500" : "border-gray-300"
-              }`}
-            />
-            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-4 ">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setErrors((prev) => ({ ...prev, email: "" }));
+                  }}
+                  placeholder="your@email.com"
+                  className={errors.email ? "border-destructive" : ""}
+                />
+                {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setErrors((prev) => ({ ...prev, password: "" })); // ✅ Used functional update for `setErrors`
-              }}
-              placeholder="Enter your password"
-              className={`mt-2 w-full p-3 border rounded-lg focus:ring-blue-500 shadow-sm ${
-                errors.password ? "border-red-500" : "border-gray-300"
-              }`}
-            />
-            {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setErrors((prev) => ({ ...prev, password: "" }));
+                  }}
+                  placeholder="••••••••"
+                  className={errors.password ? "border-destructive" : ""}
+                />
+                {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+              </div>
 
-          <p className="text-right">
-            <Link href="/verify" className="text-indigo-500">
-              Forgot password?
-            </Link>
-          </p>
+              <div className="text-right">
+                <Link
+                  href="/verify"
+                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
 
-          <button
-            type="submit"
-            className="w-full bg-button hover:bg-opacity-80 text-white font-semibold py-3 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            Sign In
-          </button>
-        </form>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing In...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
+              </Button>
+            </form>
 
-        <p className="text-center mt-4 text-button">
-          New to this website?{" "}
-          <Link href="/signup" className="text-primary font-medium">
-            Create an account
-          </Link>
-        </p>
+            <div className="mt-4 text-center text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <Link
+                href="/signup"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Sign up
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    </div>
-    <Footer/>
+      <Footer />
     </>
   );
 };

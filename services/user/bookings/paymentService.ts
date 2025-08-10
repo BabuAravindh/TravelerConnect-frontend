@@ -97,7 +97,7 @@ export const recordManualPayment = async (
     }
     if (screenshot) {
       formData.append("screenshot", screenshot);
-      console.log(`Uploading screenshot for booking ${bookingId}, Size: ${(screenshot.size / 1024 / 1024).toFixed(2)} MB`);
+      (`Uploading screenshot for booking ${bookingId}, Size: ${(screenshot.size / 1024 / 1024).toFixed(2)} MB`);
     }
 
     const response = await axios.post(`${BASE_URL}/api/payment/cash`, formData, {

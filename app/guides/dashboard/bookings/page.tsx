@@ -101,7 +101,7 @@ const BookingsPage = () => {
           {} as Record<string, PaymentHistoryResponse>
         );
 
-        console.log("Payment Histories:", paymentHistoriesObj);
+        ("Payment Histories:", paymentHistoriesObj);
         setPaymentHistories(paymentHistoriesObj);
       } catch (error: unknown) {
         if (!isMounted) return;

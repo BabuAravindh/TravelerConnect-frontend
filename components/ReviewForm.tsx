@@ -70,7 +70,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ entityId, entityType }) => {
 
     setLoading(true);
     setMessage(null);
-    console.log(requestData)
+    (requestData)
     try {
       const endpoint = getApiEndpoint();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/${endpoint}`, {

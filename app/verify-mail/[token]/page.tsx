@@ -29,7 +29,7 @@ const VerifyEmailPage = () => {
         );
 
         const data = await response.json();
-        console.log("API Response:", data);
+        ("API Response:", data);
 
         if (response.ok) {
           setMessage(data.message || "Email verified successfully!");

@@ -1,22 +1,31 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { 
   BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  ResponsiveContainer, 
-  LineChart, 
-  Line, 
-  PieChart, 
-  Pie, 
+  LineChart,
+  PieChart,
+  Bar,
+  Line,
+  Pie,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
   Cell,
-  Legend
+  RadialBarChart,
+  RadialBar,
+  AreaChart,
+  Area,
+  CartesianGrid
 } from "recharts";
-import useAuth from "@/hooks/useAuth";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/Skeleton";
+import useAuth from "@/hooks/useAuth"
+import { Button } from "@/components/ui/button";
+import { ArrowUp, ArrowDown, Users, MapPin, Calendar, Wallet, RefreshCw, Check, X } from "lucide-react";
 
 interface AdminStats {
   users: {
@@ -40,14 +49,28 @@ interface AdminStats {
   };
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+// Enhanced color palette
+const COLORS = {
+  blue: '#3b82f6',
+  teal: '#14b8a6',
+  amber: '#f59e0b',
+  rose: '#f43f5e',
+  indigo: '#6366f1',
+  emerald: '#10b981',
+  violet: '#8b5cf6',
+  cyan: '#06b6d4'
+};
+
+const GRADIENT_COLORS = [
+  { start: '#3b82f6', end: '#6366f6' },
+  { start: '#14b8a6', end: '#10b981' },
+  { start: '#f59e0b', end: '#f97316' },
+  { start: '#f43f5e', end: '#ec4899' }
+];
 
 export default function AdminDashboard() {
   const { userRole } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
-  const isOverviewPage = pathname === "/admin/dashboard";
-  
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -86,27 +109,34 @@ export default function AdminDashboard() {
     fetchStats();
   }, []);
 
-  // Generate chart data from monthly revenue
+  // Generate chart data
   const revenueData = stats?.payments.monthlyRevenue.map(item => ({
-    name: item.month.split(' ')[0], // Just show month name
-    value: item.total
+    name: item.month.split(' ')[0],
+    revenue: item.total
   })) || [];
 
   const bookingStatusData = [
-    { name: 'Completed', value: stats?.bookings.completed || 0 },
-    { name: 'Pending', value: stats?.bookings.pending || 0 },
-    { name: 'Cancelled', value: stats?.bookings.cancelled || 0 },
-    { name: 'Paid', value: stats?.bookings.paid || 0 }
+    { name: 'Completed', value: stats?.bookings.completed || 0, color: COLORS.emerald },
+    { name: 'Pending', value: stats?.bookings.pending || 0, color: COLORS.amber },
+    { name: 'Cancelled', value: stats?.bookings.cancelled || 0, color: COLORS.rose }
   ];
 
   const userDistributionData = [
-    { name: 'Guides', value: stats?.users.guides || 0 },
-    { name: 'Customers', value: stats?.users.customers || 0 }
+    { name: 'Guides', value: stats?.users.guides || 0, color: COLORS.blue },
+    { name: 'Customers', value: stats?.users.customers || 0, color: COLORS.teal }
   ];
 
-  const paymentData = [
-    { name: 'Revenue', value: stats?.payments.totalRevenue || 0 },
-    { name: 'Refunds', value: stats?.payments.totalRefundAmount || 0 }
+  const revenueVsRefundsData = [
+    { 
+      name: 'Revenue', 
+      value: stats?.payments.totalRevenue || 0,
+      fill: `url(#revenueGradient)`
+    },
+    { 
+      name: 'Refunds', 
+      value: stats?.payments.totalRefundAmount || 0,
+      fill: COLORS.rose
+    }
   ];
 
   const formatCurrency = (value: number) => {
@@ -117,200 +147,266 @@ export default function AdminDashboard() {
     }).format(value);
   };
 
-  if (!userRole) return <p className="text-center py-10">Loading...</p>;
+  const formatShortCurrency = (value: number) => {
+    if (value >= 100000) {
+      return `₹${(value / 100000).toFixed(1)}L`;
+    }
+    if (value >= 1000) {
+      return `₹${(value / 1000).toFixed(1)}K`;
+    }
+    return `₹${value}`;
+  };
+
+  if (!userRole) return <LoadingState />;
   if (userRole !== "admin") return null;
 
-  if (loading) return <p className="text-center py-10">Loading dashboard...</p>;
-  if (error) return <p className="text-center py-10 text-red-500">{error}</p>;
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState message={error} />;
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <main className="flex-1 p-6">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
-          
-          {/* Stats Overview Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard 
-              title="Total Users" 
-              value={stats?.users.total || 0} 
-              icon="👥"
-              trend="up"
-              change="12%"
-              color="bg-blue-50 text-blue-600"
-            />
-            <StatCard 
-              title="Guides" 
-              value={stats?.users.guides || 0} 
-              icon="🧭"
-              trend="up"
-              change="8%"
-              color="bg-green-50 text-green-600"
-            />
-            <StatCard 
-              title="Customers" 
-              value={stats?.users.customers || 0} 
-              icon="👤"
-              trend="up"
-              change="15%"
-              color="bg-purple-50 text-purple-600"
-            />
-            <StatCard 
-              title="Total Bookings" 
-              value={stats?.bookings.total || 0} 
-              icon="📅"
-              trend="up"
-              change="22%"
-              color="bg-yellow-50 text-yellow-600"
-            />
-            <StatCard 
-              title="Total Revenue" 
-              value={formatCurrency(stats?.payments.totalRevenue || 0)} 
-              icon="💰"
-              trend="up"
-              change="18%"
-              color="bg-indigo-50 text-indigo-600"
-            />
-            <StatCard 
-              title="Total Refunds" 
-              value={formatCurrency(stats?.payments.totalRefundAmount || 0)} 
-              icon="🔄"
-              trend="down"
-              change="5%"
-              color="bg-red-50 text-red-600"
-            />
-            <StatCard 
-              title="Completed Bookings" 
-              value={stats?.bookings.completed || 0} 
-              icon="✅"
-              trend="up"
-              change="10%"
-              color="bg-teal-50 text-teal-600"
-            />
-            <StatCard 
-              title="Cancelled Bookings" 
-              value={stats?.bookings.cancelled || 0} 
-              icon="❌"
-              trend="down"
-              change="3%"
-              color="bg-rose-50 text-rose-600"
-            />
+    <div className="p-6 space-y-6">
+      <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Admin Dashboard</h1>
+      
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard 
+          title="Total Users" 
+          value={stats?.users.total || 0} 
+          change={12}
+          icon={<Users className="h-5 w-5" />}
+          color={COLORS.blue}
+        />
+        <StatCard 
+          title="Guides" 
+          value={stats?.users.guides || 0} 
+          change={8}
+          icon={<MapPin className="h-5 w-5" />}
+          color={COLORS.teal}
+        />
+        <StatCard 
+          title="Customers" 
+          value={stats?.users.customers || 0} 
+          change={15}
+          icon={<Users className="h-5 w-5" />}
+          color={COLORS.indigo}
+        />
+        <StatCard 
+          title="Total Bookings" 
+          value={stats?.bookings.total || 0} 
+          change={22}
+          icon={<Calendar className="h-5 w-5" />}
+          color={COLORS.violet}
+        />
+        <StatCard 
+          title="Total Revenue" 
+          value={formatCurrency(stats?.payments.totalRevenue || 0)} 
+          change={18}
+          icon={<Wallet className="h-5 w-5" />}
+          color={COLORS.emerald}
+        />
+        <StatCard 
+          title="Total Refunds" 
+          value={formatCurrency(stats?.payments.totalRefundAmount || 0)} 
+          change={-5}
+          icon={<RefreshCw className="h-5 w-5" />}
+          color={COLORS.rose}
+        />
+        <StatCard 
+          title="Completed" 
+          value={stats?.bookings.completed || 0} 
+          change={10}
+          icon={<Check className="h-5 w-5" />}
+          color={COLORS.emerald}
+        />
+        <StatCard 
+          title="Cancelled" 
+          value={stats?.bookings.cancelled || 0} 
+          change={-3}
+          icon={<X className="h-5 w-5" />}
+          color={COLORS.rose}
+        />
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DashboardCard title="Monthly Revenue Trend">
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={revenueData}>
+                <defs>
+                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={COLORS.blue} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={COLORS.blue} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                <XAxis dataKey="name" />
+                <YAxis 
+                  tickFormatter={(value) => formatShortCurrency(value)}
+                  width={80}
+                />
+                <Tooltip 
+                  formatter={(value) => [formatCurrency(Number(value)), "Revenue"]}
+                  contentStyle={{
+                    borderRadius: '8px',
+                    border: 'none',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                  }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke={COLORS.blue}
+                  strokeWidth={2}
+                  fillOpacity={1} 
+                  fill="url(#revenueGradient)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
+        </DashboardCard>
 
-          {isOverviewPage ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Revenue Trends */}
-              <DashboardCard title="Monthly Revenue Trends">
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={revenueData}>
-                      <XAxis dataKey="name" />
-                      <YAxis 
-                        tickFormatter={(value) => `₹${value}`}
-                        width={80}
-                      />
-                      <Tooltip 
-                        formatter={(value) => [formatCurrency(Number(value)), "Revenue"]}
-                      />
-                      <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="#4F46E5" 
-                        strokeWidth={2}
-                        activeDot={{ r: 8 }}
-                        name="Revenue"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </DashboardCard>
+        <DashboardCard title="Booking Status Distribution">
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadialBarChart 
+                innerRadius="20%" 
+                outerRadius="90%" 
+                data={bookingStatusData}
+                startAngle={180}
+                endAngle={-180}
+              >
+                <RadialBar
+                  minAngle={15}
+                  label={{ 
+                    position: 'insideStart',
+                    fill: '#fff',
+                    formatter: (value) => `${value}`
+                  }}
+                  background
+                  clockWise
+                  dataKey="value"
+                >
+                  {bookingStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </RadialBar>
+                <Legend 
+                  iconSize={10}
+                  layout="vertical"
+                  verticalAlign="middle"
+                  align="right"
+                  wrapperStyle={{
+                    paddingLeft: '20px'
+                  }}
+                />
+                <Tooltip 
+                  formatter={(value) => [value, "Bookings"]}
+                  contentStyle={{
+                    borderRadius: '8px',
+                    border: 'none'
+                  }}
+                />
+              </RadialBarChart>
+            </ResponsiveContainer>
+          </div>
+        </DashboardCard>
 
-              {/* Booking Status */}
-              <DashboardCard title="Booking Status Distribution">
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={bookingStatusData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        nameKey="name"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {bookingStatusData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value) => [value, "Bookings"]}
-                      />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </DashboardCard>
-
-              {/* User Distribution */}
-              <DashboardCard title="User Distribution">
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={userDistributionData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                        nameKey="name"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {userDistributionData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </DashboardCard>
-
-              {/* Payment Overview */}
-              <DashboardCard title="Payment Overview">
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={paymentData}
-                      layout="vertical"
+        <DashboardCard title="User Composition">
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <defs>
+                  {userDistributionData.map((entry, index) => (
+                    <linearGradient 
+                      key={`gradient-${index}`} 
+                      id={`gradient-${index}`} 
+                      x1="0" 
+                      y1="0" 
+                      x2="0" 
+                      y2="1"
                     >
-                      <XAxis type="number" tickFormatter={(value) => `₹${value}`} />
-                      <YAxis dataKey="name" type="category" />
-                      <Tooltip 
-                        formatter={(value) => [formatCurrency(Number(value)), "Amount"]}
-                      />
-                      <Legend />
-                      <Bar dataKey="value" fill="#8884d8" name="Amount">
-                        {paymentData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </DashboardCard>
-            </div>
-          ) : (
-            <p className="text-center text-gray-600">No additional content</p>
-          )}
-        </div>
-      </main>
+                      <stop offset="5%" stopColor={entry.color} stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor={entry.color} stopOpacity={0.2}/>
+                    </linearGradient>
+                  ))}
+                </defs>
+                <Pie
+                  data={userDistributionData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
+                  {userDistributionData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={`url(#gradient-${index})`} 
+                    />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => [value, "Users"]}
+                  contentStyle={{
+                    borderRadius: '8px',
+                    border: 'none'
+                  }}
+                />
+                <Legend 
+                  iconType="circle"
+                  layout="vertical"
+                  verticalAlign="middle"
+                  align="right"
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </DashboardCard>
+
+        <DashboardCard title="Revenue vs Refunds">
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={revenueVsRefundsData}>
+                <defs>
+                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={COLORS.emerald} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={COLORS.emerald} stopOpacity={0.2}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                <XAxis dataKey="name" />
+                <YAxis 
+                  tickFormatter={(value) => formatShortCurrency(value)}
+                  width={80}
+                />
+                <Tooltip 
+                  formatter={(value) => [formatCurrency(Number(value)), "Amount"]}
+                  contentStyle={{
+                    borderRadius: '8px',
+                    border: 'none'
+                  }}
+                />
+                <Bar 
+                  dataKey="value" 
+                  radius={[4, 4, 0, 0]}
+                  barSize={60}
+                >
+                  {revenueVsRefundsData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.fill} 
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </DashboardCard>
+      </div>
     </div>
   );
 }
@@ -318,54 +414,82 @@ export default function AdminDashboard() {
 interface StatCardProps {
   title: string;
   value: string | number;
-  icon: string;
-  color: string;
-  trend?: 'up' | 'down';
-  change?: string;
+  icon: React.ReactNode;
+  change?: number;
+  color?: string;
 }
 
-const StatCard = ({ 
-  title, 
-  value, 
-  icon, 
-  color,
-  trend,
-  change
-}: StatCardProps) => (
-  <div className={`p-6 rounded-xl shadow-sm ${color.split(' ')[0]} border border-gray-100`}>
-    <div className="flex justify-between items-start">
-      <div>
-        <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-        <p className="text-2xl font-bold">{value}</p>
-      </div>
-      <span className="text-2xl">{icon}</span>
-    </div>
-    {trend && change && (
-      <div className={`mt-2 flex items-center text-sm ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-        {trend === 'up' ? (
-          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-          </svg>
-        ) : (
-          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
+const StatCard = ({ title, value, icon, change = 0, color = '#3b82f6' }: StatCardProps) => {
+  const isPositive = change >= 0;
+  
+  return (
+    <Card className="transition-all hover:shadow-lg hover:-translate-y-1">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {title}
+        </CardTitle>
+        <div 
+          className="p-2 rounded-lg" 
+          style={{ backgroundColor: `${color}20`, color: color }}
+        >
+          {icon}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold" style={{ color: color }}>{value}</div>
+        {change !== 0 && (
+          <p className={`text-xs mt-1 flex items-center ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+            {isPositive ? (
+              <ArrowUp className="h-3 w-3 mr-1" />
+            ) : (
+              <ArrowDown className="h-3 w-3 mr-1" />
+            )}
+            {Math.abs(change)}% from last month
+          </p>
         )}
-        {change} from last month
-      </div>
-    )}
+      </CardContent>
+    </Card>
+  );
+};
+
+const DashboardCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <Card className="shadow-sm hover:shadow-md transition-shadow">
+    <CardHeader>
+      <CardTitle className="text-lg font-semibold text-gray-800 dark:text-white">
+        {title}
+      </CardTitle>
+    </CardHeader>
+    <CardContent>{children}</CardContent>
+  </Card>
+);
+
+const LoadingState = () => (
+  <div className="p-6 space-y-4">
+    <Skeleton className="h-8 w-[200px]" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {[...Array(8)].map((_, i) => (
+        <Skeleton key={i} className="h-[100px] rounded-lg" />
+      ))}
+    </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {[...Array(4)].map((_, i) => (
+        <Skeleton key={i} className="h-[300px] rounded-lg" />
+      ))}
+    </div>
   </div>
 );
 
-const DashboardCard = ({ 
-  title, 
-  children 
-}: { 
-  title: string; 
-  children: React.ReactNode 
-}) => (
-  <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-    <h2 className="text-lg font-semibold text-gray-800 mb-4">{title}</h2>
-    {children}
+const ErrorState = ({ message }: { message: string }) => (
+  <div className="p-6 text-center">
+    <div className="bg-red-100 text-red-700 p-4 rounded-lg inline-block max-w-md">
+      <p className="font-medium">{message}</p>
+    </div>
+    <Button 
+      variant="outline" 
+      className="mt-4"
+      onClick={() => window.location.reload()}
+    >
+      Retry
+    </Button>
   </div>
 );

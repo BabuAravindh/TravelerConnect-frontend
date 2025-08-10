@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 const storeToken = (token: string) => {
-  console.log("Storing token in localStorage under 'token':", token);
+  ("Storing token in localStorage under 'token':", token);
   localStorage.setItem("token", token); // Using "token" as the key
 };
 
@@ -17,7 +17,7 @@ const VerifyGuideEmailPage = () => {
   const [isVerified, setIsVerified] = useState(false);
 
   useEffect(() => {
-    console.log("Extracted Token:", token);
+    ("Extracted Token:", token);
 
     // Clear any existing tokens to avoid conflicts
     localStorage.removeItem("authToken");
@@ -28,7 +28,7 @@ const VerifyGuideEmailPage = () => {
       return;
     }
 
-    console.log(`Fetching: ${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email/${token}`);
+    (`Fetching: ${process.env.NEXT_PUBLIC_API_URL}/auth/verify-email/${token}`);
 
     const verifyEmail = async () => {
       try {
@@ -41,7 +41,7 @@ const VerifyGuideEmailPage = () => {
         );
 
         const data = await response.json();
-        console.log("API Response:", JSON.stringify(data, null, 2));
+        ("API Response:", JSON.stringify(data, null, 2));
 
         if (response.ok) {
           setMessage(data.message || "Guide account verified successfully!");
@@ -49,7 +49,7 @@ const VerifyGuideEmailPage = () => {
 
           // Validate and store the JWT token
           if (data.token && typeof data.token === "string" && data.token.split(".").length === 3) {
-            console.log("Valid JWT token received:", data.token);
+            ("Valid JWT token received:", data.token);
             storeToken(data.token);
           } else {
             console.error("Invalid or missing token in response:", data.token);
